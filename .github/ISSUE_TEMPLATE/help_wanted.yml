@@ -1,0 +1,26 @@
+name: Help wanted
+description: Ask for help with a task related to loaders.zig.
+title: "[Help]: "
+labels: [help wanted]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when you want guidance on implementing, debugging, or integrating loaders.zig.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Share the steps you've already taken.
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Current blockers
+      description: What is preventing you from moving forward?

@@ -1,0 +1,30 @@
+name: Documentation issue
+description: Report a problem or gap in the documentation.
+title: "[Docs]: "
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for broken links, missing explanations, or unclear documentation.
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: Which documentation page is affected?
+      placeholder: guide/getting-started
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: Problem
+      description: What is wrong or unclear?
+      placeholder: The installation section does not mention...
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: How should the page be improved?

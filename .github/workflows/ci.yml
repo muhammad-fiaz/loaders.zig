@@ -1,0 +1,70 @@
+name: CI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Run Zig tests
+        run: zig build test --summary all
+
+      - name: Build library (Debug)
+        run: zig build -Doptimize=Debug
+
+      - name: Build library (ReleaseFast)
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: Build examples
+        run: zig build examples
+
+      - name: Zig format check
+        run: zig fmt --check build.zig src/ examples/
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Zig 0.16.0
+        uses: mlugg/setup-zig@v1
+        with:
+          version: "0.16.0"
+      - name: Run tests
+        run: zig build test
+      - name: Build examples
+        run: zig build examples
+      - name: Check formatting
+        run: zig fmt --check src/ examples/
