@@ -11,8 +11,8 @@
 const std = @import("std");
 const loaders = @import("loaders");
 
-pub fn main() !void {
-    const io = std.io.getStdErr().getIo();
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
 
     std.debug.print("--- Advanced Progress Customization Showcase ---\n\n", .{});
     std.debug.print("Try resizing your terminal window while this progress bar runs!\n\n", .{});

@@ -66,11 +66,11 @@ const bar_demos = [_]struct {
     .{ .name = "slim    ", .style = loaders.BarStyle.slim },
 };
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    const io = std.io.getStdErr().getIo();
+    const io = init.io;
 
     std.debug.print("\n=== Spinner Styles ===\n\n", .{});
 
@@ -81,7 +81,7 @@ pub fn main() !void {
             .style = demo.style,
         });
         io.sleep(std.Io.Duration.fromMilliseconds(800), .awake) catch {};
-        try sp.succeed(io, demo.name);
+        sp.succeed(io, demo.name);
     }
 
     std.debug.print("\n=== Bar Styles ===\n\n", .{});

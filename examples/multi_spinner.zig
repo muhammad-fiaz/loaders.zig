@@ -3,32 +3,32 @@
 const std = @import("std");
 const loaders = @import("loaders");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const io = std.io.getStdErr().getIo();
+    const io = init.io;
 
     std.debug.print("--- Multi-Spinner Demo ---\n", .{});
 
     const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
 
-    const fetch  = ms.addItem("Fetching data from API",   loaders.SpinnerStyle.dots);
-    const parse  = ms.addItem("Parsing JSON response",    loaders.SpinnerStyle.arc);
-    const build  = ms.addItem("Compiling assets",         loaders.SpinnerStyle.aesthetic);
-    const upload = ms.addItem("Uploading to CDN",         loaders.SpinnerStyle.pulse);
-    const check  = ms.addItem("Running health checks",    loaders.SpinnerStyle.wifi);
+    const fetch = ms.addItem("Fetching data from API", loaders.SpinnerStyle.dots);
+    const parse = ms.addItem("Parsing JSON response", loaders.SpinnerStyle.arc);
+    const build = ms.addItem("Compiling assets", loaders.SpinnerStyle.aesthetic);
+    const upload = ms.addItem("Uploading to CDN", loaders.SpinnerStyle.pulse);
+    const check = ms.addItem("Running health checks", loaders.SpinnerStyle.wifi);
 
     // Give each item a distinct color
-    fetch.color  = .cyan;
-    parse.color  = .bright_yellow;
-    build.color  = .{ .rgb = .{ .r = 160, .g = 100, .b = 255 } };
+    fetch.color = .cyan;
+    parse.color = .bright_yellow;
+    build.color = .{ .rgb = .{ .r = 160, .g = 100, .b = 255 } };
     upload.color = .bright_blue;
-    check.color  = .green;
+    check.color = .green;
 
     // Suffixes
-    fetch.suffix  = "(50 KB/s)";
+    fetch.suffix = "(50 KB/s)";
 
     // Simulate staggered completions
     io.sleep(std.Io.Duration.fromMilliseconds(800), .awake) catch {};

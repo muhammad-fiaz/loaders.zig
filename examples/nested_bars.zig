@@ -6,7 +6,7 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("--- Running Nested Bars Simulation ---\n", .{});
 
-    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null);
+    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null, .{});
 
     const outer_bar = mb.addBar(.{
         .label = "Total Batches",
