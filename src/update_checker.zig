@@ -164,18 +164,19 @@ test "extractTagName with spaces" {
 }
 
 test "extractTagName missing" {
-    const json = \\{"name":"no-tag-here"}
+    const json =
+        \\{"name":"no-tag-here"}
     ;
     try std.testing.expect(extractTagName(json) == null);
 }
 
 test "SemanticVersion comparison" {
     const current = try std.SemanticVersion.parse("0.0.1");
-    const newer   = try std.SemanticVersion.parse("0.1.0");
-    const older   = try std.SemanticVersion.parse("0.0.0");
+    const newer = try std.SemanticVersion.parse("0.1.0");
+    const older = try std.SemanticVersion.parse("0.0.0");
 
-    try std.testing.expect(current.order(newer) == .lt);  // update available
-    try std.testing.expect(current.order(older) == .gt);  // current is newer
+    try std.testing.expect(current.order(newer) == .lt); // update available
+    try std.testing.expect(current.order(older) == .gt); // current is newer
     try std.testing.expect(current.order(current) == .eq); // same
 }
 

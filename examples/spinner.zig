@@ -4,7 +4,7 @@ const loaders = @import("loaders");
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
-    // Initialize the best and fastest allocator pattern: 
+    // Initialize the best and fastest allocator pattern:
     // A high-performance ArenaAllocator wrapping the standard page_allocator.
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
