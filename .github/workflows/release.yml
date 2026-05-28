@@ -53,9 +53,9 @@ jobs:
         run: |
           mkdir -p release
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            cp zig-out/lib/loaders_zig.lib release/loaders_zig-${{ matrix.target }}.lib || true
+            cp zig-out/lib/loaders.lib release/loaders-${{ matrix.target }}.lib || true
           else
-            cp zig-out/lib/libloaders_zig.a release/libloaders_zig-${{ matrix.target }}.a || true
+            cp zig-out/lib/libloaders.a release/libloaders-${{ matrix.target }}.a || true
           fi
 
       - name: Upload Release Artifacts
@@ -133,17 +133,17 @@ jobs:
 
             | Platform | Architecture | File |
             |----------|--------------|------|
-            | Windows | x86_64 | [loaders_zig-x86_64-windows.lib](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/loaders_zig-x86_64-windows.lib) |
-            | Windows | x86 | [loaders_zig-x86-windows.lib](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/loaders_zig-x86-windows.lib) |
-            | Linux | x86_64 | [libloaders_zig-x86_64-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-x86_64-linux.a) |
-            | Linux | x86 | [libloaders_zig-x86-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-x86-linux.a) |
-            | Linux | aarch64 (ARM64) | [libloaders_zig-aarch64-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-aarch64-linux.a) |
-            | macOS | x86_64 (Intel) | [libloaders_zig-x86_64-macos.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-x86_64-macos.a) |
-            | macOS | aarch64 (Apple Silicon) | [libloaders_zig-aarch64-macos.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-aarch64-macos.a) |
-            | Bare Metal | x86_64 | [libloaders_zig-x86_64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-x86_64-freestanding.a) |
-            | Bare Metal | aarch64 | [libloaders_zig-aarch64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-aarch64-freestanding.a) |
-            | Bare Metal | RISC-V 64 | [libloaders_zig-riscv64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-riscv64-freestanding.a) |
-            | Bare Metal | ARM | [libloaders_zig-arm-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders_zig-arm-freestanding.a) |
+            | Windows | x86_64 | [loaders-x86_64-windows.lib](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/loaders-x86_64-windows.lib) |
+            | Windows | x86 | [loaders-x86-windows.lib](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/loaders-x86-windows.lib) |
+            | Linux | x86_64 | [libloaders-x86_64-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-x86_64-linux.a) |
+            | Linux | x86 | [libloaders-x86-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-x86-linux.a) |
+            | Linux | aarch64 (ARM64) | [libloaders-aarch64-linux.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-aarch64-linux.a) |
+            | macOS | x86_64 (Intel) | [libloaders-x86_64-macos.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-x86_64-macos.a) |
+            | macOS | aarch64 (Apple Silicon) | [libloaders-aarch64-macos.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-aarch64-macos.a) |
+            | Bare Metal | x86_64 | [libloaders-x86_64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-x86_64-freestanding.a) |
+            | Bare Metal | aarch64 | [libloaders-aarch64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-aarch64-freestanding.a) |
+            | Bare Metal | RISC-V 64 | [libloaders-riscv64-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-riscv64-freestanding.a) |
+            | Bare Metal | ARM | [libloaders-arm-freestanding.a](https://github.com/muhammad-fiaz/loaders.zig/releases/download/${{ github.event.release.tag_name }}/libloaders-arm-freestanding.a) |
 
             ### 🛠️ Using Prebuilt Libraries
 
@@ -154,5 +154,5 @@ jobs:
             ```zig
             // Assuming you placed the library in `libs/`
             exe.addLibraryPath(b.path("libs"));
-            exe.linkSystemLibrary("loaders_zig");
+            exe.linkSystemLibrary("loaders");
             ```

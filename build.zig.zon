@@ -1,5 +1,5 @@
 .{
-    .name = .loaders_zig,
+    .name = .loaders,
     .version = "0.0.1",
     .fingerprint = 0x82eb52b8a1d9164c,
     .minimum_zig_version = "0.16.0",
