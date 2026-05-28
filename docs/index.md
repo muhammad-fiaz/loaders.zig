@@ -7,24 +7,36 @@ description: High-performance, thread-safe progress bars, spinners, and multi-pr
 head:
   - - meta
     - name: keywords
-      content: zig, progress bar, spinner, loading indicator, terminal ui, cli, multi progress, zig library, zig package
+      content: zig, progress bar, spinner, loading indicator, terminal ui, cli, multi progress, zig library, zig package, zig loading animation
   - - meta
     - property: og:title
-      content: loaders.zig — Terminal Loading Indicators for Zig
+      content: loaders.zig — High-Performance Terminal Loading Indicators for Zig
   - - meta
     - property: og:description
       content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform.
+  - - meta
+    - property: og:image
+      content: /loaders.zig/loader-thumbnail.png
   - - meta
     - name: twitter:title
       content: loaders.zig — Terminal Loading Indicators for Zig
   - - meta
     - name: twitter:description
-      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig.
+      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform.
+  - - meta
+    - name: twitter:image
+      content: /loaders.zig/loader-thumbnail.png
+  - - meta
+    - name: twitter:card
+      content: summary_large_image
 
 hero:
   name: "loaders.zig"
   text: "Terminal Loading Indicators for Zig"
   tagline: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig CLI applications. Zero external dependencies. Cross-platform.
+  image:
+    src: /loader-thumbnail.png
+    alt: loaders.zig terminal loading indicators preview
   actions:
     - theme: brand
       text: Get Started

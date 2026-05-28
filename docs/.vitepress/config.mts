@@ -54,17 +54,17 @@ export default defineConfig({
     ["meta", { property: "og:url", content: SITE_URL }],
     ["meta", { property: "og:title", content: SITE_NAME }],
     ["meta", { property: "og:description", content: SITE_DESCRIPTION }],
-    ["meta", { property: "og:image", content: `${SITE_URL}/cover.png` }],
+    ["meta", { property: "og:image", content: `${SITE_URL}/loader-thumbnail.png` }],
     ["meta", { property: "og:image:width", content: "1200" }],
     ["meta", { property: "og:image:height", content: "630" }],
-    ["meta", { property: "og:image:alt", content: "loaders.zig - High-performance terminal loading indicators for Zig" }],
+    ["meta", { property: "og:image:alt", content: "loaders.zig - High-performance terminal loading indicators and progress bars for Zig" }],
     ["meta", { property: "og:site_name", content: SITE_NAME }],
     ["meta", { property: "og:locale", content: "en_US" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     ["meta", { name: "twitter:url", content: SITE_URL }],
     ["meta", { name: "twitter:title", content: SITE_NAME }],
     ["meta", { name: "twitter:description", content: SITE_DESCRIPTION }],
-    ["meta", { name: "twitter:image", content: `${SITE_URL}/cover.png` }],
+    ["meta", { name: "twitter:image", content: `${SITE_URL}/loader-thumbnail.png` }],
     ["meta", { name: "twitter:creator", content: "@muhammadfiaz_" }],
 
     ["link", { rel: "icon", href: "/loaders.zig/favicon.ico" }],
@@ -164,6 +164,7 @@ gtag('config', '${GA_ID}');`,
       { text: "Home", link: "/" },
       { text: "Guide", link: "/guide/" },
       { text: "API", link: "/api/" },
+      { text: "Examples", link: "/examples/" },
     ],
 
     sidebar: [
@@ -172,6 +173,7 @@ gtag('config', '${GA_ID}');`,
         items: [
           { text: "Guide Overview", link: "/guide/" },
           { text: "API Reference", link: "/api/" },
+          { text: "Examples", link: "/examples/" },
         ],
       },
       {
@@ -187,6 +189,27 @@ gtag('config', '${GA_ID}');`,
           { text: "Advanced", link: "/guide/advanced" },
         ],
       },
+      {
+        text: "Examples",
+        items: [
+          { text: "Overview", link: "/examples/" },
+          { text: "Basic Bar", link: "/examples/01-basic-bar" },
+          { text: "Basic Bar (100)", link: "/examples/basic-bar" },
+          { text: "Styled Bar", link: "/examples/02-styled-bar" },
+          { text: "Custom Style", link: "/examples/custom-style" },
+          { text: "Themed Bar", link: "/examples/themed-bar" },
+          { text: "ETA and Rate", link: "/examples/eta-and-rate" },
+          { text: "Download Simulation", link: "/examples/download-simulation" },
+          { text: "Advanced Options", link: "/examples/advanced-options" },
+          { text: "Custom Template", link: "/examples/custom-template" },
+          { text: "Nested Bars", link: "/examples/nested-bars" },
+          { text: "Spinner", link: "/examples/spinner" },
+          { text: "Multi Spinner", link: "/examples/multi-spinner" },
+          { text: "Multi Progress", link: "/examples/multi-progress" },
+          { text: "Iterator Wrap", link: "/examples/iterator-wrap" },
+          { text: "Animations", link: "/examples/animations" },
+        ],
+      },
     ],
 
     socialLinks: [
@@ -195,7 +218,7 @@ gtag('config', '${GA_ID}');`,
 
     footer: {
       message: "Released under the MIT License.",
-      copyright: `Copyright © 2025-${new Date().getFullYear()} Muhammad Fiaz`,
+      copyright: `Copyright © 2026-${new Date().getFullYear()} Muhammad Fiaz`,
     },
 
     search: {
@@ -246,7 +269,7 @@ gtag('config', '${GA_ID}');`,
       ["meta", { name: "description", content: pageDescription }],
       ["meta", { name: "twitter:title", content: `${pageTitle} | ${SITE_NAME}` }],
       ["meta", { name: "twitter:description", content: pageDescription }],
-      ["meta", { name: "twitter:image", content: `${SITE_URL}/cover.png` }],
+      ["meta", { name: "twitter:image", content: `${SITE_URL}/loader-thumbnail.png` }],
     );
 
     if (pageData.frontmatter.description) {
@@ -294,7 +317,7 @@ gtag('config', '${GA_ID}');`,
       name: isHome ? SITE_NAME : pageTitle,
       description: pageDescription,
       url: canonicalUrl,
-      image: `${SITE_URL}/cover.png`,
+      image: `${SITE_URL}/loader-thumbnail.png`,
       author: authorSchema,
       publisher: {
         "@type": "Organization",
@@ -334,7 +357,7 @@ gtag('config', '${GA_ID}');`,
           "@type": "WebPage",
           "@id": canonicalUrl,
         },
-        datePublished: "2025-01-01T00:00:00Z",
+        datePublished: "2026-01-01T00:00:00Z",
         dateModified: lastUpdated,
       });
     }
