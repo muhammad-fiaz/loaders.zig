@@ -1,4 +1,5 @@
 <div align="center">
+<img  height="400" alt="loader zig" src="https://github.com/user-attachments/assets/042252d5-0594-4984-bece-deb3b232d91f" />
 
 <a href="https://muhammad-fiaz.github.io/loaders.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
 <a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
