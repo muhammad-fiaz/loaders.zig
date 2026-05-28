@@ -1,33 +1,97 @@
-# loaders.zig — High Performance Loading Indicators for Zig
+---
+layout: home
 
-`loaders.zig` is a complete, production-ready, customisable terminal loading indicator and progress bar library written in **pure Zig 0.16.0** with **zero external dependencies**.
+title: loaders.zig — High-Performance Terminal Loading Indicators for Zig
+description: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform, 18+ bar styles, 33 spinner presets.
 
-It is designed to be extremely lightweight, robust, thread-safe, and visual-first. It handles raw terminal capabilities, ANSI coloring, auto-sizing, and CI/redirection environments automatically out of the box.
+head:
+  - - meta
+    - name: keywords
+      content: zig, progress bar, spinner, loading indicator, terminal ui, cli, multi progress, zig library, zig package
+  - - meta
+    - property: og:title
+      content: loaders.zig — Terminal Loading Indicators for Zig
+  - - meta
+    - property: og:description
+      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform.
+  - - meta
+    - name: twitter:title
+      content: loaders.zig — Terminal Loading Indicators for Zig
+  - - meta
+    - name: twitter:description
+      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig.
 
+hero:
+  name: "loaders.zig"
+  text: "Terminal Loading Indicators for Zig"
+  tagline: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig CLI applications. Zero external dependencies. Cross-platform.
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /guide/getting-started
+    - theme: alt
+      text: API Reference
+      link: /api/
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/muhammad-fiaz/loaders.zig
+
+features:
+  - icon: <span class="vp-code">█░</span>
+    title: Progress Bars
+    details: Animated single-bar progress with percentage, ETA, elapsed time, and rate display. Auto-sizes to terminal width. Determinate and indeterminate modes.
+  - icon: <span class="vp-code">⠋</span>
+    title: Spinners
+    details: Background-threaded animated spinners with non-blocking text updates and finish states (succeed, fail, warn, info).
+  - icon: <span class="vp-code">▓░▒</span>
+    title: Multi-Progress
+    details: Render multiple concurrent progress bars or spinners with coordinated cursor-based rendering. Up to 16 bars or spinners simultaneously.
+  - icon: <span class="vp-code">█</span>
+    title: 18+ Bar Styles
+    details: Built-in presets including block, shaded, ascii, minimal, gradient, fire, ice, ocean, neon, arrow, dots, slim, and more.
+  - icon: <span class="vp-code">◑</span>
+    title: 33 Spinner Presets
+    details: dots, moon, clock, braille, pong, weather, snake, hamburger, christmas tree, aesthetic, and many more animations.
+  - icon: <span class="vp-code">🎨</span>
+    title: ANSI Color Support
+    details: Full 16-color, 256-color, and 24-bit RGB true color with automatic suppression for CI, piped output, and NO_COLOR.
 ---
 
-## High-Level Capabilities
+## Quick Install
 
-- **Stunning Visuals**: Sleek block indicators, gradient fills, styled ticks, and 18+ beautiful preset spinner structures.
-- **Pure Zig**: Built from the ground up utilizing only standard library structures and the new `std.Io` concrete buffered interface.
-- **Dynamic Sizing**: Automatically queries terminal widths on POSIX and Windows consoles.
-- **Thread-Safety**: Safely spawn workers that update bar values atomically while a main thread orchestrates UI redraws.
-- **Non-blocking Spinners**: Offload spinner animation and frame ticks to background threads with straightforward completion states (✓ Success, ✗ Failure, etc.).
-- **Automatic Output Sanitization**: Detects redirection, file piping, dumb terminals, and NO_COLOR environment flags to cleanly suppress ANSI escapes.
+**Stable release** (production):
 
----
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz
+```
 
-## Documentation Articles
+**Nightly** (latest main):
 
-Start building beautiful terminal interfaces today:
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
+```
 
-1. **[Guide Overview](guide/)**: Start here for the walkthrough articles.
-2. **[API Reference](api/)**: Full API listing of types, options, and methods.
-3. **[Getting Started](guide/getting-started)**: Add your first progress bar and spinner in minutes.
-4. **[Progress Bars](guide/progress-bar)**: Customize and operate single progress bars.
-5. **[Spinners](guide/spinner)**: Run animated spinners in background worker threads.
-6. **[Multi-Progress Rendering](guide/multi-progress)**: Coordinate and animate multiple bars concurrently.
-7. **[Styling Options](guide/styling)**: Learn how to configure custom brackets, fills, and edges.
-8. **[Visual Themes Presets](guide/themes)**: Browse all pre-packaged designs.
-9. **[ANSI Color Support](guide/colors)**: Harness true 24-bit RGB and 256-color palettes.
-10. **[Advanced Techniques](guide/advanced)**: CI environment checking, TTY logic, custom drawing targets, and custom worker integration.
+## Quick Example
+
+```zig
+const std = @import("std");
+const loaders = @import("loaders");
+
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+
+    var bar = loaders.Bar.init(io, .{
+        .label = "Processing",
+        .total = 100,
+        .show_percent = true,
+        .show_elapsed = true,
+    });
+    defer bar.done();
+
+    for (0..100) |i| {
+        bar.setCompleted(i + 1);
+        bar.render();
+        try io.sleep(std.Io.Duration.fromMilliseconds(30), .awake);
+    }
+}
+```

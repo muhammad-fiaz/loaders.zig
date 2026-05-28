@@ -1,3 +1,17 @@
+---
+description: Start, update, and manage thread-safe terminal spinners with loaders.Spinner. Background-threaded animation with finish states (succeed, fail, warn, info).
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig spinner, zig spinner, terminal spinner, background thread, async loading
+  - - meta
+    - property: og:title
+      content: Spinners Guide — loaders.zig
+  - - meta
+    - property: og:description
+      content: Start, update, and manage thread-safe terminal spinners with loaders.Spinner.
+---
+
 # Terminal Spinners Guide
 
 This article explains how to start, update, and manage thread-safe terminal spinners.

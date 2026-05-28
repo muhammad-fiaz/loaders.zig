@@ -47,6 +47,7 @@ export default defineConfig({
     ["meta", { name: "author", content: "Muhammad Fiaz" }],
     ["meta", { name: "robots", content: "index, follow" }],
     ["meta", { name: "language", content: "English" }],
+    ["meta", { name: "revisit-after", content: "7 days" }],
     ["meta", { name: "generator", content: "VitePress" }],
     ["link", { rel: "canonical", href: SITE_URL }],
     ["meta", { property: "og:type", content: "website" }],
@@ -54,6 +55,9 @@ export default defineConfig({
     ["meta", { property: "og:title", content: SITE_NAME }],
     ["meta", { property: "og:description", content: SITE_DESCRIPTION }],
     ["meta", { property: "og:image", content: `${SITE_URL}/cover.png` }],
+    ["meta", { property: "og:image:width", content: "1200" }],
+    ["meta", { property: "og:image:height", content: "630" }],
+    ["meta", { property: "og:image:alt", content: "loaders.zig - High-performance terminal loading indicators for Zig" }],
     ["meta", { property: "og:site_name", content: SITE_NAME }],
     ["meta", { property: "og:locale", content: "en_US" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
@@ -210,6 +214,20 @@ gtag('config', '${GA_ID}');`,
         timeStyle: "short",
       },
     },
+
+    outline: {
+      level: [2, 3],
+      label: "On this page",
+    },
+
+    docFooter: {
+      prev: "Previous",
+      next: "Next",
+    },
+
+    returnToTopLabel: "Return to top",
+    sidebarMenuLabel: "Menu",
+    darkModeSwitchLabel: "Appearance",
   },
 
   transformPageData(pageData: PageData) {
@@ -224,12 +242,18 @@ gtag('config', '${GA_ID}');`,
       ["link", { rel: "canonical", href: canonicalUrl }],
       ["meta", { property: "og:title", content: `${pageTitle} | ${SITE_NAME}` }],
       ["meta", { property: "og:url", content: canonicalUrl }],
+      ["meta", { property: "og:description", content: pageDescription }],
+      ["meta", { name: "description", content: pageDescription }],
+      ["meta", { name: "twitter:title", content: `${pageTitle} | ${SITE_NAME}` }],
+      ["meta", { name: "twitter:description", content: pageDescription }],
+      ["meta", { name: "twitter:image", content: `${SITE_URL}/cover.png` }],
     );
 
     if (pageData.frontmatter.description) {
       pageData.frontmatter.head.push(
         ["meta", { property: "og:description", content: pageData.frontmatter.description }],
         ["meta", { name: "description", content: pageData.frontmatter.description }],
+        ["meta", { name: "twitter:description", content: pageData.frontmatter.description }],
       );
     }
 

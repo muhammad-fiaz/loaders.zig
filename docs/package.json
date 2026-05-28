@@ -1,12 +1,16 @@
 {
   "name": "loaders-zig-docs",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Documentation for loaders.zig",
+  "version": "0.0.1",
+  "description": "Documentation for loaders.zig - High-performance terminal loading indicators and progress bars for Zig",
+  "author": "Muhammad Fiaz",
+  "license": "MIT",
   "scripts": {
-    "docs:dev": "vitepress dev .",
-    "docs:build": "vitepress build .",
-    "docs:preview": "vitepress preview ."
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
   },
   "devDependencies": {
     "vitepress": "^1.6.4",

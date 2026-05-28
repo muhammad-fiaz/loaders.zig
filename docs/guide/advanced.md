@@ -1,3 +1,17 @@
+---
+description: Advanced techniques including custom drawing targets, multi-threaded safety, high-performance stacking, and TTY detection for CI environments.
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig advanced, zig terminal detection, TTY detection, thread safety, zig CI
+  - - meta
+    - property: og:title
+      content: Advanced Techniques Guide — loaders.zig
+  - - meta
+    - property: og:description
+      content: Advanced techniques including custom drawing targets, multi-threaded safety, and TTY detection.
+---
+
 # Advanced Techniques Guide
 
 This article documents advanced techniques, thread optimization, custom drawing targets, and standard shell logic.

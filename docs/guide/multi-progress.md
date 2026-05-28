@@ -1,3 +1,17 @@
+---
+description: Render and coordinate multiple progress bars concurrently using loaders.MultiBar. Cursor-based rendering, worker synchronization patterns.
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig multi progress, zig multi bar, concurrent progress bars, terminal multi progress
+  - - meta
+    - property: og:title
+      content: Multi-Progress Rendering Guide — loaders.zig
+  - - meta
+    - property: og:description
+      content: Render and coordinate multiple progress bars concurrently using loaders.MultiBar.
+---
+
 # Multi-Progress Rendering Guide
 
 This article covers rendering and coordinating multiple progress bars concurrently using `loaders.MultiBar`.

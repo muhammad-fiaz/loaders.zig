@@ -1,3 +1,17 @@
+---
+description: Browse all built-in visual presets for progress bars and spinners. 18 bar styles and 33 spinner animations ready to use.
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig themes, zig bar presets, spinner presets, block bar, dots spinner, moon spinner
+  - - meta
+    - property: og:title
+      content: Built-in Themes Gallery — loaders.zig
+  - - meta
+    - property: og:description
+      content: Browse all built-in visual presets for progress bars and spinners.
+---
+
 # Built-in Themes Gallery
 
 `loaders.zig` includes multiple pre-designed high-quality visual themes out of the box in `loaders.BarStyle` and `loaders.SpinnerStyle`.

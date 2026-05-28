@@ -1,0 +1,21 @@
+{
+  "name": "loaders.zig",
+  "short_name": "loaders.zig",
+  "description": "High-performance terminal loading indicators and progress bars for Zig",
+  "start_url": "/loaders.zig/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f7a41d",
+  "icons": [
+    {
+      "src": "/loaders.zig/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/loaders.zig/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

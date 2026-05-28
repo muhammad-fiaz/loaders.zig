@@ -1,3 +1,17 @@
+---
+description: Comprehensive terminal color system with 16-color ANSI, 256-color palette, and 24-bit RGB true color support. Automatic color suppression for CI.
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig colors, zig ansi color, true color, 256 color, RGB terminal, NO_COLOR
+  - - meta
+    - property: og:title
+      content: Color Support Guide — loaders.zig
+  - - meta
+    - property: og:description
+      content: Comprehensive terminal color system with 16-color ANSI, 256-color palette, and 24-bit RGB true color support.
+---
+
 # Color Support Guide
 
 `loaders.zig` includes a comprehensive terminal color system supporting basic, extended, and true colors.

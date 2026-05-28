@@ -39,8 +39,9 @@
 - [Supported Platforms](#supported-platforms)
 - [Features](#features)
 - [Installation](#installation)
-  - [Method 1: Zig Fetch](#method-1-zig-fetch)
-  - [Method 3: Build from Source](#method-3-build-from-source)
+  - [Option A: Stable Release](#option-a--stable-release-recommended-for-production)
+  - [Option B: Nightly / Beta](#option-b--nightly--beta-latest-main-branch)
+  - [Option C: Build from Source](#option-c--build-from-source)
 - [Quick Start](#quick-start)
 - [Usage Examples](#usage-examples)
 - [Configuration](#configuration)
@@ -117,44 +118,48 @@ Before using `loaders.zig`, ensure you have:
 
 ## Installation
 
-### Method 1:
+### Option A — Stable Release (Recommended for Production)
 
-Use Zig's save flow to add `loaders.zig` as a dependency:
+Pin to a specific tagged release for reproducible builds:
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz
+```
+
+This automatically adds the dependency to your `build.zig.zon`:
+
+```zig
+.dependencies = .{
+    .loaders = .{
+        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz",
+        .hash = "...", // auto-filled by zig fetch --save
+    },
+},
+```
+
+### Option B — Nightly / Beta (Latest Main Branch)
+
+Use the latest unreleased code from `main`. This tracks HEAD and may include breaking changes:
 
 ```bash
 zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
 ```
 
-Add `loaders.zig` to your `build.zig.zon`:
+This adds a git dependency to your `build.zig.zon`:
 
 ```zig
-.{
-    .name = .my_project,
-    .version = "0.1.0",
-    .dependencies = .{
-        .loaders = .{
-            .url = "git+https://github.com/muhammad-fiaz/loaders.zig.git#main",
-            .hash = "DEPENDENCY_HASH",
-        },
+.dependencies = .{
+    .loaders = .{
+        .url = "git+https://github.com/muhammad-fiaz/loaders.zig.git",
+        .hash = "...", // auto-filled by zig fetch --save
     },
-    .paths = .{""},
-}
+},
 ```
 
-In `build.zig`:
+> [!TIP]
+> Use `zig fetch --save` (with URL) for the automatic flow. It resolves the hash and writes it into `build.zig.zon` for you.
 
-```zig
-const loaders_dep = b.dependency("loaders", .{
-    .target = target,
-    .optimize = optimize,
-});
-
-exe.root_module.addImport("loaders", loaders_dep.module("loaders"));
-```
-
-That `addImport` call is the method that exposes `loaders` to your executable or library module.
-
-### Method 3: Build from Source
+### Option C — Build from Source
 
 ```bash
 git clone https://github.com/muhammad-fiaz/loaders.zig.git
@@ -216,7 +221,7 @@ const loaders = @import("loaders");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
-    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null);
+    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null, .{});
 
     const a = mb.addBar(.{ .label = "Asset A", .total = 100 });
     const b = mb.addBar(.{ .label = "Asset B", .total = 100 });
@@ -270,8 +275,8 @@ Full documentation is available at: https://muhammad-fiaz.github.io/loaders.zig/
 
 ```bash
 cd docs
-npm install
-npm run docs:build
+bun install
+bun run build
 ```
 
 The output is written to `docs/.vitepress/dist/`.

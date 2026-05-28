@@ -1,3 +1,17 @@
+---
+description: Deep dive into using, configuring, and updating single progress bars with loaders.Bar. Covers lifecycle, increment methods, indeterminate mode, auto-sizing, and decorators.
+head:
+  - - meta
+    - name: keywords
+      content: loaders.zig progress bar, zig progress bar, determinate progress, indeterminate progress, zig loading bar
+  - - meta
+    - property: og:title
+      content: Progress Bars Guide — loaders.zig
+  - - meta
+    - property: og:description
+      content: Deep dive into using, configuring, and updating single progress bars with loaders.Bar.
+---
+
 # Progress Bars Guide
 
 This article provides a deep dive into using, configuring, and updating single progress bars with `loaders.Bar`.
