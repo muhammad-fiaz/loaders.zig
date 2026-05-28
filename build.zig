@@ -35,7 +35,9 @@ pub fn build(b: *std.Build) void {
 
     // Create run-all-examples step
     const run_all_examples = b.step("run-all-examples", "Run all examples sequentially");
+    const examples_step = b.step("examples", "Build all examples");
     var previous_run_step: ?*std.Build.Step = null;
+    var previous_install_step: ?*std.Build.Step = null;
 
     inline for (examples) |example| {
         const exe = b.addExecutable(.{
@@ -49,8 +51,13 @@ pub fn build(b: *std.Build) void {
         exe.root_module.addImport("loaders", loaders_module);
 
         const install_exe = b.addInstallArtifact(exe, .{});
-        const example_step = b.step("example-" ++ example.name, "Build " ++ example.name ++ " example");
-        example_step.dependOn(&install_exe.step);
+
+        // Force sequential compilation to avoid parallel LLVM OOM
+        if (previous_install_step) |prev| {
+            install_exe.step.dependOn(prev);
+        }
+        previous_install_step = &install_exe.step;
+        examples_step.dependOn(&install_exe.step);
 
         const run_exe = b.addRunArtifact(exe);
         run_exe.step.dependOn(&install_exe.step);

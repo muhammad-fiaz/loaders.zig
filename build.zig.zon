@@ -11,5 +11,6 @@
         "examples",
         "README.md",
         "LICENSE",
+        "CONTRIBUTING.md",
     },
 }

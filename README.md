@@ -295,7 +295,7 @@ zig fmt --check build.zig src/ examples/
 
 ## Contributing
 
-Contributions are welcome. Open an issue or pull request if you find a bug, want to improve the docs, or have an idea for a new loader style.
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for details on how to get started, run tests, and submit pull requests.
 
 ---
 
