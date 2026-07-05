@@ -31,6 +31,14 @@ pub fn build(b: *std.Build) void {
         .{ .name = "custom_template", .path = "examples/custom_template.zig" },
         .{ .name = "advanced_options", .path = "examples/advanced_options.zig" },
         .{ .name = "animations", .path = "examples/animations.zig" },
+        .{ .name = "batch_progress", .path = "examples/batch_progress.zig" },
+        .{ .name = "custom_format", .path = "examples/custom_format.zig" },
+        .{ .name = "color_demo", .path = "examples/color_demo.zig" },
+        .{ .name = "rate_smoothing", .path = "examples/rate_smoothing.zig" },
+        .{ .name = "icon_demo", .path = "examples/icon_demo.zig" },
+        .{ .name = "multi_message_progressbar", .path = "examples/multi_message_progressbar.zig" },
+        .{ .name = "conditional_chain", .path = "examples/conditional_chain.zig" },
+        .{ .name = "io_progress", .path = "examples/io_progress.zig" },
     };
 
     // Create run-all-examples step
@@ -50,22 +58,26 @@ pub fn build(b: *std.Build) void {
         });
         exe.root_module.addImport("loaders", loaders_module);
 
-        const install_exe = b.addInstallArtifact(exe, .{});
-
-        // Force sequential compilation to avoid parallel LLVM OOM
+        // Force sequential compilation to avoid parallel LLVM OOM by making
+        // this compilation step depend on the previous installation step
         if (previous_install_step) |prev| {
-            install_exe.step.dependOn(prev);
+            exe.step.dependOn(prev);
         }
+
+        const install_exe = b.addInstallArtifact(exe, .{});
         previous_install_step = &install_exe.step;
         examples_step.dependOn(&install_exe.step);
 
         const run_exe = b.addRunArtifact(exe);
+        run_exe.stdio = .inherit;
         run_exe.step.dependOn(&install_exe.step);
         const run_step = b.step("run-" ++ example.name, "Run " ++ example.name ++ " example");
         run_step.dependOn(&run_exe.step);
 
         // Add to run-all-examples
         const run_all_exe = b.addRunArtifact(exe);
+        run_all_exe.stdio = .inherit;
+        run_all_exe.step.dependOn(&install_exe.step);
         if (previous_run_step) |prev| {
             run_all_exe.step.dependOn(prev);
         }
@@ -100,4 +112,12 @@ pub fn build(b: *std.Build) void {
         }),
     });
     b.installArtifact(lib);
+
+    const docs_step = b.step("docs", "Generate library documentation");
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+    docs_step.dependOn(&install_docs.step);
 }

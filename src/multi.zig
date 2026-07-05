@@ -11,14 +11,16 @@ const bar_mod = @import("bar.zig");
 const spinner_mod = @import("spinner.zig");
 const color_mod = @import("color.zig");
 const terminal = @import("terminal.zig");
+const utils = @import("utils.zig");
 
 pub const Bar = bar_mod.Bar;
 pub const BarOptions = bar_mod.Options;
 pub const SpinnerStyle = spinner_mod.SpinnerStyle;
 pub const Colorizer = color_mod.Colorizer;
+pub const Message = bar_mod.Message;
 
 /// Maximum number of bars in a `MultiBar`.
-pub const max_bars = 16;
+pub const max_bars = 32;
 
 /// Options for `MultiBar`.
 pub const MultiBarOptions = struct {
@@ -26,6 +28,12 @@ pub const MultiBarOptions = struct {
     hide_cursor: bool = true,
     /// Message printed after all bars complete.
     complete_message: []const u8 = "",
+    /// Optional header line printed above all bars.
+    header: []const u8 = "",
+    /// Optional footer line printed below all bars.
+    footer: []const u8 = "",
+    /// Number of empty lines to print between individual bars.
+    spacing_lines: usize = 0,
 };
 
 /// Renders multiple progress bars, each on its own line, with cursor
@@ -49,6 +57,7 @@ pub const MultiBar = struct {
     count: usize,
     colorizer: Colorizer,
     term: terminal.TermInfo,
+    done_flag: bool,
     first_render: bool,
     write_buf: [8192]u8,
     file: std.Io.File,
@@ -65,12 +74,14 @@ pub const MultiBar = struct {
             .colorizer = .{
                 .enabled = ti.ansi_supported,
                 .ansi_enabled = ti.ansi_supported,
+                .cr_enabled = ti.is_tty,
             },
             .term = ti,
             .first_render = true,
             .write_buf = undefined,
             .file = file,
             .mbopts = mbopts,
+            .done_flag = false,
         };
     }
 
@@ -93,12 +104,38 @@ pub const MultiBar = struct {
             .show_eta = opts.show_eta,
             .show_rate = opts.show_rate,
             .unit_is_bytes = opts.unit_is_bytes,
+            .unit = opts.unit,
             .message = opts.message,
             .complete_message = opts.complete_message,
             .suffix = opts.suffix,
             .file = mb.file,
             .term = mb.term,
             .color_enabled = mb.colorizer.enabled,
+            .smooth_rate = opts.smooth_rate,
+            .smooth_alpha = opts.smooth_alpha,
+            .template = opts.template,
+            .fill_color = opts.fill_color,
+            .empty_color = opts.empty_color,
+            .color = opts.color,
+            .icon = opts.icon,
+            .success_icon = opts.success_icon,
+            .failure_icon = opts.failure_icon,
+            .warning_icon = opts.warning_icon,
+            .info_icon = opts.info_icon,
+            .disable_new_line = opts.disable_new_line,
+            .messages = opts.messages,
+            .icon_messages = opts.icon_messages,
+            .message_interval_ms = opts.message_interval_ms,
+            .on_progress = opts.on_progress,
+            .on_complete = opts.on_complete,
+            .time_format_12h = opts.time_format_12h,
+            .max_label_width = opts.max_label_width,
+            .max_message_width = opts.max_message_width,
+            .max_suffix_width = opts.max_suffix_width,
+            .padding_lines_above = opts.padding_lines_above,
+            .padding_lines_below = opts.padding_lines_below,
+            .initial_completed = opts.initial_completed,
+            .is_multibar = true,
         });
         mb.count += 1;
         return &mb.bars[i];
@@ -110,26 +147,99 @@ pub const MultiBar = struct {
     }
 
     fn renderInner(mb: *MultiBar) !void {
+        if (!mb.term.is_tty and !mb.done_flag) {
+            return;
+        }
+        if (mb.term.is_tty) {
+            mb.term = terminal.query(mb.file, mb.io);
+        }
         var fw: std.Io.File.Writer = .init(mb.file, mb.io, &mb.write_buf);
         const w = &fw.interface;
 
+        const header_lines: usize = if (mb.mbopts.header.len > 0) 1 else 0;
+        const footer_lines: usize = if (mb.mbopts.footer.len > 0) 1 else 0;
+        var total_lines = header_lines + footer_lines;
+        for (mb.bars[0..mb.count]) |*b| {
+            total_lines += b.opts.padding_lines_above + 1 + b.opts.padding_lines_below;
+        }
+        if (mb.count > 1) {
+            total_lines += (mb.count - 1) * mb.mbopts.spacing_lines;
+        }
+
         if (!mb.first_render) {
-            // Move cursor up by the number of bars so we overwrite previous output.
-            try mb.colorizer.cursorUp(w, mb.count);
+            try mb.colorizer.cursorUp(w, total_lines);
         } else if (mb.mbopts.hide_cursor) {
             try mb.colorizer.hideCursor(w);
         }
         mb.first_render = false;
 
+        // Header
+        if (mb.mbopts.header.len > 0) {
+            try mb.colorizer.clearLine(w);
+            try w.writeAll(mb.mbopts.header);
+            try w.writeByte('\n');
+        }
+
         // Render each bar onto its own line using a single writer.
-        for (mb.bars[0..mb.count]) |*b| {
-            // Update terminal width if auto-sizing.
+        for (mb.bars[0..mb.count], 0..) |*b, idx| {
             if (b.opts.width == 0) {
                 b.term = mb.term;
             }
-            // Erase the line then render bar content inline.
+
+            if (idx > 0) {
+                var s: usize = 0;
+                while (s < mb.mbopts.spacing_lines) : (s += 1) {
+                    try mb.colorizer.clearLine(w);
+                    try w.writeByte('\n');
+                }
+            }
+
+            var i: usize = 0;
+            while (i < b.opts.padding_lines_above) : (i += 1) {
+                if (b.opts.bg_color != .default) {
+                    try mb.colorizer.begin(w, .default, b.opts.bg_color, &.{});
+                }
+                try mb.colorizer.clearLine(w);
+                try w.writeByte('\n');
+                if (b.opts.bg_color != .default) {
+                    try mb.colorizer.reset(w);
+                }
+            }
+
+            const line_color = if (b.opts.color != .default)
+                b.opts.color
+            else if (b.status_color != .default)
+                b.status_color
+            else
+                .default;
+
+            if (line_color != .default or b.opts.bg_color != .default) {
+                try mb.colorizer.begin(w, line_color, b.opts.bg_color, &.{});
+            }
             try mb.colorizer.clearLine(w);
             try b.renderContent(w);
+            if (line_color != .default or b.opts.bg_color != .default) {
+                try mb.colorizer.reset(w);
+            }
+            try w.writeByte('\n');
+
+            i = 0;
+            while (i < b.opts.padding_lines_below) : (i += 1) {
+                if (b.opts.bg_color != .default) {
+                    try mb.colorizer.begin(w, .default, b.opts.bg_color, &.{});
+                }
+                try mb.colorizer.clearLine(w);
+                try w.writeByte('\n');
+                if (b.opts.bg_color != .default) {
+                    try mb.colorizer.reset(w);
+                }
+            }
+        }
+
+        // Footer
+        if (mb.mbopts.footer.len > 0) {
+            try mb.colorizer.clearLine(w);
+            try w.writeAll(mb.mbopts.footer);
             try w.writeByte('\n');
         }
 
@@ -138,6 +248,7 @@ pub const MultiBar = struct {
 
     /// Mark all bars as done and print a final newline.
     pub fn done(mb: *MultiBar) void {
+        mb.done_flag = true;
         for (mb.bars[0..mb.count]) |*b| {
             b.done_flag.store(true, .release);
             if (b.opts.complete_message.len > 0) {
@@ -146,7 +257,6 @@ pub const MultiBar = struct {
         }
         mb.render();
 
-        // Show cursor again.
         var fw: std.Io.File.Writer = .init(mb.file, mb.io, &mb.write_buf);
         if (mb.mbopts.hide_cursor) {
             mb.colorizer.showCursor(&fw.interface) catch {};
@@ -160,10 +270,8 @@ pub const MultiBar = struct {
     }
 };
 
-// ── MultiSpinner ───────────────────────────────────────────────────────────────
-
 /// Maximum number of spinner items in a `MultiSpinner`.
-pub const max_spinners = 16;
+pub const max_spinners = 32;
 
 /// State for a single spinner item in a `MultiSpinner`.
 pub const SpinnerItem = struct {
@@ -173,12 +281,52 @@ pub const SpinnerItem = struct {
     done: bool = false,
     /// null = running, true = success (✓), false = failure (✗).
     succeeded: ?bool = null,
-    /// Custom color override for this item's glyph. `.default` = use style color.
+    /// Color used for the entire spinner item line. `.default` = use sub-component colors.
     color: color_mod.Color = .default,
+    /// Color override for the spinner text. `.default` = terminal default.
+    text_color: color_mod.Color = .default,
+    /// Color override for the spinner glyph. `.default` = use style color or global color.
+    spinner_color: color_mod.Color = .default,
+    /// Background color used for the entire spinner item line.
+    bg_color: color_mod.Color = .default,
+    /// Background color override for the spinner text.
+    text_bg_color: color_mod.Color = .default,
+    /// Background color override for the spinner glyph.
+    spinner_bg_color: color_mod.Color = .default,
+    /// Number of empty padding lines printed above this spinner line.
+    padding_lines_above: usize = 0,
+    /// Number of empty padding lines printed below this spinner line.
+    padding_lines_below: usize = 0,
     /// Prefix string printed before the spinner glyph on each frame.
     prefix: []const u8 = "",
     /// Suffix string printed after the text on each frame.
     suffix: []const u8 = "",
+    /// Optional running icon prefix.
+    icon: ?[]const u8 = null,
+    msg_icon: ?[]const u8 = null,
+    success_icon: ?[]const u8 = null,
+    /// Optional custom failure icon.
+    failure_icon: ?[]const u8 = null,
+    /// Optional custom warning icon.
+    warning_icon: ?[]const u8 = null,
+    /// Optional custom info icon.
+    info_icon: ?[]const u8 = null,
+    /// Completion status.
+    status: enum { running, success, failure, warning, info } = .running,
+    /// Array of messages to cycle through.
+    messages: ?[]const []const u8 = null,
+    /// Array of message-icon objects to cycle through.
+    icon_messages: ?[]const Message = null,
+    /// Interval in milliseconds to transition messages.
+    message_interval_ms: u64 = 1500,
+    /// Current message index.
+    msg_index: usize = 0,
+    /// Timestamp of last message transition.
+    last_msg_change_time: i64 = 0,
+    /// Maximum text width limit (0 = no limit). Truncates text if exceeded.
+    max_text_width: usize = 0,
+    /// Maximum suffix width limit (0 = no limit). Truncates suffix if exceeded.
+    max_suffix_width: usize = 0,
 
     pub fn setText(item: *SpinnerItem, s: []const u8) void {
         const len = @min(s.len, 255);
@@ -210,10 +358,14 @@ pub const MultiSpinner = struct {
     count: usize,
     colorizer: Colorizer,
     file: std.Io.File,
+    is_tty: bool,
     stop_flag: std.atomic.Value(bool),
     thread: std.Thread,
     write_buf: [8192]u8,
     allocator: std.mem.Allocator,
+    icon_gap: []const u8 = " ",
+    text_gap: []const u8 = " ",
+    spacing_lines: usize = 0,
 
     /// Start the multi-spinner renderer. Returns a heap-allocated instance.
     pub fn start(io: std.Io, file: std.Io.File, color_enabled: ?bool, maybe_allocator: ?std.mem.Allocator) !*MultiSpinner {
@@ -223,6 +375,7 @@ pub const MultiSpinner = struct {
 
         const allocator = maybe_allocator orelse std.heap.page_allocator;
         const ms = try allocator.create(MultiSpinner);
+        errdefer allocator.destroy(ms);
         ms.* = .{
             .io = io,
             .items = undefined,
@@ -230,15 +383,24 @@ pub const MultiSpinner = struct {
             .colorizer = .{
                 .enabled = color_on,
                 .ansi_enabled = ti.ansi_supported,
+                .cr_enabled = ti.is_tty,
             },
             .file = file,
+            .is_tty = ti.is_tty,
             .stop_flag = std.atomic.Value(bool).init(false),
             .thread = undefined,
             .write_buf = undefined,
             .allocator = allocator,
+            .icon_gap = " ",
+            .text_gap = " ",
+            .spacing_lines = 0,
         };
 
-        ms.thread = try std.Thread.spawn(.{}, renderLoop, .{ms});
+        if (ti.is_tty) {
+            ms.thread = try std.Thread.spawn(.{}, renderLoop, .{ms});
+        } else {
+            ms.thread = undefined;
+        }
         return ms;
     }
 
@@ -257,6 +419,7 @@ pub const MultiSpinner = struct {
     pub fn setSucceeded(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void {
         _ = ms;
         item.setText(msg);
+        item.status = .success;
         item.succeeded = true;
         item.done = true;
     }
@@ -265,6 +428,7 @@ pub const MultiSpinner = struct {
     pub fn setFailed(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void {
         _ = ms;
         item.setText(msg);
+        item.status = .failure;
         item.succeeded = false;
         item.done = true;
     }
@@ -274,7 +438,16 @@ pub const MultiSpinner = struct {
     pub fn setWarning(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void {
         _ = ms;
         item.setText(msg);
-        // We repurpose: done=true but succeeded=null means "warning".
+        item.status = .warning;
+        item.succeeded = null;
+        item.done = true;
+    }
+
+    /// Mark `item` as completed with info (cyan ℹ glyph).
+    pub fn setInfo(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void {
+        _ = ms;
+        item.setText(msg);
+        item.status = .info;
         item.succeeded = null;
         item.done = true;
     }
@@ -282,7 +455,11 @@ pub const MultiSpinner = struct {
     /// Stop all spinners and free the instance.
     pub fn stop(ms: *MultiSpinner) void {
         ms.stop_flag.store(true, .release);
-        ms.thread.join();
+        if (ms.is_tty) {
+            ms.thread.join();
+        } else {
+            ms.renderFrame(0, true) catch {};
+        }
         const alloc = ms.allocator;
         alloc.destroy(ms);
     }
@@ -292,6 +469,42 @@ pub const MultiSpinner = struct {
         var first = true;
 
         while (!ms.stop_flag.load(.acquire)) {
+            const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(ms.io).nanoseconds, std.time.ns_per_ms)));
+            for (ms.items[0..ms.count]) |*item| {
+                if (!item.done) {
+                    if (item.icon_messages) |imsgs| {
+                        if (imsgs.len > 0) {
+                            if (item.last_msg_change_time == 0) {
+                                item.last_msg_change_time = now;
+                                item.setText(imsgs[0].text);
+                                item.msg_icon = imsgs[0].icon;
+                            }
+                            const elapsed = now - item.last_msg_change_time;
+                            if (elapsed >= item.message_interval_ms) {
+                                item.msg_index = (item.msg_index + 1) % imsgs.len;
+                                const msg_item = imsgs[item.msg_index];
+                                item.setText(msg_item.text);
+                                item.msg_icon = msg_item.icon;
+                                item.last_msg_change_time = now;
+                            }
+                        }
+                    } else if (item.messages) |msgs| {
+                        if (msgs.len > 0) {
+                            if (item.last_msg_change_time == 0) {
+                                item.last_msg_change_time = now;
+                                item.setText(msgs[0]);
+                            }
+                            const elapsed = now - item.last_msg_change_time;
+                            if (elapsed >= item.message_interval_ms) {
+                                item.msg_index = (item.msg_index + 1) % msgs.len;
+                                item.setText(msgs[item.msg_index]);
+                                item.last_msg_change_time = now;
+                            }
+                        }
+                    }
+                }
+            }
+
             ms.renderFrame(frame, first) catch {};
             first = false;
             frame += 1;
@@ -315,54 +528,173 @@ pub const MultiSpinner = struct {
         var fw: std.Io.File.Writer = .init(ms.file, ms.io, &ms.write_buf);
         const w = &fw.interface;
 
-        if (!first) {
-            try ms.colorizer.cursorUp(w, ms.count);
+        var total_lines: usize = 0;
+        for (ms.items[0..ms.count]) |*item| {
+            total_lines += item.padding_lines_above + 1 + item.padding_lines_below;
+        }
+        if (ms.count > 1) {
+            total_lines += (ms.count - 1) * ms.spacing_lines;
         }
 
-        for (ms.items[0..ms.count]) |*item| {
+        if (!first) {
+            try ms.colorizer.cursorUp(w, total_lines);
+        }
+
+        for (ms.items[0..ms.count], 0..) |*item, idx| {
+            if (idx > 0) {
+                var s: usize = 0;
+                while (s < ms.spacing_lines) : (s += 1) {
+                    try ms.colorizer.clearLine(w);
+                    try w.writeByte('\n');
+                }
+            }
+            var i: usize = 0;
+            while (i < item.padding_lines_above) : (i += 1) {
+                if (item.bg_color != .default) {
+                    try ms.colorizer.begin(w, .default, item.bg_color, &.{});
+                }
+                try ms.colorizer.clearLine(w);
+                try w.writeByte('\n');
+                if (item.bg_color != .default) {
+                    try ms.colorizer.reset(w);
+                }
+            }
+
+            const status_col: color_mod.Color = if (item.done) switch (item.status) {
+                .success => .green,
+                .failure => .red,
+                .warning => .yellow,
+                .info => .cyan,
+                .running => if (item.succeeded) |ok| (if (ok) .green else .red) else .yellow,
+            } else .default;
+
+            const line_color = if (item.color != .default)
+                item.color
+            else if (status_col != .default)
+                status_col
+            else
+                .default;
+            const line_bg_color = item.bg_color;
+
+            if (line_color != .default or line_bg_color != .default) {
+                try ms.colorizer.begin(w, line_color, line_bg_color, &.{});
+            }
             try ms.colorizer.clearLine(w);
 
-            // Prefix
             if (item.prefix.len > 0) {
                 try w.writeAll(item.prefix);
             }
 
-            const frames = item.style.frames;
-            const glyph = frames[frame % frames.len];
-
-            if (item.done) {
-                // Finished item: show result glyph.
-                if (item.succeeded) |ok| {
-                    const sym: []const u8 = if (ok) "✓" else "✗";
-                    const sym_color: color_mod.Color = if (ok) .green else .red;
-                    try color_mod.writeColored(w, ms.colorizer, sym, sym_color, .default, &.{.bold});
-                } else {
-                    // Warning state (done=true, succeeded=null).
-                    try color_mod.writeColored(w, ms.colorizer, "⚠", .yellow, .default, &.{.bold});
+            if (item.icon) |icon| {
+                if (icon.len > 0) {
+                    try w.writeAll(icon);
+                    try w.writeAll(ms.icon_gap);
                 }
-            } else {
-                // Determine effective color for this item.
-                const glyph_color = if (item.color != .default) item.color else item.style.color;
-                try color_mod.writeColored(w, ms.colorizer, glyph, glyph_color, .default, item.style.attrs);
+            }
+            if (item.msg_icon) |icon| {
+                if (icon.len > 0) {
+                    try w.writeAll(icon);
+                    try w.writeAll(ms.icon_gap);
+                }
             }
 
-            try w.print(" {s}", .{item.getTextSlice()});
+            if (item.done) {
+                switch (item.status) {
+                    .success => {
+                        const sym = item.success_icon orelse "✓";
+                        try color_mod.writeColored(w, ms.colorizer, sym, .green, item.spinner_bg_color, &.{.bold});
+                    },
+                    .failure => {
+                        const sym = item.failure_icon orelse "✗";
+                        try color_mod.writeColored(w, ms.colorizer, sym, .red, item.spinner_bg_color, &.{.bold});
+                    },
+                    .warning => {
+                        const sym = item.warning_icon orelse "⚠";
+                        try color_mod.writeColored(w, ms.colorizer, sym, .yellow, item.spinner_bg_color, &.{.bold});
+                    },
+                    .info => {
+                        const sym = item.info_icon orelse "ℹ";
+                        try color_mod.writeColored(w, ms.colorizer, sym, .cyan, item.spinner_bg_color, &.{.bold});
+                    },
+                    .running => {
+                        // Fallback logic for backward compatibility
+                        if (item.succeeded) |ok| {
+                            const sym = if (ok) (item.success_icon orelse "✓") else (item.failure_icon orelse "✗");
+                            const col: color_mod.Color = if (ok) .green else .red;
+                            try color_mod.writeColored(w, ms.colorizer, sym, col, item.spinner_bg_color, &.{.bold});
+                        } else {
+                            const sym = item.warning_icon orelse "⚠";
+                            try color_mod.writeColored(w, ms.colorizer, sym, .yellow, item.spinner_bg_color, &.{.bold});
+                        }
+                    },
+                }
+                try w.writeAll(ms.text_gap);
+                if (line_color != .default or line_bg_color != .default) {
+                    try ms.colorizer.begin(w, line_color, line_bg_color, &.{});
+                }
+            } else {
+                const frames = item.style.frames;
+                const glyph = frames[frame % frames.len];
+                const glyph_color = if (item.spinner_color != .default) item.spinner_color else (if (line_color != .default) line_color else item.style.color);
+                try color_mod.writeColored(w, ms.colorizer, glyph, glyph_color, item.spinner_bg_color, item.style.attrs);
+                try w.writeAll(ms.text_gap);
+                if (line_color != .default or line_bg_color != .default) {
+                    try ms.colorizer.begin(w, line_color, line_bg_color, &.{});
+                }
+            }
+
+            const item_text = item.getTextSlice();
+            var t_buf: [256]u8 = undefined;
+            const text_str = if (item.max_text_width > 0)
+                utils.truncateUtf8(&t_buf, item_text, item.max_text_width)
+            else
+                item_text;
+
+            if (item.text_color != .default or item.text_bg_color != .default) {
+                try ms.colorizer.begin(w, item.text_color, item.text_bg_color, &.{});
+                try w.writeAll(text_str);
+                try ms.colorizer.reset(w);
+                if (line_color != .default or line_bg_color != .default) {
+                    try ms.colorizer.begin(w, line_color, line_bg_color, &.{});
+                }
+            } else {
+                try w.writeAll(text_str);
+            }
 
             if (item.suffix.len > 0) {
-                try w.print(" {s}", .{item.suffix});
+                var s_buf: [256]u8 = undefined;
+                const suffix_str = if (item.max_suffix_width > 0)
+                    utils.truncateUtf8(&s_buf, item.suffix, item.max_suffix_width)
+                else
+                    item.suffix;
+                try w.print(" {s}", .{suffix_str});
+            }
+
+            if (line_color != .default or line_bg_color != .default) {
+                try ms.colorizer.reset(w);
             }
 
             try w.writeByte('\n');
+
+            var j: usize = 0;
+            while (j < item.padding_lines_below) : (j += 1) {
+                if (item.bg_color != .default) {
+                    try ms.colorizer.begin(w, .default, item.bg_color, &.{});
+                }
+                try ms.colorizer.clearLine(w);
+                try w.writeByte('\n');
+                if (item.bg_color != .default) {
+                    try ms.colorizer.reset(w);
+                }
+            }
         }
 
         try fw.flush();
     }
 };
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
-
 test "MultiBar init" {
-    const io = std.Options.debug_threaded_io.?.io();
+    const io = std.Options.debug_io;
     const invalid_file = std.Io.File{
         .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
         .flags = .{ .nonblocking = false },
@@ -372,6 +704,24 @@ test "MultiBar init" {
     b.setCompleted(50);
     try std.testing.expectEqual(@as(usize, 50), b.completed.load(.acquire));
     try std.testing.expectEqual(@as(usize, 1), mb.count);
+}
+
+test "MultiBar max_bars is 32" {
+    try std.testing.expectEqual(@as(usize, 32), max_bars);
+}
+
+test "MultiBar header and footer options" {
+    const io = std.Options.debug_io;
+    const invalid_file = std.Io.File{
+        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
+        .flags = .{ .nonblocking = false },
+    };
+    const mb = MultiBar.init(io, invalid_file, terminal.TermInfo.dumb, .{
+        .header = "=== Build Pipeline ===",
+        .footer = "=== Complete ===",
+    });
+    try std.testing.expectEqualSlices(u8, "=== Build Pipeline ===", mb.mbopts.header);
+    try std.testing.expectEqualSlices(u8, "=== Complete ===", mb.mbopts.footer);
 }
 
 test "SpinnerItem setText" {
@@ -389,4 +739,43 @@ test "SpinnerItem prefix and suffix" {
     try std.testing.expectEqualSlices(u8, "working", item.getTextSlice());
     try std.testing.expectEqualSlices(u8, "  ", item.prefix);
     try std.testing.expectEqualSlices(u8, "...", item.suffix);
+}
+
+test "max_spinners is 32" {
+    try std.testing.expectEqual(@as(usize, 32), max_spinners);
+}
+
+test "MultiSpinner custom icons and statuses" {
+    const io = std.Options.debug_io;
+    const invalid_file = std.Io.File{
+        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
+        .flags = .{ .nonblocking = false },
+    };
+    const ms = try MultiSpinner.start(io, invalid_file, false, std.testing.allocator);
+    errdefer ms.stop();
+
+    const item = ms.addItem("Task A", .dots);
+    item.icon = "🔧";
+    item.success_icon = "🎉";
+    item.failure_icon = "💥";
+    item.warning_icon = "⚠️";
+    item.info_icon = "📢";
+
+    try std.testing.expectEqualSlices(u8, "🔧", item.icon.?);
+    try std.testing.expectEqualSlices(u8, "🎉", item.success_icon.?);
+
+    ms.setSucceeded(item, "Success!");
+    try std.testing.expect(item.done);
+    try std.testing.expectEqual(item.status, .success);
+
+    ms.setFailed(item, "Failed!");
+    try std.testing.expectEqual(item.status, .failure);
+
+    ms.setWarning(item, "Warn!");
+    try std.testing.expectEqual(item.status, .warning);
+
+    ms.setInfo(item, "Info!");
+    try std.testing.expectEqual(item.status, .info);
+
+    ms.stop();
 }

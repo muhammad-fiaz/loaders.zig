@@ -65,12 +65,15 @@
 | **Progress Bars** | Animated single-bar progress with percentage, ETA, and rate display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/progress-bar) |
 | **Spinners** | Background-threaded terminal spinners for non-blocking work. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/spinner) |
 | **Multi Progress** | Render multiple concurrent bars or spinners together. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/multi-progress) |
+| **Batch Progress** | Track multiple named tasks with per-task state (pending/running/done/failed). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/batch-progress) |
+| **Format Templates** | Custom layout strings using `{label}`, `{bar}`, `{percent}`, `{eta}`, `{rate}` tokens. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/format-templates) |
+| **Rate Smoothing** | EMA-based rate/ETA smoothing for stable throughput display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
 | **Styling** | Configure brackets, fills, colors, and suffixes. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/styling) |
-| **Themes** | Use built-in visual presets for bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/themes) |
-| **ANSI Colors** | Support for 16-color ANSI, 256-color, and RGB output. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/colors) |
+| **Themes** | 20+ built-in visual presets for bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/themes) |
+| **ANSI Colors** | 16-color ANSI, 256-color, 24-bit RGB, and hex string (`fromHex("#FF8800")`). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/colors) |
 | **Cross-Platform TTY Handling** | Detects terminal capabilities on Windows and POSIX systems. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
 | **No-Color Friendly** | Respects `NO_COLOR` and redirected output. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
-| **Stack-Friendly** | Designed to work well in small CLI tools and longer-running programs. | [API](https://muhammad-fiaz.github.io/loaders.zig/api/) |
+| **Stack-Friendly** | Zero heap allocation in core API. | [API](https://muhammad-fiaz.github.io/loaders.zig/api/) |
 
 </details>
 
@@ -124,7 +127,7 @@ Before using `loaders.zig`, ensure you have:
 Pin to a specific tagged release for reproducible builds:
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz
 ```
 
 This automatically adds the dependency to your `build.zig.zon`:
@@ -132,7 +135,7 @@ This automatically adds the dependency to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .loaders = .{
-        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz",
         .hash = "...", // auto-filled by zig fetch --save
     },
 },
@@ -143,7 +146,7 @@ This automatically adds the dependency to your `build.zig.zon`:
 Use the latest unreleased code from `main`. This tracks HEAD and may include breaking changes:
 
 ```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig.git
 ```
 
 This adds a git dependency to your `build.zig.zon`:
@@ -208,6 +211,7 @@ pub fn main(init: std.process.Init) !void {
         .text = "Syncing local database...",
         .style = loaders.SpinnerStyle.dots,
     });
+    errdefer sp.stop(io);
 
     try io.sleep(std.Io.Duration.fromSeconds(2), .awake);
     sp.succeed(io, "Database synchronized successfully!");
@@ -257,10 +261,46 @@ pub fn main(init: std.process.Init) !void {
 
 The core options are available through `BarOptions` and `SpinnerOptions` in the API reference.
 
-- `label`, `text`, and `prefix` for user-facing messages
+- `label`, `text`, `prefix`, and `icon` for user-facing messages and prefixes
 - `total`, `show_percent`, `show_elapsed`, `show_eta`, and `show_rate` for progress details
 - `style`, `color_enabled`, and custom bracket/fill fields for output control
 - `file` and `term` for stream selection and terminal capability detection
+- `success_icon`, `failure_icon`, `warning_icon`, and `info_icon` for custom status symbols
+- `disable_new_line` to prevent spamming logs in non-TTY environments
+- `icon_messages` for auto-cycling humorous or status messages with per-message custom icons
+- `on_progress` and `on_complete` callbacks to fire custom functions on progress updates and bar completions
+- `time_format_12h` option to render date/time prefixes in a 12-hour AM/PM format (defaults to 24-hour)
+- `max_label_width`, `max_message_width`, `max_suffix_width` (for bars), `max_text_width` (for spinners), and `max_name_width` (for batch tasks) to enforce visual terminal column width truncation constraints
+- `icon_gap`, `label_gap`, `datetime_gap` (for bars), `text_gap`, `state_gap` (for batch tasks/multi spinners) to specify custom explicit padding and space gaps between emojis, prefix icons, timestamp brackets, labels, and text contents (defaults to `" "` or `""`)
+- `padding_lines_above` and `padding_lines_below` to insert blank padding lines above and below progress indicators, automatically positioning the cursor for clean, ghosting-free in-place redrawing
+- `initial_completed` to start a progress bar with a prefilled progress value
+- `start_time_offset_sec` to shift elapsed time and ETA calculations (e.g. for resuming tasks)
+- `bg_color`, `text_bg_color`, `spinner_bg_color`, `label_bg_color`, `bracket_bg_color`, `percent_bg_color`, `fill_bg_color`, `empty_bg_color` to set explicit background colors on components
+
+### I/O Progress Tracking
+
+`loaders.zig` provides stream wrappers that automatically update progress as data is read or written:
+
+- **Duck-typed Wrappers**: Wrap any custom stream using `progressReader(bar, stream)` and `progressWriter(bar, stream)`.
+- **Standard Io Wrappers**: Wrap concrete standard library `std.Io.Reader` and `std.Io.Writer` interfaces using `progressIoReader(bar, reader)` and `progressIoWriter(bar, writer)`.
+
+```zig
+var downloader = MyDownloader.init();
+var bar = loaders.Bar.init(io, .{ .total = total_size });
+defer bar.done();
+
+var p_reader = loaders.progressReader(&bar, &downloader);
+var buf: [4096]u8 = undefined;
+while (true) {
+    const n = try p_reader.read(&buf);
+    if (n == 0) break;
+    bar.render();
+}
+```
+
+### Custom Threading & Async Support
+
+`loaders.zig` is designed to be compatible with custom thread pools and async event loops (such as when overriding `std_options` in Zig). The library and tests leverage the standard library's `std.Options.debug_io` interface. If you configure a custom thread pool or override single-threaded IO (by defining `std_options_debug_io` or `std_options_debug_threaded_io` in your application root), the library's background render threads and progress indicators will utilize it natively.
 
 See the full API at [API Reference](https://muhammad-fiaz.github.io/loaders.zig/api/).
 

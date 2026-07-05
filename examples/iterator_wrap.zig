@@ -55,8 +55,6 @@ pub fn main(init: std.process.Init) !void {
             .show_count = true,
             .style = loaders.BarStyle.cyan,
         });
-        defer bar.done();
-
         const Context = struct {
             total_sum: *u32,
         };
@@ -70,6 +68,7 @@ pub fn main(init: std.process.Init) !void {
         }.run;
 
         forEachWithProgress(u32, &items, &bar, io, ctx, cb);
+        bar.done();
 
         std.debug.print("Sum of items processed: {d}\n", .{sum});
     }

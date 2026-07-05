@@ -25,7 +25,7 @@ This guide walks you through installing `loaders.zig` and writing your first pro
 Pin to a specific tagged release for reproducible builds:
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz
 ```
 
 This automatically adds the dependency to your `build.zig.zon`:
@@ -33,7 +33,7 @@ This automatically adds the dependency to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .loaders = .{
-        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.1.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz",
         .hash = "...", // auto-filled by zig fetch --save
     },
 },
@@ -44,7 +44,7 @@ This automatically adds the dependency to your `build.zig.zon`:
 Use the latest unreleased code from `main`. This tracks HEAD and may include breaking changes:
 
 ```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig.git
 ```
 
 This adds a git dependency to your `build.zig.zon`:

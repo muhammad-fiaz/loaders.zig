@@ -4,7 +4,7 @@
 //! characters, fill/empty glyphs, and ANSI color attributes.
 //!
 //! `SpinnerStyle` controls the animation frames, interval, and default
-//! color for a spinner.  Over 30 built-in presets are provided.
+//! color for a spinner. Over 40 built-in presets are provided.
 
 const std = @import("std");
 const color = @import("color.zig");
@@ -12,7 +12,11 @@ const color = @import("color.zig");
 pub const Color = color.Color;
 pub const Attribute = color.Attribute;
 
-// ── Bar Style ─────────────────────────────────────────────────────────────────
+/// A message and icon pair for dynamic cycling.
+pub const Message = struct {
+    text: []const u8,
+    icon: ?[]const u8 = null,
+};
 
 /// Visual style for a progress bar.
 pub const BarStyle = struct {
@@ -36,8 +40,6 @@ pub const BarStyle = struct {
     empty_bg: Color = .default,
     /// Text attributes applied to the filled portion.
     attrs: []const Attribute = &.{},
-
-    // ── Built-in presets ──────────────────────────────────────────────────────
 
     /// Classic ASCII bar: [####    ]
     pub const ascii: BarStyle = .{
@@ -192,9 +194,79 @@ pub const BarStyle = struct {
         .left_bracket = "",
         .right_bracket = "",
     };
-};
 
-// ── Spinner Style ─────────────────────────────────────────────────────────────
+    /// Pipe bar: uses | and - characters.
+    pub const pipe: BarStyle = .{
+        .fill = "|",
+        .empty = "-",
+        .tip = "",
+        .fill_fg = .bright_green,
+        .empty_fg = .bright_black,
+    };
+
+    /// Half-block bar: uses half-block Unicode characters.
+    pub const half_block: BarStyle = .{
+        .fill = "▓",
+        .tip = "▌",
+        .empty = "▒",
+        .fill_fg = .{ .rgb = .{ .r = 60, .g = 180, .b = 255 } },
+        .empty_fg = .{ .rgb = .{ .r = 30, .g = 30, .b = 60 } },
+    };
+
+    /// Matrix style: green on black.
+    pub const matrix: BarStyle = .{
+        .fill = "█",
+        .tip = "▓",
+        .empty = "░",
+        .fill_fg = .bright_green,
+        .fill_bg = .black,
+        .empty_fg = .green,
+        .empty_bg = .black,
+        .attrs = &.{.bold},
+    };
+
+    /// Retro style: amber/yellow classic terminal look.
+    pub const retro: BarStyle = .{
+        .left_bracket = "(",
+        .right_bracket = ")",
+        .fill = "▓",
+        .empty = "░",
+        .tip = "▒",
+        .fill_fg = .{ .rgb = .{ .r = 255, .g = 176, .b = 0 } },
+        .empty_fg = .{ .rgb = .{ .r = 80, .g = 50, .b = 0 } },
+    };
+
+    /// Classic pipes bar: ═══>
+    pub const classic_pipes: BarStyle = .{
+        .left_bracket = "║",
+        .right_bracket = "║",
+        .fill = "═",
+        .tip = ">",
+        .empty = " ",
+        .fill_fg = .bright_cyan,
+        .empty_fg = .default,
+        .attrs = &.{.bold},
+    };
+
+    /// Rainbow style: vibrant purple RGB fill.
+    pub const rainbow: BarStyle = .{
+        .fill = "█",
+        .tip = "▓",
+        .empty = "░",
+        .fill_fg = .{ .rgb = .{ .r = 160, .g = 32, .b = 240 } },
+        .empty_fg = .bright_black,
+        .attrs = &.{.bold},
+    };
+
+    /// Smooth gradient: teal to blue.
+    pub const teal: BarStyle = .{
+        .fill = "▓",
+        .tip = "▒",
+        .empty = "░",
+        .fill_fg = .{ .rgb = .{ .r = 0, .g = 200, .b = 180 } },
+        .empty_fg = .bright_black,
+    };
+};
 
 /// Visual style for a spinner animation.
 pub const SpinnerStyle = struct {
@@ -206,8 +278,6 @@ pub const SpinnerStyle = struct {
     color: Color = .default,
     /// Text attributes for the spinner glyph.
     attrs: []const Attribute = &.{},
-
-    // ── Built-in presets ──────────────────────────────────────────────────────
 
     /// Braille dots animation (10-frame).
     pub const dots: SpinnerStyle = .{
@@ -276,7 +346,7 @@ pub const SpinnerStyle = struct {
         .interval_ms = 80,
     };
 
-    /// Vertical bar fill animation (8-frame).
+    /// Vertical bar fill animation (14-frame).
     pub const bars: SpinnerStyle = .{
         .frames = &.{ "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃", "▂" },
         .interval_ms = 80,
@@ -318,7 +388,7 @@ pub const SpinnerStyle = struct {
 
     /// Shark fin animation.
     pub const shark: SpinnerStyle = .{
-        .frames = &.{ "▐|\\____________▌", "▐_|\\___________▌", "▐__|\\__________▌", "▐___|\\______ ___▌", "▐____|\\________▌", "▐_____|\\________▌", "▐______|\\______▌", "▐_______|\\________▌", "▐________|\\____▌", "▐_________|\\___▌", "▐__________|\\__▌", "▐___________|\\_ ▌", "▐____________|\\▌", "▐____________/|▌", "▐___________/|_▌", "▐__________/|__▌", "▐_________/|___▌", "▐________/|____▌", "▐_______/|_____▌", "▐______/|______▌", "▐_____/|_______▌", "▐____/|________▌", "▐___/|_________▌", "▐__/|__________▌", "▐_/|___________▌", "▐/|____________▌" },
+        .frames = &.{ "▐|\\____________▌", "▐_|\\___________▌", "▐__|\\__________▌", "▐___|\\_____ ___▌", "▐____|\\________▌", "▐_____|\\________▌", "▐______|\\______▌", "▐_______|\\________▌", "▐________|\\____▌", "▐_________|\\___▌", "▐__________|\\__▌", "▐___________|\\_ ▌", "▐____________|\\▌", "▐____________/|▌", "▐___________/|_▌", "▐__________/|__▌", "▐_________/|___▌", "▐________/|____▌", "▐_______/|_____▌", "▐______/|______▌", "▐_____/|_______▌", "▐____/|________▌", "▐___/|_________▌", "▐__/|__________▌", "▐_/|___________▌", "▐/|____________▌" },
         .interval_ms = 120,
         .color = .blue,
     };
@@ -427,9 +497,78 @@ pub const SpinnerStyle = struct {
         .interval_ms = 80,
         .color = .{ .rgb = .{ .r = 160, .g = 100, .b = 255 } },
     };
-};
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+    /// Vertical growing bar (Material Design inspired).
+    pub const grow_vertical: SpinnerStyle = .{
+        .frames = &.{ "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█", "▉", "▊", "▋", "▌", "▍", "▎" },
+        .interval_ms = 70,
+        .color = .{ .rgb = .{ .r = 33, .g = 150, .b = 243 } },
+    };
+
+    /// Horizontal expanding dots.
+    pub const grow_horizontal: SpinnerStyle = .{
+        .frames = &.{ ".  ", ".. ", "...", " ..", "  .", "   " },
+        .interval_ms = 120,
+        .color = .bright_white,
+    };
+
+    /// Material Design dots (three dots pulsing).
+    pub const material: SpinnerStyle = .{
+        .frames = &.{ "●∙∙", "∙●∙", "∙∙●", "∙●∙" },
+        .interval_ms = 100,
+        .color = .{ .rgb = .{ .r = 3, .g = 169, .b = 244 } },
+    };
+
+    /// Layered block build-up.
+    pub const layer: SpinnerStyle = .{
+        .frames = &.{ "-", "=", "≡" },
+        .interval_ms = 150,
+        .color = .bright_white,
+        .attrs = &.{.bold},
+    };
+
+    /// Star/asterisk rotation.
+    pub const star: SpinnerStyle = .{
+        .frames = &.{ "✶", "✸", "✹", "✺", "✹", "✷" },
+        .interval_ms = 70,
+        .color = .bright_yellow,
+    };
+
+    /// Toggle on/off blink.
+    pub const toggle: SpinnerStyle = .{
+        .frames = &.{ "⊶", "⊷" },
+        .interval_ms = 250,
+        .color = .bright_cyan,
+    };
+
+    /// Progress pie chart slices.
+    pub const progress_pie: SpinnerStyle = .{
+        .frames = &.{ "○", "◔", "◑", "◕", "●", "◕", "◑", "◔" },
+        .interval_ms = 100,
+        .color = .green,
+    };
+
+    /// Bouncing dots animation.
+    pub const bounce_dots: SpinnerStyle = .{
+        .frames = &.{ "⠁", "⠂", "⠄", "⠂" },
+        .interval_ms = 100,
+        .color = .bright_magenta,
+    };
+
+    /// Star rotation animation.
+    pub const stars: SpinnerStyle = .{
+        .frames = &.{ "✦", "✧", "✨", "✦", "✧" },
+        .interval_ms = 150,
+        .color = .bright_yellow,
+    };
+
+    /// Binary digits animation.
+    pub const binary: SpinnerStyle = .{
+        .frames = &.{ "010010", "001100", "100101", "111010", "111101", "010111", "101011", "111000", "110011", "011010" },
+        .interval_ms = 80,
+        .color = .bright_green,
+    };
+};
 
 test "BarStyle presets compile" {
     _ = BarStyle.ascii;
@@ -445,6 +584,13 @@ test "BarStyle presets compile" {
     _ = BarStyle.arrow;
     _ = BarStyle.dots;
     _ = BarStyle.slim;
+    _ = BarStyle.pipe;
+    _ = BarStyle.half_block;
+    _ = BarStyle.matrix;
+    _ = BarStyle.retro;
+    _ = BarStyle.classic_pipes;
+    _ = BarStyle.rainbow;
+    _ = BarStyle.teal;
 }
 
 test "SpinnerStyle presets compile" {
@@ -455,6 +601,32 @@ test "SpinnerStyle presets compile" {
     _ = SpinnerStyle.shark;
     _ = SpinnerStyle.aesthetic;
     _ = SpinnerStyle.snake;
+    _ = SpinnerStyle.grow_vertical;
+    _ = SpinnerStyle.grow_horizontal;
+    _ = SpinnerStyle.material;
+    _ = SpinnerStyle.layer;
+    _ = SpinnerStyle.star;
+    _ = SpinnerStyle.toggle;
+    _ = SpinnerStyle.binary;
+    _ = SpinnerStyle.progress_pie;
+    _ = SpinnerStyle.bounce_dots;
+    _ = SpinnerStyle.stars;
     try @import("std").testing.expect(SpinnerStyle.dots.frames.len > 0);
     try @import("std").testing.expect(SpinnerStyle.aesthetic.frames.len > 0);
+}
+
+test "BarStyle presets have non-empty fill" {
+    try std.testing.expect(BarStyle.ascii.fill.len > 0);
+    try std.testing.expect(BarStyle.pipe.fill.len > 0);
+    try std.testing.expect(BarStyle.matrix.fill.len > 0);
+    try std.testing.expect(BarStyle.retro.fill.len > 0);
+    try std.testing.expect(BarStyle.classic_pipes.fill.len > 0);
+}
+
+test "SpinnerStyle new presets have frames" {
+    try std.testing.expect(SpinnerStyle.grow_vertical.frames.len > 0);
+    try std.testing.expect(SpinnerStyle.material.frames.len > 0);
+    try std.testing.expect(SpinnerStyle.binary.frames.len > 0);
+    try std.testing.expect(SpinnerStyle.star.frames.len > 0);
+    try std.testing.expect(SpinnerStyle.toggle.frames.len == 2);
 }

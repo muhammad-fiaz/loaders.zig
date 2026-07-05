@@ -78,6 +78,7 @@ The library re-queries the terminal columns dynamically on every single frame re
 - **`show_date`**: Prepends the current calendar date (`[YYYY-MM-DD]`).
 - **`show_time`**: Prepends the current calendar time (`[HH:MM:SS]`).
 - **`timezone_offset_sec`**: Shifts the UTC clock time to your local timezone (e.g. `19800` shifts UTC by +5:30 to match IST local time).
+- **`color`**: Colors the entire progress bar line (e.g. `.yellow`). Specific overrides like `fill_color` or `label_color` take precedence.
 
 ### Example Configuration
 
@@ -92,10 +93,141 @@ var bar = loaders.Bar.init(io, .{
     .show_date = true,
     .show_time = true,
     .timezone_offset_sec = 19800, // shifts clock by +5:30
+    .color = .cyan, // colors the entire progress bar line cyan
     .width = 0, // auto-responsive resizing
 });
 ```
 
 This renders as:
 `🚀 [2026-05-26 17:19:41] Processing Task [██████████] 100% 100/100 00:09 [Thread: #1]`
+
+---
+
+## 6. Custom Icons and Completion Statuses
+
+You can configure optional running icons and dynamic completion status icons on progress bars:
+
+- **`icon`**: Running icon prefix (e.g. `"🚀"`) printed at the beginning of the line.
+- **`success_icon`**: Custom status icon on success (defaults to `"✓"`).
+- **`failure_icon`**: Custom status icon on failure (defaults to `"✗"`).
+- **`warning_icon`**: Custom status icon on warning (defaults to `"⚠"`).
+- **`info_icon`**: Custom status icon on info (defaults to `"ℹ"`).
+
+### Completion Status Methods
+
+Instead of standard `done()`, you can call dynamic completion methods when your progress bar reaches the end:
+
+- **`bar.succeed(msg)`**: Renders success status, stops the bar, and updates the message to `msg`.
+- **`bar.fail(msg)`**: Renders failure status, stops the bar, and updates the message.
+- **`bar.warn(msg)`**: Renders warning status, stops the bar, and updates the message.
+- **`bar.info(msg)`**: Renders info status, stops the bar, and updates the message.
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .icon = "🚀",
+    .success_icon = "✨",
+});
+
+// perform work
+bar.succeed("Deployment complete!");
+```
+
+---
+
+## 7. Dynamic Message Cycling (Humor Messages / Loading Loops)
+
+You can pass a list of messages to the progress bar options to automatically cycle through them at a set interval during active loading:
+
+- **`messages`**: Slice of string messages (e.g. `&[_][]const u8 { "Feeding hamsters...", "Reticulating splines..." }`).
+- **`icon_messages`**: Slice of `Message` structures with custom per-message text and icons (e.g. `&[_]loaders.Message { .{ .text = "Feeding hamsters...", .icon = "🐹" } }`).
+- **`message_interval_ms`**: Duration in milliseconds to show each message (defaults to `1500`).
+
+```zig
+const humor_msgs = [_]loaders.Message{
+    .{ .text = "Feeding hamsters...", .icon = "🐹" },
+    .{ .text = "Brewing coffee...", .icon = "☕" },
+};
+
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .label = "Processing",
+    .icon_messages = &humor_msgs,
+    .message_interval_ms = 400,
+});
+```
+
+---
+
+## 8. Progress and Completion Callbacks
+
+`loaders.Bar` supports registering callback functions to execute custom logic on progress updates and bar completion:
+
+- **`on_progress`**: Fired whenever `completed` is updated (via `setCompleted`, `increment`, `incrementBy`). Function signature: `fn(bar: *loaders.Bar, completed: usize, total: usize) void`.
+- **`on_complete`**: Fired exactly once when `completed` reaches or exceeds `total`, or when a stop method (`done`, `succeed`, `fail`, etc.) is called. Function signature: `fn(bar: *loaders.Bar) void`.
+
+### Example
+
+```zig
+const cb_struct = struct {
+    pub fn onProgress(bar: *loaders.Bar, completed: usize, total: usize) void {
+        // Custom progress reporting logic
+    }
+    pub fn onComplete(bar: *loaders.Bar) void {
+        std.debug.print("Task finished callback triggered!\n", .{});
+    }
+};
+
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .on_progress = cb_struct.onProgress,
+    .on_complete = cb_struct.onComplete,
+});
+```
+
+---
+
+## 9. 12-Hour Time and Visual Width Truncation Controls
+
+To prevent screen overflow or text wrapping when labels, messages, or suffixes are exceptionally long, `loaders.Bar` offers explicit width truncation controls:
+
+- **`time_format_12h`**: When `true`, formats date/time prefixes using a 12-hour AM/PM format (e.g. `[2026-05-26 05:19:41 PM]`).
+- **`max_label_width`**: Sets the maximum number of visual terminal columns occupied by the label. Excess characters are safely truncated and appended with `…`.
+- **`max_message_width`**: Sets the maximum number of visual terminal columns occupied by the active message.
+- **`max_suffix_width`**: Sets the maximum number of visual terminal columns occupied by the suffix.
+
+### Example
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .label = "Super Long Label That Might Overflow The Screen",
+    .max_label_width = 15, // Truncated to 15 columns: "Super Long Labe…"
+    .message = "Initialising and downloading dependencies from local cache server...",
+    .max_message_width = 25, // Truncated to 25 columns: "Initialising and downloa..."
+    .show_time = true,
+    .time_format_12h = true, // Outputs AM/PM format
+});
+```
+
+---
+
+## 10. Customizable Spacing Gaps
+
+To prevent overlapping on wide-glyph emoji renderings or customize padding, you can override default spacing gaps:
+
+- **`icon_gap`**: Spacing printed after prefix/status icons (defaults to `" "`).
+- **`label_gap`**: Spacing printed after the label (defaults to `" "`).
+- **`datetime_gap`**: Spacing printed after the date/time prefix brackets (defaults to `" "`).
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .icon = "🛡️",
+    .icon_gap = "   ", // explicit wide gap after shield emoji
+    .label = "Processing",
+    .label_gap = "  ",
+});
+```
+
+
 

@@ -11,8 +11,6 @@ const builtin = @import("builtin");
 
 const native_os = builtin.os.tag;
 
-// Public API
-
 /// Setup the terminal for correct UTF-8 output rendering on Windows.
 /// On other platforms, this is a no-op.
 pub fn setupTerminal() void {
@@ -92,8 +90,6 @@ pub fn shouldEnableColor(info: TermInfo, environ: std.process.Environ) bool {
     return info.ansi_supported;
 }
 
-// Platform-specific column query
-
 fn queryColsForFile(file: std.Io.File) u16 {
     return switch (native_os) {
         .windows => queryColsWindows(file),
@@ -103,7 +99,6 @@ fn queryColsForFile(file: std.Io.File) u16 {
 }
 
 fn queryColsPosix(file: std.Io.File) u16 {
-    // Use ioctl(TIOCGWINSZ) via inline assembly / posix.system
     const fd = file.handle;
     var ws: std.posix.winsize = .{
         .row = 0,
@@ -153,8 +148,6 @@ fn queryColsWindows(file: std.Io.File) u16 {
     return 80;
 }
 
-// Tests
-
 test "TermInfo.dumb defaults" {
     const info = TermInfo.dumb;
     try std.testing.expect(!info.is_tty);
@@ -163,9 +156,6 @@ test "TermInfo.dumb defaults" {
 }
 
 test "shouldEnableColor: disabled by NO_COLOR" {
-    // We can't easily set env vars in tests, but we can test the logic path:
     const info: TermInfo = .{ .is_tty = true, .ansi_supported = true, .cols = 80 };
-    // Create a fake environ with NO_COLOR not set (empty environ block)
-    // We can only test via actual environ here
     _ = info;
 }
