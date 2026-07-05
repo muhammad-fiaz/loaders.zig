@@ -39,6 +39,7 @@ zig build examples
 | [Themed Bar](themed-bar) | Gallery of 9 built-in bar themes | `zig build run-themed_bar` |
 | [ETA and Rate](eta-and-rate) | Dynamic ETA, rate, count, and elapsed time | `zig build run-eta_and_rate` |
 | [Download Simulation](download-simulation) | 50 MB download with byte rate and ETA | `zig build run-download_simulation` |
+| [Rate Smoothing](rate-smoothing) | Byte throughput and EMA rate smoothing | `zig build run-rate_smoothing` |
 | [Advanced Options](advanced-options) | Decorators, timestamps, colors, responsive width | `zig build run-advanced_options` |
 | [Custom Template](custom-template) | Dynamic label changes across 5 phases | `zig build run-custom_template` |
 | [Nested Bars](nested-bars) | Outer/inner batch progress with MultiBar | `zig build run-nested_bars` |
@@ -62,3 +63,6 @@ zig build examples
 |---------|-------------|-----|
 | [Iterator Wrap](iterator-wrap) | Progress bar wrapper for iterators and callbacks | `zig build run-iterator_wrap` |
 | [Animations](animations) | Showcase all 33 spinner and 18 bar presets | `zig build run-animations` |
+| [Color Demo](color-demo) | Tiered ANSI, 256-color, and RGB colors | `zig build run-color_demo` |
+| [Icon Demo](icon-demo) | Custom running prefix and completion icons | `zig build run-icon_demo` |
+| [Multi-Message Progressbar](multi-message-progressbar) | Dynamic loading messages cycling and loop | `zig build run-multi_message_progressbar` |

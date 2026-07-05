@@ -41,6 +41,23 @@ All counters on `loaders.Bar` use atomic registers (`std.atomic.Value`). The com
 
 Rendering operations, however, are **not thread-safe**. Refrain from calling `bar.render()` concurrently from multiple threads. Instead, configure background workers to only update completed units, and have a single rendering coordinator thread periodically invoke `bar.render()` (e.g. at 30fps / every 33ms) or call `mb.render()` in a coordinated multi-bar set.
 
+### Custom Threading & Async Event Loops
+
+The library is fully compatible with custom threading models and async event loops (such as custom root `std_options` overrides). All internals and test blocks utilize the standard library's `std.Options.debug_io` interface. If you configure a custom thread pool or override single-threaded IO (by defining `std_options_debug_io` or `std_options_debug_threaded_io` in your application root), `loaders.zig` will automatically utilize it for thread-safe terminal writes without crashing.
+
+### Controlling Non-TTY Newlines
+
+In non-TTY environments (such as CI/CD logs, redirected pipelines, or files), progress bars tend to output a new line for every single update frame, creating thousands of log lines.
+
+By default, `loaders.Bar` disables this behavior via `disable_new_line = true` (which is the default). This ensures progress updates are hidden until the final line on completion. You can re-enable intermediate log lines by configuring `disable_new_line = false`:
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .disable_new_line = false, // Output new line on every render frame
+});
+```
+
 ---
 
 ## 3. High Performance Stacking
@@ -65,3 +82,75 @@ if (kernel32.GetConsoleMode(file.handle, &mode) != 0) { ... }
 ```
 
 If these checks return `false`, `loaders.zig` automatically enters passive mode, avoiding complex ANSI cursor-move codes and simply logging standard progress lines separated by clean newlines. This guarantees clean outputs in all redirect pipelines and automated script triggers.
+
+---
+
+## 5. Spacing, Margins & Layout Spacing
+
+You can add empty spacing lines above and below progress indicators to separate them from other terminal output. The renderer moves the cursor dynamically to clear and redraw these empty spaces, preventing ghosting:
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .padding_lines_above = 1, // 1 blank line above
+    .padding_lines_below = 1, // 1 blank line below
+});
+```
+
+For concurrent or grouped task renderers (`MultiBar`, `MultiSpinner`, `BatchBar`), you can configure the number of empty newline margins to render *in between* each individual task using `spacing_lines`:
+
+```zig
+// In MultiBarOptions:
+var mb = loaders.MultiBar.init(io, file, null, .{
+    .spacing_lines = 1, // 1 empty line in between each progress bar
+});
+
+// In MultiSpinner:
+ms.spacing_lines = 1; // 1 empty line in between each spinner item
+
+// In BatchOptions:
+var bb = loaders.BatchBar.init(io, .{
+    .title = "Build Pipeline",
+    .spacing_lines = 1, // 1 empty line in between each batch task
+});
+```
+
+To prefill a progress bar to a starting value when initializing, use `initial_completed`:
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .initial_completed = 35, // Prefilled to 35%
+});
+```
+
+To shift elapsed times and ETA calculations (for instance, when resuming a paused task), use `start_time_offset_sec`:
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .start_time_offset_sec = 60, // Shift time by 60 seconds
+});
+```
+
+---
+
+## 6. I/O Stream Progress Integration
+
+To automatically update progress bars as data streams through readers or writers, wrap them using progress wrappers:
+
+- **Generic wrappers**: Use `progressReader(bar, stream)` and `progressWriter(bar, stream)` for duck-typed streams.
+- **Concrete standard library wrappers**: Use `progressIoReader(bar, &reader)` and `progressIoWriter(bar, &writer)` for `std.Io.Reader` and `std.Io.Writer`.
+
+```zig
+var file = try std.Io.Dir.cwd().createFile(io, "output.bin", .{});
+defer file.close(io);
+
+var file_writer_buf: [4096]u8 = undefined;
+var file_writer = std.Io.File.Writer.init(file, io, &file_writer_buf);
+
+var p_io_writer = loaders.progressIoWriter(&bar, &file_writer.interface);
+
+// Stream data directly; the progress bar is updated automatically!
+_ = try response_reader.streamRemaining(p_io_writer.writer());
+```

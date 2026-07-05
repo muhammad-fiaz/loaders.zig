@@ -129,8 +129,6 @@ fn extractTagName(body: []const u8) ?[]const u8 {
     return value_start[0..value_end];
 }
 
-// ── Inline helpers to avoid repeated std.mem lookups ──────────────────────────
-
 inline fn indexOfSlice(haystack: []const u8, needle: []const u8) ?usize {
     return std.mem.indexOf(u8, haystack, needle);
 }
@@ -140,10 +138,8 @@ inline fn indexOfScalar(haystack: []const u8, needle: u8) ?usize {
 }
 
 inline fn trimLeft(s: []const u8, chars: []const u8) []const u8 {
-    return std.mem.trimLeft(u8, s, chars);
+    return std.mem.trimStart(u8, s, chars);
 }
-
-// ── Tests ──────────────────────────────────────────────────────────────────────
 
 test "extractTagName basic" {
     const json =
@@ -171,9 +167,9 @@ test "extractTagName missing" {
 }
 
 test "SemanticVersion comparison" {
-    const current = try std.SemanticVersion.parse("0.0.1");
+    const current = try std.SemanticVersion.parse("0.0.2");
     const newer = try std.SemanticVersion.parse("0.1.0");
-    const older = try std.SemanticVersion.parse("0.0.0");
+    const older = try std.SemanticVersion.parse("0.0.1");
 
     try std.testing.expect(current.order(newer) == .lt); // update available
     try std.testing.expect(current.order(older) == .gt); // current is newer

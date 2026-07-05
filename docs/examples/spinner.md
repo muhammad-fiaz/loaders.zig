@@ -38,6 +38,7 @@ pub fn main(init: std.process.Init) !void {
             .style = loaders.SpinnerStyle.dots,
             .allocator = allocator,
         });
+        errdefer sp.stop(io);
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
         sp.setText("Loading plugins...");
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
@@ -51,6 +52,7 @@ pub fn main(init: std.process.Init) !void {
             .style = loaders.SpinnerStyle.line,
             .allocator = allocator,
         });
+        errdefer sp.stop(io);
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
         sp.setText("Unpacking assets...");
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
@@ -64,6 +66,7 @@ pub fn main(init: std.process.Init) !void {
             .style = loaders.SpinnerStyle.moon,
             .allocator = allocator,
         });
+        errdefer sp.stop(io);
         try io.sleep(std.Io.Duration.fromSeconds(2), .awake);
         sp.info(io, "Database synchronized.");
     }

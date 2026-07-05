@@ -98,6 +98,7 @@ pub fn main(init: std.process.Init) !void {
             .text = demo.name,
             .style = demo.style,
         });
+        errdefer sp.stop(io);
         io.sleep(std.Io.Duration.fromMilliseconds(800), .awake) catch {};
         sp.succeed(io, demo.name);
     }

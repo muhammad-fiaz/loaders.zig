@@ -17,7 +17,11 @@ pub fn main(init: std.process.Init) !void {
             .text = "Initializing system...",
             .style = loaders.SpinnerStyle.dots,
             .allocator = allocator,
+            .icon = "⚙️",
+            .icon_gap = "  ",
+            .text_gap = "  ",
         });
+        errdefer sp.stop(io);
 
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
         sp.setText("Loading plugins...");
@@ -33,7 +37,11 @@ pub fn main(init: std.process.Init) !void {
             .text = "Downloading assets...",
             .style = loaders.SpinnerStyle.line,
             .allocator = allocator,
+            .icon = "📥",
+            .icon_gap = "  ",
+            .text_gap = "  ",
         });
+        errdefer sp.stop(io);
 
         try io.sleep(std.Io.Duration.fromSeconds(1), .awake);
         sp.setText("Unpacking assets...");
@@ -49,7 +57,11 @@ pub fn main(init: std.process.Init) !void {
             .text = "Synchronizing database...",
             .style = loaders.SpinnerStyle.moon,
             .allocator = allocator,
+            .icon = "🌕",
+            .icon_gap = "  ",
+            .text_gap = "  ",
         });
+        errdefer sp.stop(io);
 
         try io.sleep(std.Io.Duration.fromSeconds(2), .awake);
 

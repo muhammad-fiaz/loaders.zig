@@ -31,12 +31,19 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
+    errdefer ms.stop();
 
     const fetch = ms.addItem("Fetching data from API", loaders.SpinnerStyle.dots);
     const parse = ms.addItem("Parsing JSON response", loaders.SpinnerStyle.arc);
     const build = ms.addItem("Compiling assets", loaders.SpinnerStyle.aesthetic);
     const upload = ms.addItem("Uploading to CDN", loaders.SpinnerStyle.pulse);
     const check = ms.addItem("Running health checks", loaders.SpinnerStyle.wifi);
+
+    fetch.icon = "📥";
+    parse.icon = "⚙️";
+    build.icon = "🏗️";
+    upload.icon = "📤";
+    check.icon = "🩺";
 
     fetch.color = .cyan;
     parse.color = .bright_yellow;
