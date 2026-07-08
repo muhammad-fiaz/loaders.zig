@@ -39,7 +39,7 @@ pub const TaskState = enum {
 
 /// A single task tracked by BatchBar.
 pub const BatchTask = struct {
-    name: [128:0]u8 = [_:0]u8{0} ** 128,
+    name: [128:0]u8 = @splat(0),
     name_len: usize = 0,
     total: usize = 0,
     completed: std.atomic.Value(usize),
@@ -347,11 +347,17 @@ pub const BatchBar = struct {
             try c.begin(w, line_color, line_bg_color, &.{});
         }
 
-        // Custom running icon prefix (if configured)
+        // Custom running icon prefix (without line background color to avoid emoji highlighting)
         if (t.icon orelse bb.opts.icon) |icon| {
             if (icon.len > 0) {
+                if (line_color != .default or line_bg_color != .default) {
+                    try c.reset(w);
+                }
                 try w.writeAll(icon);
                 try w.writeAll(bb.opts.icon_gap);
+                if (line_color != .default or line_bg_color != .default) {
+                    try c.begin(w, line_color, line_bg_color, &.{});
+                }
             }
         }
 
@@ -416,6 +422,8 @@ pub const BatchBar = struct {
         const fill_bg_col = if (t.fill_bg_color != .default) t.fill_bg_color else s.fill_bg;
         const empty_fg_col = if (t.empty_color != .default) t.empty_color else s.empty_fg;
         const empty_bg_col = if (t.empty_bg_color != .default) t.empty_bg_color else s.empty_bg;
+        const is_task_complete = t.state == .done or t.state == .failed;
+        const use_complete = is_task_complete and s.complete_fg != .default;
 
         if (total == 0) {
             var i: usize = 0;
@@ -431,22 +439,68 @@ pub const BatchBar = struct {
             const empty = effective_width - filled_c;
 
             if (filled_c > 0) {
-                try c.begin(w, fill_fg_col, fill_bg_col, s.attrs);
-                if (s.tip.len > 0 and filled_c < effective_width) {
-                    var i: usize = 0;
-                    while (i < filled_c -| 1) : (i += 1) try w.writeAll(s.fill);
-                    try w.writeAll(s.tip);
+                if (use_complete) {
+                    try c.begin(w, s.complete_fg, fill_bg_col, s.attrs);
+                    if (s.tip.len > 0 and filled_c < effective_width) {
+                        var i: usize = 0;
+                        while (i < filled_c -| 1) : (i += 1) try w.writeAll(s.fill);
+                        try w.writeAll(s.tip);
+                    } else {
+                        var i: usize = 0;
+                        while (i < filled_c) : (i += 1) try w.writeAll(s.fill);
+                    }
+                    try c.reset(w);
+                } else if (s.fill_gradient) |grad| {
+                    if (s.tip.len > 0 and filled_c < effective_width) {
+                        var i: usize = 0;
+                        while (i < filled_c -| 1) : (i += 1) {
+                            const t_val = if (effective_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(effective_width - 1)) else 0.0;
+                            try c.begin(w, grad.at(t_val), fill_bg_col, s.attrs);
+                            try w.writeAll(s.fill);
+                            try c.reset(w);
+                        }
+                        const tip_t = if (effective_width > 1) @as(f64, @floatFromInt(filled_c -| 1)) / @as(f64, @floatFromInt(effective_width - 1)) else 1.0;
+                        try c.begin(w, grad.at(tip_t), fill_bg_col, s.attrs);
+                        try w.writeAll(s.tip);
+                        try c.reset(w);
+                    } else {
+                        var i: usize = 0;
+                        while (i < filled_c) : (i += 1) {
+                            const t_val = if (effective_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(effective_width - 1)) else 0.0;
+                            try c.begin(w, grad.at(t_val), fill_bg_col, s.attrs);
+                            try w.writeAll(s.fill);
+                            try c.reset(w);
+                        }
+                    }
                 } else {
-                    var i: usize = 0;
-                    while (i < filled_c) : (i += 1) try w.writeAll(s.fill);
+                    try c.begin(w, fill_fg_col, fill_bg_col, s.attrs);
+                    if (s.tip.len > 0 and filled_c < effective_width) {
+                        var i: usize = 0;
+                        while (i < filled_c -| 1) : (i += 1) try w.writeAll(s.fill);
+                        try w.writeAll(s.tip);
+                    } else {
+                        var i: usize = 0;
+                        while (i < filled_c) : (i += 1) try w.writeAll(s.fill);
+                    }
+                    try c.reset(w);
                 }
-                try c.reset(w);
             }
             if (empty > 0) {
-                try c.begin(w, empty_fg_col, empty_bg_col, &.{});
-                var i: usize = 0;
-                while (i < empty) : (i += 1) try w.writeAll(s.empty);
-                try c.reset(w);
+                if (s.empty_gradient) |grad| {
+                    var i: usize = 0;
+                    while (i < empty) : (i += 1) {
+                        const offset = filled_c + i;
+                        const t_val = if (effective_width > 1) @as(f64, @floatFromInt(offset)) / @as(f64, @floatFromInt(effective_width - 1)) else 0.0;
+                        try c.begin(w, grad.at(t_val), empty_bg_col, &.{});
+                        try w.writeAll(s.empty);
+                        try c.reset(w);
+                    }
+                } else {
+                    try c.begin(w, empty_fg_col, empty_bg_col, &.{});
+                    var i: usize = 0;
+                    while (i < empty) : (i += 1) try w.writeAll(s.empty);
+                    try c.reset(w);
+                }
             }
         }
 
@@ -469,7 +523,7 @@ pub const BatchBar = struct {
             try w.print(" {d}/{d}", .{ completed, total });
         }
 
-        if (line_color != .default) {
+        if (line_color != .default or line_bg_color != .default) {
             try c.reset(w);
         }
     }

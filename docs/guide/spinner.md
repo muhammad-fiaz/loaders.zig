@@ -170,4 +170,76 @@ const sp = try loaders.Spinner.start(io, .{
 });
 ```
 
+### Padding Lines
+
+Add empty lines above or below the spinner for visual spacing in multi-spinner layouts:
+
+- **`padding_lines_above`**: Number of empty lines printed above the spinner (defaults to `0`).
+- **`padding_lines_below`**: Number of empty lines printed below the spinner (defaults to `0`).
+
+```zig
+const sp = try loaders.Spinner.start(io, .{
+    .text = "Processing...",
+    .padding_lines_above = 1, // one blank line above
+    .padding_lines_below = 1, // one blank line below
+});
+```
+
+### Gradient Spinner Glyphs
+
+Spinners support gradient-based color rendering where each frame of the spinner glyph gets a smoothly interpolated color from a gradient palette.
+
+```zig
+const sp = try loaders.Spinner.start(io, .{
+    .text = "Processing...",
+    .style = .{
+        .frames = &.{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+        .interval_ms = 80,
+        .gradient = loaders.Gradient.rainbow,
+    },
+});
+```
+
+### Completion Color (`complete_fg`)
+
+You can set a color for the spinner glyph when it completes (succeed/fail/warn/info):
+
+```zig
+const sp = try loaders.Spinner.start(io, .{
+    .text = "Processing...",
+    .style = .{
+        .color = .cyan,
+        .complete_fg = .green,  // Spinner turns green on success
+    },
+});
+```
+
+When `complete_fg` is set, the spinner glyph uses that color in the final printed line instead of the default state color (green for succeed, red for fail, etc.).
+
+### Completion Callbacks
+
+`loaders.Spinner` supports callback functions for completion events:
+
+- **`on_complete`**: Fired when any stop method is called. Function signature: `fn(sp: *loaders.Spinner) void`.
+- **`on_success`**: Fired when `succeed()` is called. Function signature: `fn(sp: *loaders.Spinner) void`.
+- **`on_failure`**: Fired when `fail()` is called. Function signature: `fn(sp: *loaders.Spinner) void`.
+- **`on_warn`**: Fired when `warn()` is called. Function signature: `fn(sp: *loaders.Spinner) void`.
+- **`on_info`**: Fired when `info()` is called. Function signature: `fn(sp: *loaders.Spinner) void`.
+
+```zig
+const sp = try loaders.Spinner.start(io, .{
+    .text = "Processing...",
+    .on_success = struct {
+        fn cb(sp: *loaders.Spinner) void {
+            std.debug.print("Spinner succeeded!\n", .{});
+        }
+    }.cb,
+    .on_failure = struct {
+        fn cb(sp: *loaders.Spinner) void {
+            std.debug.print("Spinner failed!\n", .{});
+        }
+    }.cb,
+});
+```
+
 

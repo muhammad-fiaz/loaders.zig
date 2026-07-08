@@ -37,6 +37,7 @@ zig build examples
 | [Styled Bar](02-styled-bar) | Side-by-side comparison of 7 bar styles | `zig build run-02_styled_bar` |
 | [Custom Style](custom-style) | Custom `BarStyle` with `=` fill, `>` tip, green color | `zig build run-custom_style` |
 | [Themed Bar](themed-bar) | Gallery of 9 built-in bar themes | `zig build run-themed_bar` |
+| [Gradient Demo](gradient-demo) | Multi-color gradient progress bars and spinners | `zig build run-gradient_demo` |
 | [ETA and Rate](eta-and-rate) | Dynamic ETA, rate, count, and elapsed time | `zig build run-eta_and_rate` |
 | [Download Simulation](download-simulation) | 50 MB download with byte rate and ETA | `zig build run-download_simulation` |
 | [Rate Smoothing](rate-smoothing) | Byte throughput and EMA rate smoothing | `zig build run-rate_smoothing` |

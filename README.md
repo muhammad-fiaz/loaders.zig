@@ -2,7 +2,7 @@
 <img  height="400" alt="loader zig" src="https://github.com/user-attachments/assets/042252d5-0594-4984-bece-deb3b232d91f" />
 
 <a href="https://muhammad-fiaz.github.io/loaders.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
-<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
+<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.17.0-orange.svg?logo=zig" alt="Zig Version"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/loaders.zig" alt="GitHub stars"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/loaders.zig" alt="GitHub issues"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/loaders.zig" alt="GitHub pull requests"></a>
@@ -70,6 +70,7 @@
 | **Rate Smoothing** | EMA-based rate/ETA smoothing for stable throughput display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
 | **Styling** | Configure brackets, fills, colors, and suffixes. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/styling) |
 | **Themes** | 20+ built-in visual presets for bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/themes) |
+| **Gradients** | Rainbow, fire, ocean, and custom gradient rendering on bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/gradients) |
 | **ANSI Colors** | 16-color ANSI, 256-color, 24-bit RGB, and hex string (`fromHex("#FF8800")`). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/colors) |
 | **Cross-Platform TTY Handling** | Detects terminal capabilities on Windows and POSIX systems. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
 | **No-Color Friendly** | Respects `NO_COLOR` and redirected output. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
@@ -90,7 +91,7 @@ Before using `loaders.zig`, ensure you have:
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| **Zig** | 0.16.0 | Install from [ziglang.org](https://ziglang.org/download/) |
+| **Zig** | 0.17.0 | Install from [ziglang.org](https://ziglang.org/download/) |
 | **Operating System** | Windows, Linux, macOS | Cross-platform support |
 | **Terminal** | Any modern terminal | For color and cursor control |
 
@@ -127,7 +128,7 @@ Before using `loaders.zig`, ensure you have:
 Pin to a specific tagged release for reproducible builds:
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz
 ```
 
 This automatically adds the dependency to your `build.zig.zon`:
@@ -135,7 +136,7 @@ This automatically adds the dependency to your `build.zig.zon`:
 ```zig
 .dependencies = .{
     .loaders = .{
-        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.2.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz",
         .hash = "...", // auto-filled by zig fetch --save
     },
 },

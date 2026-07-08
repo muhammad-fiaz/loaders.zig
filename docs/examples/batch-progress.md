@@ -1,5 +1,5 @@
 ---
-description: BatchBar example for loaders.zig v0.0.2 — grouped multi-task progress bars with state indicators and pipeline-style rendering.
+description: BatchBar example for loaders.zig v0.0.3 — grouped multi-task progress bars with state indicators and pipeline-style rendering.
 ---
 
 # Batch Progress Example

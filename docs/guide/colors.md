@@ -1,5 +1,5 @@
 ---
-description: Color reference for loaders.zig v0.0.2 — ANSI 16-color, 256-color palette, true-color RGB, hex string parsing, and NO_COLOR support.
+description: Color reference for loaders.zig v0.0.3 — ANSI 16-color, 256-color palette, true-color RGB, hex string parsing, and NO_COLOR support.
 head:
   - - meta
     - name: keywords
@@ -9,7 +9,7 @@ head:
       content: Colors — loaders.zig
   - - meta
     - property: og:description
-      content: Complete reference for all color modes in loaders.zig v0.0.2
+      content: Complete reference for all color modes in loaders.zig v0.0.3
 ---
 
 # Colors

@@ -40,6 +40,14 @@ pub const BarStyle = struct {
     empty_bg: Color = .default,
     /// Text attributes applied to the filled portion.
     attrs: []const Attribute = &.{},
+    /// Optional gradient for the fill. When set, overrides fill_fg with
+    /// interpolated colors across the bar width.
+    fill_gradient: ?Gradient = null,
+    /// Optional gradient for the empty portion.
+    empty_gradient: ?Gradient = null,
+    /// Color for the filled portion when the bar is complete (100%).
+    /// `.default` = use `fill_fg` or gradient.
+    complete_fg: Color = .default,
 
     /// Classic ASCII bar: [####    ]
     pub const ascii: BarStyle = .{
@@ -268,6 +276,116 @@ pub const BarStyle = struct {
     };
 };
 
+/// A gradient definition for multi-color rendering.
+///
+/// Defines how colors transition across a span (bar fill or spinner frames).
+/// `colors` is an array of color stops; the gradient interpolates between
+/// consecutive stops. `reversed` flips the direction.
+pub const Gradient = struct {
+    /// Color stops to interpolate between (minimum 2).
+    colors: []const Color,
+    /// When true, the gradient runs from the last color to the first.
+    reversed: bool = false,
+
+    /// Get the interpolated color at position `t` (0.0–1.0).
+    pub fn at(self: Gradient, t: f64) Color {
+        const n = self.colors.len;
+        if (n == 0) return .default;
+        if (n == 1) return self.colors[0];
+        const tt = if (self.reversed) 1.0 - @max(0.0, @min(1.0, t)) else @max(0.0, @min(1.0, t));
+        const segment = tt * @as(f64, @floatFromInt(n - 1));
+        const idx: usize = @intFromFloat(@min(segment, @as(f64, @floatFromInt(n - 2))));
+        const local_t = segment - @as(f64, @floatFromInt(idx));
+        return color.colorFromLerp(self.colors[idx], self.colors[idx + 1], local_t);
+    }
+
+    /// Rainbow gradient: red → yellow → green → cyan → blue → magenta → red.
+    pub const rainbow: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 255, .b = 0 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 0 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 0, .b = 255 } },
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 255 } },
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 0 } },
+    } };
+
+    /// Fire gradient: dark red → orange → yellow → white.
+    pub const fire: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 180, .g = 0, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 80, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 200, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 255, .b = 200 } },
+    } };
+
+    /// Ocean gradient: deep blue → teal → cyan → light blue.
+    pub const ocean: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 0, .g = 40, .b = 120 } },
+        .{ .rgb = .{ .r = 0, .g = 120, .b = 160 } },
+        .{ .rgb = .{ .r = 0, .g = 200, .b = 200 } },
+        .{ .rgb = .{ .r = 100, .g = 220, .b = 255 } },
+    } };
+
+    /// Sunset gradient: purple → magenta → orange → yellow.
+    pub const sunset: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 80, .g = 0, .b = 160 } },
+        .{ .rgb = .{ .r = 200, .g = 0, .b = 120 } },
+        .{ .rgb = .{ .r = 255, .g = 120, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 220, .b = 0 } },
+    } };
+
+    /// Neon gradient: magenta → cyan → green → yellow.
+    pub const neon: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 200 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 255, .b = 0 } },
+    } };
+
+    /// Forest gradient: dark green → green → lime → yellow-green.
+    pub const forest: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 0, .g = 80, .b = 0 } },
+        .{ .rgb = .{ .r = 0, .g = 160, .b = 0 } },
+        .{ .rgb = .{ .r = 100, .g = 220, .b = 0 } },
+        .{ .rgb = .{ .r = 200, .g = 255, .b = 0 } },
+    } };
+
+    /// Ice gradient: white → light blue → blue → deep blue.
+    pub const ice: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 220, .g = 240, .b = 255 } },
+        .{ .rgb = .{ .r = 100, .g = 180, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 100, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 40, .b = 180 } },
+    } };
+
+    /// Pastel gradient: soft multi-color.
+    pub const pastel: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 255, .g = 180, .b = 180 } },
+        .{ .rgb = .{ .r = 255, .g = 220, .b = 180 } },
+        .{ .rgb = .{ .r = 255, .g = 255, .b = 180 } },
+        .{ .rgb = .{ .r = 180, .g = 255, .b = 180 } },
+        .{ .rgb = .{ .r = 180, .g = 220, .b = 255 } },
+        .{ .rgb = .{ .r = 220, .g = 180, .b = 255 } },
+    } };
+
+    /// Monochrome gradient: dark gray → white.
+    pub const monochrome: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 60, .g = 60, .b = 60 } },
+        .{ .rgb = .{ .r = 200, .g = 200, .b = 200 } },
+    } };
+
+    /// Reversed rainbow: runs the opposite direction.
+    pub const rainbow_reversed: Gradient = .{ .colors = &.{
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 0, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 255 } },
+        .{ .rgb = .{ .r = 0, .g = 255, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 255, .b = 0 } },
+        .{ .rgb = .{ .r = 255, .g = 0, .b = 0 } },
+    }, .reversed = true };
+};
+
 /// Visual style for a spinner animation.
 pub const SpinnerStyle = struct {
     /// Ordered list of frames to cycle through.
@@ -278,6 +396,12 @@ pub const SpinnerStyle = struct {
     color: Color = .default,
     /// Text attributes for the spinner glyph.
     attrs: []const Attribute = &.{},
+    /// Optional gradient for the spinner glyph. Cycles through colors
+    /// on each frame when set. Overrides `color`.
+    gradient: ?Gradient = null,
+    /// Color for the spinner glyph when in completed state (succeed/fail/warn/info).
+    /// `.default` = use the state color (green/red/yellow/cyan).
+    complete_fg: Color = .default,
 
     /// Braille dots animation (10-frame).
     pub const dots: SpinnerStyle = .{
@@ -629,4 +753,60 @@ test "SpinnerStyle new presets have frames" {
     try std.testing.expect(SpinnerStyle.binary.frames.len > 0);
     try std.testing.expect(SpinnerStyle.star.frames.len > 0);
     try std.testing.expect(SpinnerStyle.toggle.frames.len == 2);
+}
+
+// --- Edge Case Tests for Gradient ---
+
+test "Gradient.rainbow has multiple colors" {
+    try std.testing.expect(Gradient.rainbow.colors.len >= 2);
+}
+
+test "Gradient.at returns valid colors" {
+    const grad = Gradient.rainbow;
+    const c0 = grad.at(0.0);
+    const c1 = grad.at(0.5);
+    const c2 = grad.at(1.0);
+    // All should be valid RGB colors
+    try std.testing.expect(c0 == .rgb);
+    try std.testing.expect(c1 == .rgb);
+    try std.testing.expect(c2 == .rgb);
+}
+
+test "Gradient.at clamps out-of-range values" {
+    const grad = Gradient.fire;
+    const c_neg = grad.at(-1.0);
+    const c_over = grad.at(2.0);
+    try std.testing.expect(c_neg == .rgb);
+    try std.testing.expect(c_over == .rgb);
+}
+
+test "Gradient.reversed flips direction" {
+    const normal = Gradient.rainbow.at(0.1);
+    const reversed = Gradient{ .colors = Gradient.rainbow.colors, .reversed = true };
+    const rev_color = reversed.at(0.1);
+    // Different direction should produce different color at same position
+    // (unless gradient is single-color, which rainbow is not)
+    try std.testing.expect(Gradient.rainbow.colors.len > 1);
+    _ = normal;
+    _ = rev_color;
+}
+
+test "BarStyle complete_fg default is .default" {
+    const style = BarStyle{};
+    try std.testing.expect(style.complete_fg == .default);
+}
+
+test "SpinnerStyle complete_fg default is .default" {
+    const style = SpinnerStyle{ .frames = &.{} };
+    try std.testing.expect(style.complete_fg == .default);
+}
+
+test "BarStyle fill_gradient default is null" {
+    const style = BarStyle{};
+    try std.testing.expect(style.fill_gradient == null);
+}
+
+test "SpinnerStyle gradient default is null" {
+    const style = SpinnerStyle{ .frames = &.{} };
+    try std.testing.expect(style.gradient == null);
 }

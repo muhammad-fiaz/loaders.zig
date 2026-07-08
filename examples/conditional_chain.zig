@@ -23,7 +23,7 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     std.debug.print("--- Conditional Chaining & Dependency Callbacks Showcase ---\n\n", .{});
-    std.debug.print("Initializing dependent pipeline...\n\n", .{});
+    std.debug.print("Initializing dependent pipeline...\n", .{});
 
     // Initialize Bar 1 (A)
     var b1 = loaders.Bar.init(io, .{
@@ -37,10 +37,8 @@ pub fn main(init: std.process.Init) !void {
         .complete_message = "Download completed successfully!",
         .icon = "📥",
         .success_icon = "✓",
-        .icon_gap = "  ",
-        .label_gap = "  ",
-        .padding_lines_above = 1,
-        .padding_lines_below = 1,
+        .icon_gap = " ",
+        .label_gap = " ",
     });
     bar1 = &b1;
 
@@ -56,10 +54,8 @@ pub fn main(init: std.process.Init) !void {
         .complete_message = "Compilation finished!",
         .icon = "🏗️",
         .success_icon = "✓",
-        .icon_gap = "  ",
-        .label_gap = "  ",
-        .padding_lines_above = 1,
-        .padding_lines_below = 1,
+        .icon_gap = " ",
+        .label_gap = " ",
     });
     bar2 = &b2;
 
@@ -99,13 +95,13 @@ pub fn main(init: std.process.Init) !void {
 fn onBar1Complete(bar: *loaders.Bar) void {
     _ = bar;
     // Callback: Start the second progress bar
-    std.debug.print("\n[Callback A] Task A finished. Starting Task B...\n", .{});
+    std.debug.print("[Callback A] Task A finished. Starting Task B...\n", .{});
     bar2_started.store(true, .release);
 }
 
 fn onBar2Complete(bar: *loaders.Bar) void {
     // Callback: Start Spinner C
-    std.debug.print("\n[Callback B] Task B finished. Starting Task C...\n", .{});
+    std.debug.print("[Callback B] Task B finished. Starting Task C...\n", .{});
 
     // Initialize Spinner C (C)
     // Note: Spinner.start spawns a background rendering thread, so we start it right away!
@@ -119,10 +115,8 @@ fn onBar2Complete(bar: *loaders.Bar) void {
         .on_complete = onSpinnerComplete,
         .icon = "⚙️",
         .success_icon = "✓",
-        .icon_gap = "  ",
-        .text_gap = "  ",
-        .padding_lines_above = 1,
-        .padding_lines_below = 1,
+        .icon_gap = " ",
+        .text_gap = " ",
     }) catch |err| {
         std.debug.print("Failed to start spinner: {}\n", .{err});
         spinner_done.store(true, .release);

@@ -165,6 +165,10 @@ var bar = loaders.Bar.init(io, .{
 
 - **`on_progress`**: Fired whenever `completed` is updated (via `setCompleted`, `increment`, `incrementBy`). Function signature: `fn(bar: *loaders.Bar, completed: usize, total: usize) void`.
 - **`on_complete`**: Fired exactly once when `completed` reaches or exceeds `total`, or when a stop method (`done`, `succeed`, `fail`, etc.) is called. Function signature: `fn(bar: *loaders.Bar) void`.
+- **`on_success`**: Fired when `succeed()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
+- **`on_failure`**: Fired when `fail()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
+- **`on_warn`**: Fired when `warn()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
+- **`on_info`**: Fired when `info()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
 
 ### Example
 
@@ -176,12 +180,20 @@ const cb_struct = struct {
     pub fn onComplete(bar: *loaders.Bar) void {
         std.debug.print("Task finished callback triggered!\n", .{});
     }
+    pub fn onSuccess(bar: *loaders.Bar) void {
+        std.debug.print("Task succeeded!\n", .{});
+    }
+    pub fn onFailure(bar: *loaders.Bar) void {
+        std.debug.print("Task failed!\n", .{});
+    }
 };
 
 var bar = loaders.Bar.init(io, .{
     .total = 100,
     .on_progress = cb_struct.onProgress,
     .on_complete = cb_struct.onComplete,
+    .on_success = cb_struct.onSuccess,
+    .on_failure = cb_struct.onFailure,
 });
 ```
 
@@ -211,9 +223,11 @@ var bar = loaders.Bar.init(io, .{
 
 ---
 
-## 10. Customizable Spacing Gaps
+## 10. Customizable Spacing Gaps and Padding
 
-To prevent overlapping on wide-glyph emoji renderings or customize padding, you can override default spacing gaps:
+To prevent overlapping on wide-glyph emoji renderings or customize layout, you can override default spacing gaps and add padding lines:
+
+### Spacing Gaps
 
 - **`icon_gap`**: Spacing printed after prefix/status icons (defaults to `" "`).
 - **`label_gap`**: Spacing printed after the label (defaults to `" "`).
@@ -228,6 +242,105 @@ var bar = loaders.Bar.init(io, .{
     .label_gap = "  ",
 });
 ```
+
+### Padding Lines
+
+Add empty lines above or below the bar for visual spacing in multi-bar layouts:
+
+- **`padding_lines_above`**: Number of empty lines printed above the bar (defaults to `0`).
+- **`padding_lines_below`**: Number of empty lines printed below the bar (defaults to `0`).
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .label = "Task A",
+    .padding_lines_above = 1, // one blank line above
+    .padding_lines_below = 1, // one blank line below
+});
+```
+
+---
+
+## 11. Gradients and Completion Colors
+
+### Gradient Rendering
+
+Progress bars support gradient-based color rendering where each filled or empty character gets a smoothly interpolated color from a gradient palette. This creates visually stunning rainbow, fire, ocean, and other gradient effects.
+
+**Using gradients via `BarOptions` shorthands:**
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .fill_gradient = loaders.Gradient.rainbow,  // Rainbow gradient on filled portion
+    .empty_gradient = loaders.Gradient.ocean,    // Ocean gradient on empty portion
+});
+```
+
+**Using gradients via `BarStyle`:**
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .style = .{
+        .fill_gradient = loaders.Gradient.fire,
+        .empty_gradient = loaders.Gradient.ice,
+    },
+});
+```
+
+### Built-in Gradient Presets
+
+| Preset | Description |
+|--------|-------------|
+| `Gradient.rainbow` | Full rainbow spectrum (red → yellow → green → cyan → blue → magenta) |
+| `Gradient.fire` | Warm fire tones (dark red → orange → yellow → white) |
+| `Gradient.ocean` | Cool ocean blues (dark blue → teal → cyan → white) |
+| `Gradient.sunset` | Sunset warmth (purple → red → orange → yellow) |
+| `Gradient.neon` | Bright neon (magenta → cyan → green → yellow) |
+| `Gradient.forest` | Forest greens (dark green → green → lime → yellow) |
+| `Gradient.ice` | Icy blues (blue → cyan → white) |
+| `Gradient.pastel` | Soft pastel rainbow |
+| `Gradient.monochrome` | Black to white grayscale |
+| `Gradient.rainbow_reversed` | Reversed rainbow (magenta → blue → cyan → green → yellow → red) |
+
+### Custom Gradients
+
+You can create custom gradients with any number of color stops:
+
+```zig
+const my_gradient = loaders.Gradient{
+    .colors = &.{ .red, .yellow, .green },
+};
+
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .fill_gradient = &my_gradient,
+});
+```
+
+The `Gradient.at(t)` method accepts a `f64` from `0.0` to `1.0` and returns the interpolated `Color` at that position.
+
+### Completion Colors (`complete_fg`)
+
+When a progress bar reaches 100% or is stopped via `succeed()`/`fail()`/etc., you can display the filled portion in a different color:
+
+```zig
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .complete_color = .green,  // Shorthand: fills entire bar green on completion
+});
+
+// Or via style:
+var bar = loaders.Bar.init(io, .{
+    .total = 100,
+    .style = .{
+        .complete_fg = .bright_green,
+    },
+});
+```
+
+When `complete_fg` is set, the entire filled portion renders in that color once the bar is complete (100% or stopped). This works alongside gradients — if `fill_gradient` is also set, the gradient takes precedence during progress, and `complete_fg` takes over on completion.
 
 
 

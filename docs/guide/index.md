@@ -32,4 +32,6 @@ This section walks through the main user-facing features of `loaders.zig`.
 
 7. **[Themes](themes)** — Browse all built-in visual presets for progress bars and spinners.
 
-8. **[Advanced](advanced)** — Custom drawing targets, thread safety, high-performance stacking, and TTY detection.
+8. **[Gradients](gradients)** — Multi-color gradient rendering for progress bars and spinners.
+
+9. **[Advanced](advanced)** — Custom drawing targets, thread safety, high-performance stacking, and TTY detection.

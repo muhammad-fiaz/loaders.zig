@@ -1,5 +1,5 @@
 ---
-description: Rate smoothing demo for loaders.zig v0.0.2 — EMA-based rate/ETA smoothing, byte throughput display, custom unit labels, and reset().
+description: Rate smoothing demo for loaders.zig v0.0.3 — EMA-based rate/ETA smoothing, byte throughput display, custom unit labels, and reset().
 head:
   - - meta
     - name: keywords
@@ -9,7 +9,7 @@ head:
       content: Rate Smoothing Example — loaders.zig
   - - meta
     - property: og:description
-      content: Rate smoothing demo for loaders.zig v0.0.2 — EMA-based rate/ETA smoothing, byte throughput display, custom unit labels, and reset().
+      content: Rate smoothing demo for loaders.zig v0.0.3 — EMA-based rate/ETA smoothing, byte throughput display, custom unit labels, and reset().
 ---
 
 # Rate Smoothing Example

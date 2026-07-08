@@ -68,6 +68,20 @@ pub const Options = struct {
     show_date: bool = false,
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
+    fill_gradient: ?*const Gradient = null,
+    empty_gradient: ?*const Gradient = null,
+    complete_color: Color = .default,
+    on_progress: ?*const fn (bar: *Bar, completed: usize, total: usize) void = null,
+    on_complete: ?*const fn (bar: *Bar) void = null,
+    on_success: ?*const fn (bar: *Bar) void = null,
+    on_failure: ?*const fn (bar: *Bar) void = null,
+    on_warn: ?*const fn (bar: *Bar) void = null,
+    on_info: ?*const fn (bar: *Bar) void = null,
+    icon_gap: []const u8 = " ",
+    label_gap: []const u8 = " ",
+    datetime_gap: []const u8 = " ",
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
 };
 ```
 
@@ -97,6 +111,20 @@ pub const Options = struct {
 | `show_date` | `false` | Prepend `[YYYY-MM-DD]` |
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds for date/time |
+| `fill_gradient` | `null` | Gradient for filled portion (overrides `fill_fg`) |
+| `empty_gradient` | `null` | Gradient for empty portion (overrides `empty_fg`) |
+| `complete_color` | `.default` | Color for filled portion when bar is complete |
+| `on_progress` | `null` | Callback on progress update: `fn(bar, completed, total) void` |
+| `on_complete` | `null` | Callback when bar completes/stops |
+| `on_success` | `null` | Callback when `succeed()` is called |
+| `on_failure` | `null` | Callback when `fail()` is called |
+| `on_warn` | `null` | Callback when `warn()` is called |
+| `on_info` | `null` | Callback when `info()` is called |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `label_gap` | `" "` | Spacing after the label text |
+| `datetime_gap` | `" "` | Spacing after date/time brackets |
+| `padding_lines_above` | `0` | Empty lines printed above the bar |
+| `padding_lines_below` | `0` | Empty lines printed below the bar |
 
 ---
 
@@ -136,6 +164,16 @@ pub const Options = struct {
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
     allocator: ?std.mem.Allocator = null,
+    on_complete: ?*const fn (sp: *Spinner) void = null,
+    on_success: ?*const fn (sp: *Spinner) void = null,
+    on_failure: ?*const fn (sp: *Spinner) void = null,
+    on_warn: ?*const fn (sp: *Spinner) void = null,
+    on_info: ?*const fn (sp: *Spinner) void = null,
+    icon_gap: []const u8 = " ",
+    text_gap: []const u8 = " ",
+    datetime_gap: []const u8 = " ",
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
 };
 ```
 
@@ -153,6 +191,16 @@ pub const Options = struct {
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds |
 | `allocator` | `null` | Custom allocator (null = page_allocator) |
+| `on_complete` | `null` | Callback when spinner stops |
+| `on_success` | `null` | Callback when `succeed()` is called |
+| `on_failure` | `null` | Callback when `fail()` is called |
+| `on_warn` | `null` | Callback when `warn()` is called |
+| `on_info` | `null` | Callback when `info()` is called |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `text_gap` | `" "` | Spacing after the spinner glyph |
+| `datetime_gap` | `" "` | Spacing after date/time brackets |
+| `padding_lines_above` | `0` | Empty lines printed above the spinner |
+| `padding_lines_below` | `0` | Empty lines printed below the spinner |
 
 ---
 
@@ -261,6 +309,9 @@ pub const BarStyle = struct {
     empty_fg: Color = .default,
     empty_bg: Color = .default,
     attrs: []const Attribute = &.{},
+    fill_gradient: ?*const Gradient = null,
+    empty_gradient: ?*const Gradient = null,
+    complete_fg: Color = .default,
 };
 ```
 
@@ -301,6 +352,8 @@ pub const SpinnerStyle = struct {
     interval_ms: u64 = 80,
     color: Color = .default,
     attrs: []const Attribute = &.{},
+    gradient: ?*const Gradient = null,
+    complete_fg: Color = .default,
 };
 ```
 
@@ -484,7 +537,47 @@ pub const UpdateChecker = struct {
 
 ---
 
-## 13. Module Exports
+## 13. Gradient
+
+### `loaders.Gradient`
+
+Defines a color gradient with interpolation support.
+
+```zig
+pub const Gradient = struct {
+    colors: []const Color,
+    pub fn at(self: *const Gradient, t: f64) Color,
+};
+```
+
+### Built-in Presets
+
+| Preset | Description |
+|--------|-------------|
+| `Gradient.rainbow` | Full rainbow spectrum |
+| `Gradient.fire` | Warm fire tones |
+| `Gradient.ocean` | Cool ocean blues |
+| `Gradient.sunset` | Sunset warmth |
+| `Gradient.neon` | Bright neon |
+| `Gradient.forest` | Forest greens |
+| `Gradient.ice` | Icy blues |
+| `Gradient.pastel` | Soft pastel rainbow |
+| `Gradient.monochrome` | Grayscale |
+| `Gradient.rainbow_reversed` | Reversed rainbow |
+
+### Custom Gradient
+
+```zig
+const my_gradient = loaders.Gradient{
+    .colors = &.{ .red, .yellow, .green },
+};
+```
+
+The `at(t)` method accepts a `f64` from `0.0` to `1.0` and returns the interpolated `Color` at that position.
+
+---
+
+## 14. Module Exports
 
 ```zig
 // Root module
@@ -501,7 +594,7 @@ pub const multi = @import("multi.zig");
 pub const version_info = @import("version.zig");
 
 // Re-exports
-pub const version: []const u8;  // "0.0.1"
+pub const version: []const u8;  // "0.0.3"
 pub const Bar = bar.Bar;
 pub const BarOptions = bar.Options;
 pub const Spinner = spinner.Spinner;
@@ -511,10 +604,12 @@ pub const MultiBarOptions = multi.MultiBarOptions;
 pub const MultiSpinner = multi.MultiSpinner;
 pub const SpinnerItem = multi.SpinnerItem;
 pub const Color = color.Color;
+pub const Rgb = color.Rgb;
 pub const Attribute = color.Attribute;
 pub const Colorizer = color.Colorizer;
 pub const TermInfo = terminal.TermInfo;
 pub const BarStyle = style.BarStyle;
 pub const SpinnerStyle = style.SpinnerStyle;
+pub const Gradient = style.Gradient;
 pub const UpdateChecker = @import("update_checker.zig");
 ```

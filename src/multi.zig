@@ -93,12 +93,15 @@ pub const MultiBar = struct {
         mb.bars[i] = Bar.init(mb.io, .{
             .label = opts.label,
             .label_color = opts.label_color,
+            .label_bg_color = opts.label_bg_color,
             .total = opts.total,
             .width = opts.width,
             .style = opts.style,
             .show_percent = opts.show_percent,
             .percent_color = opts.percent_color,
+            .percent_bg_color = opts.percent_bg_color,
             .bracket_color = opts.bracket_color,
+            .bracket_bg_color = opts.bracket_bg_color,
             .show_count = opts.show_count,
             .show_elapsed = opts.show_elapsed,
             .show_eta = opts.show_eta,
@@ -115,8 +118,11 @@ pub const MultiBar = struct {
             .smooth_alpha = opts.smooth_alpha,
             .template = opts.template,
             .fill_color = opts.fill_color,
+            .fill_bg_color = opts.fill_bg_color,
             .empty_color = opts.empty_color,
+            .empty_bg_color = opts.empty_bg_color,
             .color = opts.color,
+            .bg_color = opts.bg_color,
             .icon = opts.icon,
             .success_icon = opts.success_icon,
             .failure_icon = opts.failure_icon,
@@ -128,6 +134,10 @@ pub const MultiBar = struct {
             .message_interval_ms = opts.message_interval_ms,
             .on_progress = opts.on_progress,
             .on_complete = opts.on_complete,
+            .on_success = opts.on_success,
+            .on_failure = opts.on_failure,
+            .on_warn = opts.on_warn,
+            .on_info = opts.on_info,
             .time_format_12h = opts.time_format_12h,
             .max_label_width = opts.max_label_width,
             .max_message_width = opts.max_message_width,
@@ -135,6 +145,19 @@ pub const MultiBar = struct {
             .padding_lines_above = opts.padding_lines_above,
             .padding_lines_below = opts.padding_lines_below,
             .initial_completed = opts.initial_completed,
+            .fill_gradient = opts.fill_gradient,
+            .empty_gradient = opts.empty_gradient,
+            .complete_color = opts.complete_color,
+            .custom_start = opts.custom_start,
+            .custom_end = opts.custom_end,
+            .show_date = opts.show_date,
+            .show_time = opts.show_time,
+            .timezone_offset_sec = opts.timezone_offset_sec,
+            .icon_gap = opts.icon_gap,
+            .label_gap = opts.label_gap,
+            .datetime_gap = opts.datetime_gap,
+            .min_interval_ms = opts.min_interval_ms,
+            .start_time_offset_sec = opts.start_time_offset_sec,
             .is_multibar = true,
         });
         mb.count += 1;
@@ -275,7 +298,7 @@ pub const max_spinners = 32;
 
 /// State for a single spinner item in a `MultiSpinner`.
 pub const SpinnerItem = struct {
-    text: [256:0]u8 = [_:0]u8{0} ** 256,
+    text: [256:0]u8 = @splat(0),
     style: SpinnerStyle = SpinnerStyle.dots,
     /// Set to finish this item. `succeeded` controls the result glyph.
     done: bool = false,
@@ -585,36 +608,50 @@ pub const MultiSpinner = struct {
                 try w.writeAll(item.prefix);
             }
 
+            // Print Icons (without line background color to avoid emoji highlighting)
             if (item.icon) |icon| {
                 if (icon.len > 0) {
+                    if (line_color != .default or line_bg_color != .default) {
+                        try ms.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(ms.icon_gap);
                 }
             }
             if (item.msg_icon) |icon| {
                 if (icon.len > 0) {
+                    if (line_color != .default or line_bg_color != .default) {
+                        try ms.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(ms.icon_gap);
                 }
+            }
+            if (line_color != .default or line_bg_color != .default) {
+                try ms.colorizer.begin(w, line_color, line_bg_color, &.{});
             }
 
             if (item.done) {
                 switch (item.status) {
                     .success => {
                         const sym = item.success_icon orelse "✓";
-                        try color_mod.writeColored(w, ms.colorizer, sym, .green, item.spinner_bg_color, &.{.bold});
+                        const sym_color = if (item.style.complete_fg != .default) item.style.complete_fg else .green;
+                        try color_mod.writeColored(w, ms.colorizer, sym, sym_color, item.spinner_bg_color, &.{.bold});
                     },
                     .failure => {
                         const sym = item.failure_icon orelse "✗";
-                        try color_mod.writeColored(w, ms.colorizer, sym, .red, item.spinner_bg_color, &.{.bold});
+                        const sym_color = if (item.style.complete_fg != .default) item.style.complete_fg else .red;
+                        try color_mod.writeColored(w, ms.colorizer, sym, sym_color, item.spinner_bg_color, &.{.bold});
                     },
                     .warning => {
                         const sym = item.warning_icon orelse "⚠";
-                        try color_mod.writeColored(w, ms.colorizer, sym, .yellow, item.spinner_bg_color, &.{.bold});
+                        const sym_color = if (item.style.complete_fg != .default) item.style.complete_fg else .yellow;
+                        try color_mod.writeColored(w, ms.colorizer, sym, sym_color, item.spinner_bg_color, &.{.bold});
                     },
                     .info => {
                         const sym = item.info_icon orelse "ℹ";
-                        try color_mod.writeColored(w, ms.colorizer, sym, .cyan, item.spinner_bg_color, &.{.bold});
+                        const sym_color = if (item.style.complete_fg != .default) item.style.complete_fg else .cyan;
+                        try color_mod.writeColored(w, ms.colorizer, sym, sym_color, item.spinner_bg_color, &.{.bold});
                     },
                     .running => {
                         // Fallback logic for backward compatibility
@@ -635,7 +672,9 @@ pub const MultiSpinner = struct {
             } else {
                 const frames = item.style.frames;
                 const glyph = frames[frame % frames.len];
-                const glyph_color = if (item.spinner_color != .default) item.spinner_color else (if (line_color != .default) line_color else item.style.color);
+                const glyph_color = if (item.style.gradient) |grad|
+                    grad.at(@as(f64, @floatFromInt(frame % 256)) / 255.0)
+                else if (item.spinner_color != .default) item.spinner_color else (if (line_color != .default) line_color else item.style.color);
                 try color_mod.writeColored(w, ms.colorizer, glyph, glyph_color, item.spinner_bg_color, item.style.attrs);
                 try w.writeAll(ms.text_gap);
                 if (line_color != .default or line_bg_color != .default) {

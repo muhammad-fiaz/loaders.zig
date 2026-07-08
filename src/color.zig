@@ -161,6 +161,8 @@ pub const Colorizer = struct {
         attrs: []const Attribute,
     ) std.Io.Writer.Error!void {
         if (!self.enabled) return;
+        // Skip if all arguments are default (no-op)
+        if (fg == .default and bg == .default and attrs.len == 0) return;
 
         var tmp: [32]u8 = undefined;
         var first = true;
@@ -399,6 +401,126 @@ test "Color.fromHex lowercase hex" {
             try std.testing.expectEqual(@as(u8, 255), v.r);
             try std.testing.expectEqual(@as(u8, 0), v.g);
             try std.testing.expectEqual(@as(u8, 128), v.b);
+        },
+        else => return error.WrongVariant,
+    }
+}
+
+/// RGB color components.
+pub const Rgb = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+};
+
+/// Extract RGB components from any Color variant.
+/// For non-RGB colors, returns approximate RGB values from the ANSI palette.
+pub fn toRgb(c: Color) Rgb {
+    return switch (c) {
+        .rgb => |v| .{ .r = v.r, .g = v.g, .b = v.b },
+        .ansi256 => |idx| ansi256ToRgb(idx),
+        .black => .{ .r = 0, .g = 0, .b = 0 },
+        .red => .{ .r = 205, .g = 0, .b = 0 },
+        .green => .{ .r = 0, .g = 205, .b = 0 },
+        .yellow => .{ .r = 205, .g = 205, .b = 0 },
+        .blue => .{ .r = 0, .g = 0, .b = 205 },
+        .magenta => .{ .r = 205, .g = 0, .b = 205 },
+        .cyan => .{ .r = 0, .g = 205, .b = 205 },
+        .white => .{ .r = 229, .g = 229, .b = 229 },
+        .bright_black => .{ .r = 127, .g = 127, .b = 127 },
+        .bright_red => .{ .r = 255, .g = 0, .b = 0 },
+        .bright_green => .{ .r = 0, .g = 255, .b = 0 },
+        .bright_yellow => .{ .r = 255, .g = 255, .b = 0 },
+        .bright_blue => .{ .r = 0, .g = 0, .b = 255 },
+        .bright_magenta => .{ .r = 255, .g = 0, .b = 255 },
+        .bright_cyan => .{ .r = 0, .g = 255, .b = 255 },
+        .bright_white => .{ .r = 255, .g = 255, .b = 255 },
+        .default => .{ .r = 255, .g = 255, .b = 255 },
+    };
+}
+
+/// Convert an xterm-256 color index to approximate RGB.
+fn ansi256ToRgb(idx: u8) Rgb {
+    if (idx < 16) {
+        const palette = [16]Rgb{
+            .{ .r = 0, .g = 0, .b = 0 },
+            .{ .r = 205, .g = 0, .b = 0 },
+            .{ .r = 0, .g = 205, .b = 0 },
+            .{ .r = 205, .g = 205, .b = 0 },
+            .{ .r = 0, .g = 0, .b = 205 },
+            .{ .r = 205, .g = 0, .b = 205 },
+            .{ .r = 0, .g = 205, .b = 205 },
+            .{ .r = 229, .g = 229, .b = 229 },
+            .{ .r = 127, .g = 127, .b = 127 },
+            .{ .r = 255, .g = 0, .b = 0 },
+            .{ .r = 0, .g = 255, .b = 0 },
+            .{ .r = 255, .g = 255, .b = 0 },
+            .{ .r = 0, .g = 0, .b = 255 },
+            .{ .r = 255, .g = 0, .b = 255 },
+            .{ .r = 0, .g = 255, .b = 255 },
+            .{ .r = 255, .g = 255, .b = 255 },
+        };
+        return palette[idx];
+    } else if (idx < 232) {
+        // 6x6x6 color cube (indices 16–231)
+        const cv = idx - 16;
+        const b_val: u8 = @intCast(cv % 6);
+        const g_val: u8 = @intCast((cv / 6) % 6);
+        const r_val: u8 = @intCast(cv / 36);
+        const scale = @as(u16, 55) + @as(u16, 40) * @as(u16, r_val);
+        const scale_g = @as(u16, 55) + @as(u16, 40) * @as(u16, g_val);
+        const scale_b = @as(u16, 55) + @as(u16, 40) * @as(u16, b_val);
+        return .{ .r = @intCast(@min(255, scale)), .g = @intCast(@min(255, scale_g)), .b = @intCast(@min(255, scale_b)) };
+    } else {
+        // Grayscale ramp (indices 232–255)
+        const gray: u8 = @intCast(8 + (idx - 232) * 10);
+        return .{ .r = gray, .g = gray, .b = gray };
+    }
+}
+
+/// Linearly interpolate between two RGB colors. `t` ranges from 0.0 (a) to 1.0 (b).
+pub fn lerpRgb(a: Rgb, b: Rgb, t: f64) Rgb {
+    const tt = @max(0.0, @min(1.0, t));
+    return .{
+        .r = @intFromFloat(@as(f64, @floatFromInt(a.r)) + (@as(f64, @floatFromInt(b.r)) - @as(f64, @floatFromInt(a.r))) * tt),
+        .g = @intFromFloat(@as(f64, @floatFromInt(a.g)) + (@as(f64, @floatFromInt(b.g)) - @as(f64, @floatFromInt(a.g))) * tt),
+        .b = @intFromFloat(@as(f64, @floatFromInt(a.b)) + (@as(f64, @floatFromInt(b.b)) - @as(f64, @floatFromInt(a.b))) * tt),
+    };
+}
+
+/// Create a Color from RGB components via interpolation.
+pub fn colorFromLerp(a: Color, b: Color, t: f64) Color {
+    const ar = toRgb(a);
+    const br = toRgb(b);
+    const result = lerpRgb(ar, br, t);
+    return Color{ .rgb = .{ .r = result.r, .g = result.g, .b = result.b } };
+}
+
+test "Color.toRgb from standard" {
+    const r = toRgb(.red);
+    try std.testing.expectEqual(@as(u8, 205), r.r);
+    try std.testing.expectEqual(@as(u8, 0), r.g);
+    try std.testing.expectEqual(@as(u8, 0), r.b);
+}
+
+test "Color.lerpRgb" {
+    const a = Rgb{ .r = 0, .g = 0, .b = 0 };
+    const b = Rgb{ .r = 255, .g = 255, .b = 255 };
+    const mid = lerpRgb(a, b, 0.5);
+    try std.testing.expectEqual(@as(u8, 127), mid.r);
+    try std.testing.expectEqual(@as(u8, 127), mid.g);
+    try std.testing.expectEqual(@as(u8, 127), mid.b);
+}
+
+test "Color.colorFromLerp" {
+    const a: Color = .red;
+    const b: Color = .blue;
+    const mid = colorFromLerp(a, b, 0.5);
+    switch (mid) {
+        .rgb => |v| {
+            try std.testing.expect(v.r > 0 and v.r < 205);
+            try std.testing.expect(v.b > 0 and v.b < 205);
+            try std.testing.expectEqual(@as(u8, 0), v.g);
         },
         else => return error.WrongVariant,
     }

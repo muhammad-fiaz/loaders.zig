@@ -1,5 +1,5 @@
 ---
-description: BatchBar guide for loaders.zig v0.0.2 — track multiple named tasks with per-task progress bars in one grouped display.
+description: BatchBar guide for loaders.zig v0.0.3 — track multiple named tasks with per-task progress bars in one grouped display.
 head:
   - - meta
     - name: keywords
