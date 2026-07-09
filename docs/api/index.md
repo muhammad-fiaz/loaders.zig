@@ -245,16 +245,39 @@ Renders multiple spinner items on separate lines via a single background thread.
 
 ```zig
 pub const MultiSpinner = struct {
-    pub fn start(io: std.Io, file: std.Io.File, color_enabled: ?bool, maybe_allocator: ?std.mem.Allocator) !*MultiSpinner;
+    pub fn start(io: std.Io, file: std.Io.File, opts: MultiSpinnerOptions) !*MultiSpinner;
     pub fn addItem(ms: *MultiSpinner, text: []const u8, style: SpinnerStyle) *SpinnerItem;
     pub fn setSucceeded(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn setFailed(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn setWarning(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
+    pub fn setInfo(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn stop(ms: *MultiSpinner) void;
 };
 ```
 
-**Limit**: Maximum 16 spinner items per `MultiSpinner`.
+**Limit**: Maximum 32 spinner items per `MultiSpinner`.
+
+### `loaders.MultiSpinnerOptions`
+
+Options passed to `MultiSpinner.start()`.
+
+```zig
+pub const MultiSpinnerOptions = struct {
+    color_enabled: ?bool = null,
+    allocator: ?std.mem.Allocator = null,
+    icon_gap: []const u8 = " ",
+    text_gap: []const u8 = " ",
+    spacing_lines: usize = 0,
+};
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `color_enabled` | `null` | Override color enablement. `null` = auto-detect from terminal |
+| `allocator` | `null` | Heap allocator. `null` = page_allocator |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `text_gap` | `" "` | Spacing after spinner glyph / status symbol |
+| `spacing_lines` | `0` | Empty lines between spinner items |
 
 ---
 
@@ -271,8 +294,26 @@ pub const SpinnerItem = struct {
     done: bool,
     succeeded: ?bool,
     color: Color,
+    text_color: Color,
+    spinner_color: Color,
+    bg_color: Color,
+    text_bg_color: Color,
+    spinner_bg_color: Color,
     prefix: []const u8,
     suffix: []const u8,
+    icon: ?[]const u8,
+    success_icon: ?[]const u8,
+    failure_icon: ?[]const u8,
+    warning_icon: ?[]const u8,
+    info_icon: ?[]const u8,
+    status: enum { running, success, failure, warning, info },
+    messages: ?[]const []const u8,
+    icon_messages: ?[]const Message,
+    message_interval_ms: u64,
+    max_text_width: usize,
+    max_suffix_width: usize,
+    padding_lines_above: usize,
+    padding_lines_below: usize,
 
     pub fn setText(item: *SpinnerItem, s: []const u8) void;
     pub fn getTextSlice(item: *const SpinnerItem) []const u8;
@@ -284,10 +325,28 @@ pub const SpinnerItem = struct {
 | `text` | `""` | Current display text |
 | `style` | `.dots` | Animation style for this item |
 | `done` | `false` | Whether this item has finished |
-| `succeeded` | `null` | `null` = running, `true` = success (✓), `false` = failure (✗) |
-| `color` | `.default` | Per-item color override (`.default` = use style color) |
+| `succeeded` | `null` | `null` = running, `true` = success, `false` = failure |
+| `color` | `.default` | Per-item line color override |
+| `text_color` | `.default` | Color override for the text |
+| `spinner_color` | `.default` | Color override for the spinner glyph |
+| `bg_color` | `.default` | Background color for the entire line |
+| `text_bg_color` | `.default` | Background color for the text |
+| `spinner_bg_color` | `.default` | Background color for the spinner glyph |
 | `prefix` | `""` | Prefix before spinner glyph |
 | `suffix` | `""` | Suffix after text |
+| `icon` | `null` | Running icon prefix |
+| `success_icon` | `null` | Success icon override (default `✓`) |
+| `failure_icon` | `null` | Failure icon override (default `✗`) |
+| `warning_icon` | `null` | Warning icon override (default `⚠`) |
+| `info_icon` | `null` | Info icon override (default `ℹ`) |
+| `status` | `.running` | Completion status |
+| `messages` | `null` | Messages to cycle through |
+| `icon_messages` | `null` | Message-icon pairs to cycle through |
+| `message_interval_ms` | `1500` | Milliseconds between message transitions |
+| `max_text_width` | `0` | Truncate text at this width (0 = no limit) |
+| `max_suffix_width` | `0` | Truncate suffix at this width (0 = no limit) |
+| `padding_lines_above` | `0` | Empty lines above this spinner |
+| `padding_lines_below` | `0` | Empty lines below this spinner |
 
 ---
 

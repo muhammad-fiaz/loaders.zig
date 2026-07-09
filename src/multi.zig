@@ -296,6 +296,20 @@ pub const MultiBar = struct {
 /// Maximum number of spinner items in a `MultiSpinner`.
 pub const max_spinners = 32;
 
+/// Options for `MultiSpinner.start()`.
+pub const MultiSpinnerOptions = struct {
+    /// Override color enablement. `null` = auto-detect from terminal.
+    color_enabled: ?bool = null,
+    /// Allocator for heap-allocating the `MultiSpinner` instance.
+    allocator: ?std.mem.Allocator = null,
+    /// Spacing printed after prefix/status icons (defaults to `" "`).
+    icon_gap: []const u8 = " ",
+    /// Spacing printed after the spinner glyph (defaults to `" "`).
+    text_gap: []const u8 = " ",
+    /// Number of empty lines between spinner items (defaults to `0`).
+    spacing_lines: usize = 0,
+};
+
 /// State for a single spinner item in a `MultiSpinner`.
 pub const SpinnerItem = struct {
     text: [256:0]u8 = @splat(0),
@@ -368,7 +382,7 @@ pub const SpinnerItem = struct {
 ///
 ///   var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 ///   defer arena.deinit();
-///   const ms = try MultiSpinner.start(io, .stderr(), null, arena.allocator());
+///   const ms = try MultiSpinner.start(io, .stderr(), .{});
 ///   const item1 = ms.addItem("Fetching data", .dots);
 ///   const item2 = ms.addItem("Processing",   .arc);
 ///   // ... do work ...
@@ -391,12 +405,12 @@ pub const MultiSpinner = struct {
     spacing_lines: usize = 0,
 
     /// Start the multi-spinner renderer. Returns a heap-allocated instance.
-    pub fn start(io: std.Io, file: std.Io.File, color_enabled: ?bool, maybe_allocator: ?std.mem.Allocator) !*MultiSpinner {
+    pub fn start(io: std.Io, file: std.Io.File, opts: MultiSpinnerOptions) !*MultiSpinner {
         terminal.setupTerminal();
         const ti = terminal.query(file, io);
-        const color_on = color_enabled orelse ti.ansi_supported;
+        const color_on = opts.color_enabled orelse ti.ansi_supported;
 
-        const allocator = maybe_allocator orelse std.heap.page_allocator;
+        const allocator = opts.allocator orelse std.heap.page_allocator;
         const ms = try allocator.create(MultiSpinner);
         errdefer allocator.destroy(ms);
         ms.* = .{
@@ -414,9 +428,9 @@ pub const MultiSpinner = struct {
             .thread = undefined,
             .write_buf = undefined,
             .allocator = allocator,
-            .icon_gap = " ",
-            .text_gap = " ",
-            .spacing_lines = 0,
+            .icon_gap = opts.icon_gap,
+            .text_gap = opts.text_gap,
+            .spacing_lines = opts.spacing_lines,
         };
 
         if (ti.is_tty) {
@@ -611,6 +625,9 @@ pub const MultiSpinner = struct {
             // Print Icons (without line background color to avoid emoji highlighting)
             if (item.icon) |icon| {
                 if (icon.len > 0) {
+                    if (item.prefix.len > 0) {
+                        try w.writeAll(ms.icon_gap);
+                    }
                     if (line_color != .default or line_bg_color != .default) {
                         try ms.colorizer.reset(w);
                     }
@@ -790,7 +807,7 @@ test "MultiSpinner custom icons and statuses" {
         .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
         .flags = .{ .nonblocking = false },
     };
-    const ms = try MultiSpinner.start(io, invalid_file, false, std.testing.allocator);
+    const ms = try MultiSpinner.start(io, invalid_file, .{ .allocator = std.testing.allocator });
     errdefer ms.stop();
 
     const item = ms.addItem("Task A", .dots);

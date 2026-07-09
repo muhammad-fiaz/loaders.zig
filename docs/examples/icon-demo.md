@@ -141,7 +141,7 @@ pub fn main(init: std.process.Init) !void {
     // 6. MultiSpinner with custom icons and statuses
     {
         std.debug.print("6. MultiSpinner with custom running/status icons:\n", .{});
-        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
+        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
         errdefer ms.stop();
 
         const task1 = ms.addItem("Download module A", .dots);

@@ -1053,12 +1053,12 @@ pub const Bar = struct {
                 bar.status_color = .green;
             }
         }
+        bar.renderFinal() catch {};
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a success line (✓ green tick).
@@ -1071,6 +1071,7 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
         if (bar.opts.on_success) |cb| {
             cb(bar);
         }
@@ -1079,7 +1080,6 @@ pub const Bar = struct {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a failure line (✗ red cross).
@@ -1092,6 +1092,7 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
         if (bar.opts.on_failure) |cb| {
             cb(bar);
         }
@@ -1100,7 +1101,6 @@ pub const Bar = struct {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a warning line (⚠ yellow warning).
@@ -1113,6 +1113,7 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
         if (bar.opts.on_warn) |cb| {
             cb(bar);
         }
@@ -1121,7 +1122,6 @@ pub const Bar = struct {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print an info line (ℹ cyan info).
@@ -1134,6 +1134,7 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
         if (bar.opts.on_info) |cb| {
             cb(bar);
         }
@@ -1142,7 +1143,6 @@ pub const Bar = struct {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     pub fn getActiveIcon(bar: *const Bar) []const u8 {

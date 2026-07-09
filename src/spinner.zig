@@ -178,8 +178,6 @@ pub const Spinner = struct {
 
         if (sp.term.is_tty) {
             sp.thread = try std.Thread.spawn(.{}, renderLoop, .{ sp, io });
-        } else {
-            sp.printNonTty(io, opts.text) catch {};
         }
 
         return sp;
@@ -499,10 +497,6 @@ pub const Spinner = struct {
 
         var last_msg_change_time = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms)));
         var msg_index: usize = 0;
-
-        // Delay first render to avoid racing with the caller's on_complete callback
-        // (e.g. bar.done() calls on_complete, then continues to renderFinal)
-        io.sleep(std.Io.Duration.fromMilliseconds(@intCast(sp.opts.style.interval_ms)), .awake) catch {};
 
         while (!sp.stop_flag.load(.acquire)) {
             if (sp.opts.icon_messages) |imsgs| {
