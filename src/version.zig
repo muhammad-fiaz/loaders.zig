@@ -1,7 +1,7 @@
 //! version.zig — Version metadata for the loaders.zig library.
 
 /// Semantic version string for loaders.zig.
-pub const version: []const u8 = "0.0.2";
+pub const version: []const u8 = "0.0.3";
 
 /// GitHub repository identifier (owner/repo).
 pub const repo: []const u8 = "muhammad-fiaz/loaders.zig";

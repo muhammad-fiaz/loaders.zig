@@ -1,5 +1,5 @@
 ---
-description: Custom format template example for loaders.zig v0.0.2 — use named tokens to define fully custom progress bar layouts.
+description: Custom format template example for loaders.zig v0.0.3 — use named tokens to define fully custom progress bar layouts.
 ---
 
 # Custom Format Template Example

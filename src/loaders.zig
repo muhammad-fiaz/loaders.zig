@@ -27,10 +27,12 @@
 //!
 //!   // Color and styling
 //!   loaders.Color
+//!   loaders.Rgb
 //!   loaders.Colorizer
 //!   loaders.Attribute
 //!   loaders.BarStyle     (re-exported from style)
 //!   loaders.SpinnerStyle (re-exported from style)
+//!   loaders.Gradient     (re-exported from style)
 //!
 //!   // Template rendering
 //!   loaders.format
@@ -97,12 +99,14 @@ pub const BatchTask = batch_mod.BatchTask;
 pub const TaskState = batch_mod.TaskState;
 
 pub const Color = color_mod.Color;
+pub const Rgb = color_mod.Rgb;
 pub const Colorizer = color_mod.Colorizer;
 pub const Attribute = color_mod.Attribute;
 pub const writeColored = color_mod.writeColored;
 
 pub const BarStyle = style_mod.BarStyle;
 pub const SpinnerStyle = style_mod.SpinnerStyle;
+pub const Gradient = style_mod.Gradient;
 pub const Message = style_mod.Message;
 
 pub const TermInfo = terminal_mod.TermInfo;

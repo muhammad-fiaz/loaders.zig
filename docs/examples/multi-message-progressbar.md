@@ -111,7 +111,7 @@ pub fn main(init: std.process.Init) !void {
     // 3. MultiSpinner cycling humorous messages
     {
         std.debug.print("3. Multi-Spinner with concurrent message cycling:\n", .{});
-        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
+        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
         errdefer ms.stop();
 
         const task1 = ms.addItem("Worker 1", loaders.SpinnerStyle.bounce_dots); // Use new bounce_dots style!

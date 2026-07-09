@@ -63,8 +63,8 @@ pub const RenderCtx = struct {
     empty_color: Color = .default,
     empty_bg_color: Color = .default,
     icon_gap: []const u8 = " ",
-    label_gap: []const u8 = "",
-    datetime_gap: []const u8 = "",
+    label_gap: []const u8 = " ",
+    datetime_gap: []const u8 = " ",
 };
 
 /// Render a format template string to `w` using the provided context.
@@ -112,15 +112,24 @@ fn renderToken(w: *std.Io.Writer, token: []const u8, ctx: *const RenderCtx) !voi
         } else {
             if (ctx.icon) |icon| {
                 if (icon.len > 0) {
+                    if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+                        try ctx.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(ctx.icon_gap);
                 }
             }
             if (ctx.msg_icon) |icon| {
                 if (icon.len > 0) {
+                    if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+                        try ctx.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(ctx.icon_gap);
                 }
+            }
+            if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+                try ctx.colorizer.begin(w, ctx.line_color, ctx.line_bg_color, &.{});
             }
         }
     } else if (std.mem.eql(u8, token, "label")) {
@@ -178,15 +187,18 @@ fn renderToken(w: *std.Io.Writer, token: []const u8, ctx: *const RenderCtx) !voi
     } else if (std.mem.eql(u8, token, "time")) {
         var buf: [16]u8 = undefined;
         try w.writeAll(utils.formatTime(&buf, ctx.timestamp_s));
+        try w.writeAll(ctx.datetime_gap);
     } else if (std.mem.eql(u8, token, "date")) {
         var buf: [16]u8 = undefined;
         try w.writeAll(utils.formatDate(&buf, ctx.timestamp_s));
+        try w.writeAll(ctx.datetime_gap);
     } else if (std.mem.eql(u8, token, "message")) {
         try w.writeAll(ctx.message);
     } else if (std.mem.eql(u8, token, "spinner")) {
         if (ctx.spinner_frames.len > 0) {
             const frame = ctx.spinner_frames[ctx.spinner_frame % ctx.spinner_frames.len];
             try color_mod.writeColored(w, ctx.colorizer, frame, ctx.spinner_color, ctx.spinner_bg_color, &.{});
+            try w.writeAll(ctx.icon_gap);
             if (ctx.line_color != .default or ctx.line_bg_color != .default) {
                 try ctx.colorizer.begin(w, ctx.line_color, ctx.line_bg_color, &.{});
             }
@@ -218,7 +230,12 @@ fn renderBarFill(w: *std.Io.Writer, ctx: *const RenderCtx) !void {
         var i: usize = 0;
         while (i < bar_width) : (i += 1) {
             if (i >= pos and i < pos + bounce_len) {
-                try c.begin(w, fill_fg_col, s.fill_bg, s.attrs);
+                if (s.fill_gradient) |grad| {
+                    const gt = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(gt), s.fill_bg, s.attrs);
+                } else {
+                    try c.begin(w, fill_fg_col, s.fill_bg, s.attrs);
+                }
                 try w.writeAll(s.fill);
                 try c.reset(w);
             } else {
@@ -234,31 +251,83 @@ fn renderBarFill(w: *std.Io.Writer, ctx: *const RenderCtx) !void {
     const filled = @as(usize, @intFromFloat(@as(f64, @floatFromInt(bar_width)) * frac));
     const filled_clamped = @min(filled, bar_width);
     const empty = bar_width - filled_clamped;
+    const is_complete = ctx.total > 0 and ctx.completed >= ctx.total;
+    const use_complete = is_complete and s.complete_fg != .default;
 
     if (filled_clamped > 0) {
-        try c.begin(w, fill_fg_col, s.fill_bg, s.attrs);
-        if (s.tip.len > 0 and filled_clamped < bar_width) {
-            var i: usize = 0;
-            while (i < filled_clamped -| 1) : (i += 1) {
-                try w.writeAll(s.fill);
+        if (use_complete) {
+            try c.begin(w, s.complete_fg, s.fill_bg, s.attrs);
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) {
+                    try w.writeAll(s.fill);
+                }
+                try w.writeAll(s.tip);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) {
+                    try w.writeAll(s.fill);
+                }
             }
-            try w.writeAll(s.tip);
+            try c.reset(w);
+        } else if (s.fill_gradient) |grad| {
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) {
+                    const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(t), s.fill_bg, s.attrs);
+                    try w.writeAll(s.fill);
+                    try c.reset(w);
+                }
+                const tip_t = if (bar_width > 1) @as(f64, @floatFromInt(filled_clamped -| 1)) / @as(f64, @floatFromInt(bar_width - 1)) else 1.0;
+                try c.begin(w, grad.at(tip_t), s.fill_bg, s.attrs);
+                try w.writeAll(s.tip);
+                try c.reset(w);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) {
+                    const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(t), s.fill_bg, s.attrs);
+                    try w.writeAll(s.fill);
+                    try c.reset(w);
+                }
+            }
         } else {
-            var i: usize = 0;
-            while (i < filled_clamped) : (i += 1) {
-                try w.writeAll(s.fill);
+            try c.begin(w, fill_fg_col, s.fill_bg, s.attrs);
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) {
+                    try w.writeAll(s.fill);
+                }
+                try w.writeAll(s.tip);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) {
+                    try w.writeAll(s.fill);
+                }
             }
+            try c.reset(w);
         }
-        try c.reset(w);
     }
 
     if (empty > 0) {
-        try c.begin(w, empty_fg_col, s.empty_bg, &.{});
-        var i: usize = 0;
-        while (i < empty) : (i += 1) {
-            try w.writeAll(s.empty);
+        if (s.empty_gradient) |grad| {
+            var i: usize = 0;
+            while (i < empty) : (i += 1) {
+                const offset = filled_clamped + i;
+                const t = if (bar_width > 1) @as(f64, @floatFromInt(offset)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                try c.begin(w, grad.at(t), s.empty_bg, &.{});
+                try w.writeAll(s.empty);
+                try c.reset(w);
+            }
+        } else {
+            try c.begin(w, empty_fg_col, s.empty_bg, &.{});
+            var i: usize = 0;
+            while (i < empty) : (i += 1) {
+                try w.writeAll(s.empty);
+            }
+            try c.reset(w);
         }
-        try c.reset(w);
     }
 }
 
@@ -280,7 +349,7 @@ test "renderTemplate literals pass through" {
 test "renderTemplate label token" {
     var storage: [256]u8 = undefined;
     var w = std.Io.Writer.fixed(&storage);
-    const ctx = RenderCtx{ .label = "MyTask" };
+    const ctx = RenderCtx{ .label = "MyTask", .label_gap = "" };
     try renderTemplate(&w, "Task: {label}", &ctx);
     try std.testing.expectEqualSlices(u8, "Task: MyTask", w.buffered());
 }
@@ -352,6 +421,7 @@ test "renderTemplate composite" {
     var w = std.Io.Writer.fixed(&storage);
     const ctx = RenderCtx{
         .label = "Work",
+        .label_gap = "",
         .completed = 0,
         .total = 0,
         .message = "init",
@@ -365,6 +435,7 @@ test "renderTemplate colors" {
     var w = std.Io.Writer.fixed(&storage);
     const ctx = RenderCtx{
         .label = "Task",
+        .label_gap = "",
         .label_color = .red,
         .line_color = .green,
         .colorizer = .{ .enabled = true, .ansi_enabled = true },
@@ -382,4 +453,63 @@ test "renderTemplate icon spacing" {
     };
     try renderTemplate(&w, "{icon}", &ctx);
     try std.testing.expectEqualSlices(u8, "🔥 🐹 ", w.buffered());
+}
+
+// --- Edge Case Tests ---
+
+test "renderTemplate empty template" {
+    var storage: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{};
+    try renderTemplate(&w, "", &ctx);
+    try std.testing.expectEqualSlices(u8, "", w.buffered());
+}
+
+test "renderTemplate unknown token passes through" {
+    var storage: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{};
+    try renderTemplate(&w, "{unknown}", &ctx);
+    try std.testing.expectEqualSlices(u8, "{unknown}", w.buffered());
+}
+
+test "renderTemplate label with custom gap" {
+    var storage: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{ .label = "Task", .label_gap = "  " };
+    try renderTemplate(&w, "{label}", &ctx);
+    try std.testing.expectEqualSlices(u8, "Task  ", w.buffered());
+}
+
+test "renderTemplate datetime with custom gap" {
+    var storage: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{ .timestamp_s = 0, .datetime_gap = "  " };
+    try renderTemplate(&w, "{time}", &ctx);
+    // Time at epoch 0 is "00:00:00" plus gap "  "
+    try std.testing.expectEqualSlices(u8, "00:00:00  ", w.buffered());
+}
+
+test "renderTemplate multiple tokens" {
+    var storage: [512]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{
+        .label = "Build",
+        .label_gap = "",
+        .completed = 75,
+        .total = 100,
+        .message = "compiling",
+    };
+    try renderTemplate(&w, "{label} [{percent}] {message}", &ctx);
+    try std.testing.expectEqualSlices(u8, "Build [ 75%] compiling", w.buffered());
+}
+
+test "renderTemplate with all-default args is no-op" {
+    var storage: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&storage);
+    const ctx = RenderCtx{
+        .colorizer = .{ .enabled = true, .ansi_enabled = true },
+    };
+    try renderTemplate(&w, "test", &ctx);
+    try std.testing.expectEqualSlices(u8, "test", w.buffered());
 }

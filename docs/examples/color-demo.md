@@ -1,5 +1,5 @@
 ---
-description: Color system showcase for loaders.zig v0.0.2 — 16-color ANSI, 256-color palette, true-color RGB, hex string parsing, and all BarStyle presets.
+description: Color system showcase for loaders.zig v0.0.3 — 16-color ANSI, 256-color palette, true-color RGB, hex string parsing, and all BarStyle presets.
 head:
   - - meta
     - name: keywords
@@ -9,7 +9,7 @@ head:
       content: Color Demo Example — loaders.zig
   - - meta
     - property: og:description
-      content: Color system showcase for loaders.zig v0.0.2 — ANSI colors, xterm-256 color palette, true color RGB, hex string parsing, and presets.
+      content: Color system showcase for loaders.zig v0.0.3 — ANSI colors, xterm-256 color palette, true color RGB, hex string parsing, and presets.
 ---
 
 # Color Demo Example

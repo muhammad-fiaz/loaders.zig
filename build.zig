@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "multi_message_progressbar", .path = "examples/multi_message_progressbar.zig" },
         .{ .name = "conditional_chain", .path = "examples/conditional_chain.zig" },
         .{ .name = "io_progress", .path = "examples/io_progress.zig" },
+        .{ .name = "gradient_demo", .path = "examples/gradient_demo.zig" },
     };
 
     // Create run-all-examples step

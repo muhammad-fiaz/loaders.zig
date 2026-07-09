@@ -12,7 +12,7 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("--- Multi-Spinner Demo ---\n", .{});
 
-    const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
+    const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
     errdefer ms.stop();
     ms.icon_gap = "  ";
     ms.text_gap = "  ";

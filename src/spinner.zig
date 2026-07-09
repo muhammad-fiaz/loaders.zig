@@ -100,6 +100,14 @@ pub const Options = struct {
     padding_lines_below: usize = 0,
     /// Callback when spinner completes/stops.
     on_complete: ?*const fn (sp: *Spinner) void = null,
+    /// Callback when spinner succeeds (succeed() called).
+    on_success: ?*const fn (sp: *Spinner) void = null,
+    /// Callback when spinner fails (fail() called).
+    on_failure: ?*const fn (sp: *Spinner) void = null,
+    /// Callback when spinner warns (warn() called).
+    on_warn: ?*const fn (sp: *Spinner) void = null,
+    /// Callback when spinner provides info (info() called).
+    on_info: ?*const fn (sp: *Spinner) void = null,
 };
 
 /// An animated spinner that runs its render loop on a background thread.
@@ -160,7 +168,7 @@ pub const Spinner = struct {
             .paused = std.atomic.Value(bool).init(false),
             .text = undefined,
             .thread = undefined,
-            .text_buf = [_:0]u8{0} ** 256,
+            .text_buf = @splat(0),
             .msg_icon = initial_icon,
         };
 
@@ -170,8 +178,6 @@ pub const Spinner = struct {
 
         if (sp.term.is_tty) {
             sp.thread = try std.Thread.spawn(.{}, renderLoop, .{ sp, io });
-        } else {
-            sp.printNonTty(io, opts.text) catch {};
         }
 
         return sp;
@@ -220,6 +226,9 @@ pub const Spinner = struct {
         else
             std.mem.sliceTo(&sp.text_buf, 0);
         sp.printFinal(io, final_text, sym, .green);
+        if (sp.opts.on_success) |cb| {
+            cb(sp);
+        }
         if (sp.opts.on_complete) |cb| {
             cb(sp);
         }
@@ -241,6 +250,9 @@ pub const Spinner = struct {
         else
             std.mem.sliceTo(&sp.text_buf, 0);
         sp.printFinal(io, final_text, sym, .red);
+        if (sp.opts.on_failure) |cb| {
+            cb(sp);
+        }
         if (sp.opts.on_complete) |cb| {
             cb(sp);
         }
@@ -262,6 +274,9 @@ pub const Spinner = struct {
         else
             std.mem.sliceTo(&sp.text_buf, 0);
         sp.printFinal(io, final_text, sym, .yellow);
+        if (sp.opts.on_warn) |cb| {
+            cb(sp);
+        }
         if (sp.opts.on_complete) |cb| {
             cb(sp);
         }
@@ -283,6 +298,9 @@ pub const Spinner = struct {
         else
             std.mem.sliceTo(&sp.text_buf, 0);
         sp.printFinal(io, final_text, sym, .cyan);
+        if (sp.opts.on_info) |cb| {
+            cb(sp);
+        }
         if (sp.opts.on_complete) |cb| {
             cb(sp);
         }
@@ -328,7 +346,8 @@ pub const Spinner = struct {
         const w = &fw.interface;
 
         if (sp.term.is_tty) {
-            sp.colorizer.cursorUp(w, sp.opts.padding_lines_above + sp.opts.padding_lines_below) catch {};
+            // +1 for the main content line
+            sp.colorizer.cursorUp(w, 1 + sp.opts.padding_lines_above + sp.opts.padding_lines_below) catch {};
         }
 
         // Above padding lines
@@ -379,20 +398,38 @@ pub const Spinner = struct {
             w.writeAll(sp.opts.prefix) catch {};
         }
 
+        // Print Icons (without line background color to avoid emoji highlighting)
         if (sp.opts.icon) |icon| {
             if (icon.len > 0) {
+                if (sp.opts.prefix.len > 0) {
+                    w.writeAll(sp.opts.icon_gap) catch {};
+                }
+                if (line_color != .default or line_bg_color != .default) {
+                    sp.colorizer.reset(w) catch {};
+                }
                 w.writeAll(icon) catch {};
                 w.writeAll(sp.opts.icon_gap) catch {};
             }
         }
         if (sp.msg_icon) |icon| {
             if (icon.len > 0) {
+                if (line_color != .default or line_bg_color != .default) {
+                    sp.colorizer.reset(w) catch {};
+                }
                 w.writeAll(icon) catch {};
                 w.writeAll(sp.opts.icon_gap) catch {};
             }
         }
+        if (line_color != .default or line_bg_color != .default) {
+            sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
+        }
 
-        color_mod.writeColored(w, sp.colorizer, symbol, sym_color, sp.opts.spinner_bg_color, &.{.bold}) catch {};
+        // Use complete_fg from style if set, otherwise use the state color
+        const actual_sym_color = if (sp.opts.style.complete_fg != .default)
+            sp.opts.style.complete_fg
+        else
+            sym_color;
+        color_mod.writeColored(w, sp.colorizer, symbol, actual_sym_color, sp.opts.spinner_bg_color, &.{.bold}) catch {};
         w.writeAll(sp.opts.text_gap) catch {};
 
         if (line_color != .default or line_bg_color != .default) {
@@ -543,22 +580,37 @@ pub const Spinner = struct {
                     w.writeAll(sp.opts.prefix) catch {};
                 }
 
+                // Print Icons (without line background color to avoid emoji highlighting)
                 if (sp.opts.icon) |icon| {
                     if (icon.len > 0) {
+                        if (sp.opts.prefix.len > 0) {
+                            w.writeAll(sp.opts.icon_gap) catch {};
+                        }
+                        if (line_color != .default or line_bg_color != .default) {
+                            sp.colorizer.reset(w) catch {};
+                        }
                         w.writeAll(icon) catch {};
                         w.writeAll(sp.opts.icon_gap) catch {};
                     }
                 }
                 if (sp.msg_icon) |icon| {
                     if (icon.len > 0) {
+                        if (line_color != .default or line_bg_color != .default) {
+                            sp.colorizer.reset(w) catch {};
+                        }
                         w.writeAll(icon) catch {};
                         w.writeAll(sp.opts.icon_gap) catch {};
                     }
                 }
+                if (line_color != .default or line_bg_color != .default) {
+                    sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
+                }
 
                 const frames = sp.opts.style.frames;
                 const glyph = frames[frame % frames.len];
-                const glyph_color = if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
+                const glyph_color = if (sp.opts.style.gradient) |grad|
+                    grad.at(@as(f64, @floatFromInt(frame % 256)) / 255.0)
+                else if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
                 color_mod.writeColored(w, sp.colorizer, glyph, glyph_color, sp.opts.spinner_bg_color, sp.opts.style.attrs) catch {};
                 w.writeAll(sp.opts.text_gap) catch {};
 

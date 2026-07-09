@@ -167,7 +167,7 @@ test "extractTagName missing" {
 }
 
 test "SemanticVersion comparison" {
-    const current = try std.SemanticVersion.parse("0.0.2");
+    const current = try std.SemanticVersion.parse("0.0.3");
     const newer = try std.SemanticVersion.parse("0.1.0");
     const older = try std.SemanticVersion.parse("0.0.1");
 

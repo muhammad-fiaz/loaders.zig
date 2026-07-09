@@ -1,6 +1,6 @@
 .{
     .name = .loaders,
-    .version = "0.0.2",
+    .version = "0.0.3",
     .fingerprint = 0xa2d748f0694dfa93,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{},

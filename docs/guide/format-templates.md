@@ -1,5 +1,5 @@
 ---
-description: Format template engine for loaders.zig v0.0.2 — create custom progress bar layouts using named tokens like {label}, {bar}, {percent}, {eta}.
+description: Format template engine for loaders.zig v0.0.3 — create custom progress bar layouts using named tokens like {label}, {bar}, {percent}, {eta}.
 head:
   - - meta
     - name: keywords
@@ -41,6 +41,7 @@ Any combination of tokens and literal text is valid.
 | `{label}` | The bar label | `Upload` |
 | `{bar}` | Filled progress bar segment | `▓▓▓▓░░░░░░` |
 | `{percent}` | Formatted percentage | ` 42%` |
+| `{value}` | Current progress value | `42` |
 | `{elapsed}` | Elapsed time (MM:SS or H:MM:SS) | `01:23` |
 | `{eta}` | Estimated time remaining | `00:45` |
 | `{rate}` | Throughput rate | `12.3/s` or `1.20 MiB/s` |
@@ -49,6 +50,7 @@ Any combination of tokens and literal text is valid.
 | `{date}` | Current wall-clock date [YYYY-MM-DD] | `2026-04-15` |
 | `{message}` | Dynamic message (updated via `setMessage`) | `processing...` |
 | `{spinner}` | Animated spinner glyph | `⠙` |
+| `{icon}` | Status/completion icon or running icon | `✓` or `⚙️` |
 
 > Unknown tokens like `{custom}` are passed through unchanged.
 

@@ -129,13 +129,15 @@ For concurrent progress setups, you can override default gaps directly:
       .label_gap = "  ", // 2 spaces after label
   });
   ```
-- **`MultiSpinner`**: Configure spacing on the parent `MultiSpinner` instance:
+- **`MultiSpinner`**: Configure spacing via `MultiSpinnerOptions` when starting:
   - **`icon_gap`**: Gap printed after running icons/messages (defaults to `" "`).
   - **`text_gap`**: Gap printed after active frame spinner symbols / completed status checkmarks (defaults to `" "`).
   ```zig
-  const ms = try MultiSpinner.start(io, .stderr(), null, allocator);
-  ms.icon_gap = "   "; // space after wide prefix emoji icons
-  ms.text_gap = "  ";
+  const ms = try MultiSpinner.start(io, .stderr(), .{
+      .allocator = allocator,
+      .icon_gap = "   ",   // space after wide prefix emoji icons
+      .text_gap = "  ",
+  });
   ```
 
 ### Layout Spacing Margins
@@ -148,8 +150,10 @@ You can configure empty spacing line margins to render *in between* each individ
       .spacing_lines = 1, // 1 blank line between each progress bar
   });
   ```
-- **`MultiSpinner`**: Set the `spacing_lines` field directly on the initialized instance:
+- **`MultiSpinner`**: Pass `spacing_lines` inside `MultiSpinnerOptions` when starting:
   ```zig
-  const ms = try loaders.MultiSpinner.start(io, .stderr(), null, allocator);
-  ms.spacing_lines = 1; // 1 blank line between each spinner item
+  const ms = try loaders.MultiSpinner.start(io, .stderr(), .{
+      .allocator = allocator,
+      .spacing_lines = 1, // 1 blank line between each spinner item
+  });
   ```

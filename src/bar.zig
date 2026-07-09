@@ -101,10 +101,16 @@ pub const Options = struct {
     fill_color: Color = .default,
     /// Empty color shorthand (sets style.empty_fg if style.empty_fg is .default).
     empty_color: Color = .default,
+    /// Fill gradient shorthand (sets style.fill_gradient if null).
+    fill_gradient: ?style_mod.Gradient = null,
+    /// Empty gradient shorthand (sets style.empty_gradient if null).
+    empty_gradient: ?style_mod.Gradient = null,
     /// Color used for the entire progress bar line. `.default` = use sub-component colors.
     color: Color = .default,
     /// Background color used for the entire progress bar line. `.default` = no color.
     bg_color: Color = .default,
+    /// Color for the bar when complete (100%). `.default` = use style.fill_fg or gradient.
+    complete_color: Color = .default,
     /// Custom elapsed time offset in seconds.
     start_time_offset_sec: i64 = 0,
     /// Number of empty padding lines printed above the progress bar line.
@@ -135,6 +141,14 @@ pub const Options = struct {
     on_progress: ?*const fn (bar: *Bar, completed: usize, total: usize) void = null,
     /// Callback when progress bar completes/stops.
     on_complete: ?*const fn (bar: *Bar) void = null,
+    /// Callback when bar succeeds (succeed() called).
+    on_success: ?*const fn (bar: *Bar) void = null,
+    /// Callback when bar fails (fail() called).
+    on_failure: ?*const fn (bar: *Bar) void = null,
+    /// Callback when bar warns (warn() called).
+    on_warn: ?*const fn (bar: *Bar) void = null,
+    /// Callback when bar provides info (info() called).
+    on_info: ?*const fn (bar: *Bar) void = null,
     /// Format time as 12-hour AM/PM format (defaults to 24-hour).
     time_format_12h: bool = false,
     /// Maximum label width limit (0 = no limit). Truncates label if exceeded.
@@ -203,7 +217,7 @@ pub const Bar = struct {
         const now = std.Io.Clock.awake.now(io);
 
         const initial_message = if (opts.icon_messages) |imsgs| (if (imsgs.len > 0) imsgs[0].text else opts.message) else if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.message) else opts.message;
-        var msg_buf: [512:0]u8 = [_:0]u8{0} ** 512;
+        var msg_buf: [512:0]u8 = @splat(0);
         const msg_len = blk: {
             const src = initial_message;
             const len = @min(src.len, 511);
@@ -225,6 +239,15 @@ pub const Bar = struct {
         }
         if (opts.empty_bg_color != .default and resolved_style.empty_bg == .default) {
             resolved_style.empty_bg = opts.empty_bg_color;
+        }
+        if (opts.fill_gradient != null and resolved_style.fill_gradient == null) {
+            resolved_style.fill_gradient = opts.fill_gradient;
+        }
+        if (opts.empty_gradient != null and resolved_style.empty_gradient == null) {
+            resolved_style.empty_gradient = opts.empty_gradient;
+        }
+        if (opts.complete_color != .default and resolved_style.complete_fg == .default) {
+            resolved_style.complete_fg = opts.complete_color;
         }
 
         var resolved_opts = opts;
@@ -513,6 +536,9 @@ pub const Bar = struct {
                 .style = bar.opts.style,
                 .colorizer = bar.colorizer,
                 .spinner_frame = bar.spinner_frame,
+                .spinner_frames = &.{ "|", "/", "-", "\\" },
+                .spinner_color = .default,
+                .spinner_bg_color = .default,
                 .icon = bar.opts.icon,
                 .msg_icon = bar.msg_icon,
                 .status_icon = bar.status_icon,
@@ -528,8 +554,8 @@ pub const Bar = struct {
                 .empty_color = bar.opts.empty_color,
                 .empty_bg_color = bar.opts.empty_bg_color,
                 .icon_gap = bar.opts.icon_gap,
-                .label_gap = "",
-                .datetime_gap = "",
+                .label_gap = bar.opts.label_gap,
+                .datetime_gap = bar.opts.datetime_gap,
             };
             try format_mod.renderTemplate(w, bar.opts.template, &ctx);
             bar.spinner_frame += 1;
@@ -704,8 +730,11 @@ pub const Bar = struct {
             try w.writeAll(bar.opts.custom_start);
         }
 
-        // Print Icons
+        // Print Icons (without line background color to avoid emoji highlighting)
         if (bar.status_icon) |s_icon| {
+            if (line_color != .default or line_bg_color != .default) {
+                try bar.colorizer.reset(w);
+            }
             try color_mod.writeColored(w, bar.colorizer, s_icon, bar.status_color, .default, &.{.bold});
             try w.writeAll(bar.opts.icon_gap);
             if (line_color != .default or line_bg_color != .default) {
@@ -715,6 +744,9 @@ pub const Bar = struct {
             var printed_any = false;
             if (bar.opts.icon) |icon| {
                 if (icon.len > 0) {
+                    if (line_color != .default or line_bg_color != .default) {
+                        try bar.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(bar.opts.icon_gap);
                     printed_any = true;
@@ -722,10 +754,16 @@ pub const Bar = struct {
             }
             if (bar.msg_icon) |icon| {
                 if (icon.len > 0) {
+                    if (line_color != .default or line_bg_color != .default) {
+                        try bar.colorizer.reset(w);
+                    }
                     try w.writeAll(icon);
                     try w.writeAll(bar.opts.icon_gap);
                     printed_any = true;
                 }
+            }
+            if (printed_any and (line_color != .default or line_bg_color != .default)) {
+                try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
             }
         }
 
@@ -862,7 +900,7 @@ pub const Bar = struct {
         }
 
         // Reset global color
-        if (line_color != .default) {
+        if (line_color != .default or line_bg_color != .default) {
             try bar.colorizer.reset(w);
         }
     }
@@ -878,34 +916,92 @@ pub const Bar = struct {
         const filled = @as(usize, @intFromFloat(@as(f64, @floatFromInt(bar_width)) * frac));
         const filled_clamped = @min(filled, bar_width);
         const empty = bar_width - filled_clamped;
+        const is_complete = bar.done_flag.load(.acquire) or (total > 0 and completed >= total);
 
         const s = bar.opts.style;
         const c = bar.colorizer;
 
+        // Determine fill color: complete_fg > gradient > fill_fg
+        const use_complete_color = is_complete and s.complete_fg != .default;
+
         if (filled_clamped > 0) {
-            try c.begin(w, s.fill_fg, s.fill_bg, s.attrs);
-            if (s.tip.len > 0 and filled_clamped < bar_width) {
-                var i: usize = 0;
-                while (i < filled_clamped -| 1) : (i += 1) {
-                    try w.writeAll(s.fill);
+            if (use_complete_color) {
+                // Complete state: solid complete color
+                try c.begin(w, s.complete_fg, s.fill_bg, s.attrs);
+                if (s.tip.len > 0 and filled_clamped < bar_width) {
+                    var i: usize = 0;
+                    while (i < filled_clamped -| 1) : (i += 1) {
+                        try w.writeAll(s.fill);
+                    }
+                    try w.writeAll(s.tip);
+                } else {
+                    var i: usize = 0;
+                    while (i < filled_clamped) : (i += 1) {
+                        try w.writeAll(s.fill);
+                    }
                 }
-                try w.writeAll(s.tip);
+                try c.reset(w);
+            } else if (s.fill_gradient) |grad| {
+                // Gradient mode: each cell gets its own interpolated color
+                if (s.tip.len > 0 and filled_clamped < bar_width) {
+                    var i: usize = 0;
+                    while (i < filled_clamped -| 1) : (i += 1) {
+                        const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                        try c.begin(w, grad.at(t), s.fill_bg, s.attrs);
+                        try w.writeAll(s.fill);
+                        try c.reset(w);
+                    }
+                    const tip_t = if (bar_width > 1) @as(f64, @floatFromInt(filled_clamped -| 1)) / @as(f64, @floatFromInt(bar_width - 1)) else 1.0;
+                    try c.begin(w, grad.at(tip_t), s.fill_bg, s.attrs);
+                    try w.writeAll(s.tip);
+                    try c.reset(w);
+                } else {
+                    var i: usize = 0;
+                    while (i < filled_clamped) : (i += 1) {
+                        const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                        try c.begin(w, grad.at(t), s.fill_bg, s.attrs);
+                        try w.writeAll(s.fill);
+                        try c.reset(w);
+                    }
+                }
             } else {
-                var i: usize = 0;
-                while (i < filled_clamped) : (i += 1) {
-                    try w.writeAll(s.fill);
+                // Solid color mode
+                try c.begin(w, s.fill_fg, s.fill_bg, s.attrs);
+                if (s.tip.len > 0 and filled_clamped < bar_width) {
+                    var i: usize = 0;
+                    while (i < filled_clamped -| 1) : (i += 1) {
+                        try w.writeAll(s.fill);
+                    }
+                    try w.writeAll(s.tip);
+                } else {
+                    var i: usize = 0;
+                    while (i < filled_clamped) : (i += 1) {
+                        try w.writeAll(s.fill);
+                    }
                 }
+                try c.reset(w);
             }
-            try c.reset(w);
         }
 
         if (empty > 0) {
-            try c.begin(w, s.empty_fg, s.empty_bg, &.{});
-            var i: usize = 0;
-            while (i < empty) : (i += 1) {
-                try w.writeAll(s.empty);
+            if (s.empty_gradient) |grad| {
+                // Gradient for empty portion
+                var i: usize = 0;
+                while (i < empty) : (i += 1) {
+                    const offset = filled_clamped + i;
+                    const t = if (bar_width > 1) @as(f64, @floatFromInt(offset)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(t), s.empty_bg, &.{});
+                    try w.writeAll(s.empty);
+                    try c.reset(w);
+                }
+            } else {
+                try c.begin(w, s.empty_fg, s.empty_bg, &.{});
+                var i: usize = 0;
+                while (i < empty) : (i += 1) {
+                    try w.writeAll(s.empty);
+                }
+                try c.reset(w);
             }
-            try c.reset(w);
         }
     }
 
@@ -929,7 +1025,12 @@ pub const Bar = struct {
         var i: usize = 0;
         while (i < bar_width) : (i += 1) {
             if (i >= pos and i < pos + bounce_len) {
-                try c.begin(w, s.fill_fg, s.fill_bg, s.attrs);
+                if (s.fill_gradient) |grad| {
+                    const gt = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(gt), s.fill_bg, s.attrs);
+                } else {
+                    try c.begin(w, s.fill_fg, s.fill_bg, s.attrs);
+                }
                 try w.writeAll(s.fill);
                 try c.reset(w);
             } else {
@@ -952,12 +1053,12 @@ pub const Bar = struct {
                 bar.status_color = .green;
             }
         }
+        bar.renderFinal() catch {};
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a success line (✓ green tick).
@@ -970,12 +1071,15 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
+        if (bar.opts.on_success) |cb| {
+            cb(bar);
+        }
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a failure line (✗ red cross).
@@ -988,12 +1092,15 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
+        if (bar.opts.on_failure) |cb| {
+            cb(bar);
+        }
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print a warning line (⚠ yellow warning).
@@ -1006,12 +1113,15 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
+        if (bar.opts.on_warn) |cb| {
+            cb(bar);
+        }
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     /// Stop and print an info line (ℹ cyan info).
@@ -1024,12 +1134,15 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
+        bar.renderFinal() catch {};
+        if (bar.opts.on_info) |cb| {
+            cb(bar);
+        }
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
             }
         }
-        bar.renderFinal() catch {};
     }
 
     pub fn getActiveIcon(bar: *const Bar) []const u8 {

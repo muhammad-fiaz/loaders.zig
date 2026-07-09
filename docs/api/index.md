@@ -68,6 +68,20 @@ pub const Options = struct {
     show_date: bool = false,
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
+    fill_gradient: ?*const Gradient = null,
+    empty_gradient: ?*const Gradient = null,
+    complete_color: Color = .default,
+    on_progress: ?*const fn (bar: *Bar, completed: usize, total: usize) void = null,
+    on_complete: ?*const fn (bar: *Bar) void = null,
+    on_success: ?*const fn (bar: *Bar) void = null,
+    on_failure: ?*const fn (bar: *Bar) void = null,
+    on_warn: ?*const fn (bar: *Bar) void = null,
+    on_info: ?*const fn (bar: *Bar) void = null,
+    icon_gap: []const u8 = " ",
+    label_gap: []const u8 = " ",
+    datetime_gap: []const u8 = " ",
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
 };
 ```
 
@@ -97,6 +111,20 @@ pub const Options = struct {
 | `show_date` | `false` | Prepend `[YYYY-MM-DD]` |
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds for date/time |
+| `fill_gradient` | `null` | Gradient for filled portion (overrides `fill_fg`) |
+| `empty_gradient` | `null` | Gradient for empty portion (overrides `empty_fg`) |
+| `complete_color` | `.default` | Color for filled portion when bar is complete |
+| `on_progress` | `null` | Callback on progress update: `fn(bar, completed, total) void` |
+| `on_complete` | `null` | Callback when bar completes/stops |
+| `on_success` | `null` | Callback when `succeed()` is called |
+| `on_failure` | `null` | Callback when `fail()` is called |
+| `on_warn` | `null` | Callback when `warn()` is called |
+| `on_info` | `null` | Callback when `info()` is called |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `label_gap` | `" "` | Spacing after the label text |
+| `datetime_gap` | `" "` | Spacing after date/time brackets |
+| `padding_lines_above` | `0` | Empty lines printed above the bar |
+| `padding_lines_below` | `0` | Empty lines printed below the bar |
 
 ---
 
@@ -136,6 +164,16 @@ pub const Options = struct {
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
     allocator: ?std.mem.Allocator = null,
+    on_complete: ?*const fn (sp: *Spinner) void = null,
+    on_success: ?*const fn (sp: *Spinner) void = null,
+    on_failure: ?*const fn (sp: *Spinner) void = null,
+    on_warn: ?*const fn (sp: *Spinner) void = null,
+    on_info: ?*const fn (sp: *Spinner) void = null,
+    icon_gap: []const u8 = " ",
+    text_gap: []const u8 = " ",
+    datetime_gap: []const u8 = " ",
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
 };
 ```
 
@@ -153,6 +191,16 @@ pub const Options = struct {
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds |
 | `allocator` | `null` | Custom allocator (null = page_allocator) |
+| `on_complete` | `null` | Callback when spinner stops |
+| `on_success` | `null` | Callback when `succeed()` is called |
+| `on_failure` | `null` | Callback when `fail()` is called |
+| `on_warn` | `null` | Callback when `warn()` is called |
+| `on_info` | `null` | Callback when `info()` is called |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `text_gap` | `" "` | Spacing after the spinner glyph |
+| `datetime_gap` | `" "` | Spacing after date/time brackets |
+| `padding_lines_above` | `0` | Empty lines printed above the spinner |
+| `padding_lines_below` | `0` | Empty lines printed below the spinner |
 
 ---
 
@@ -197,16 +245,39 @@ Renders multiple spinner items on separate lines via a single background thread.
 
 ```zig
 pub const MultiSpinner = struct {
-    pub fn start(io: std.Io, file: std.Io.File, color_enabled: ?bool, maybe_allocator: ?std.mem.Allocator) !*MultiSpinner;
+    pub fn start(io: std.Io, file: std.Io.File, opts: MultiSpinnerOptions) !*MultiSpinner;
     pub fn addItem(ms: *MultiSpinner, text: []const u8, style: SpinnerStyle) *SpinnerItem;
     pub fn setSucceeded(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn setFailed(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn setWarning(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
+    pub fn setInfo(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
     pub fn stop(ms: *MultiSpinner) void;
 };
 ```
 
-**Limit**: Maximum 16 spinner items per `MultiSpinner`.
+**Limit**: Maximum 32 spinner items per `MultiSpinner`.
+
+### `loaders.MultiSpinnerOptions`
+
+Options passed to `MultiSpinner.start()`.
+
+```zig
+pub const MultiSpinnerOptions = struct {
+    color_enabled: ?bool = null,
+    allocator: ?std.mem.Allocator = null,
+    icon_gap: []const u8 = " ",
+    text_gap: []const u8 = " ",
+    spacing_lines: usize = 0,
+};
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `color_enabled` | `null` | Override color enablement. `null` = auto-detect from terminal |
+| `allocator` | `null` | Heap allocator. `null` = page_allocator |
+| `icon_gap` | `" "` | Spacing after prefix/status icons |
+| `text_gap` | `" "` | Spacing after spinner glyph / status symbol |
+| `spacing_lines` | `0` | Empty lines between spinner items |
 
 ---
 
@@ -223,8 +294,26 @@ pub const SpinnerItem = struct {
     done: bool,
     succeeded: ?bool,
     color: Color,
+    text_color: Color,
+    spinner_color: Color,
+    bg_color: Color,
+    text_bg_color: Color,
+    spinner_bg_color: Color,
     prefix: []const u8,
     suffix: []const u8,
+    icon: ?[]const u8,
+    success_icon: ?[]const u8,
+    failure_icon: ?[]const u8,
+    warning_icon: ?[]const u8,
+    info_icon: ?[]const u8,
+    status: enum { running, success, failure, warning, info },
+    messages: ?[]const []const u8,
+    icon_messages: ?[]const Message,
+    message_interval_ms: u64,
+    max_text_width: usize,
+    max_suffix_width: usize,
+    padding_lines_above: usize,
+    padding_lines_below: usize,
 
     pub fn setText(item: *SpinnerItem, s: []const u8) void;
     pub fn getTextSlice(item: *const SpinnerItem) []const u8;
@@ -236,10 +325,28 @@ pub const SpinnerItem = struct {
 | `text` | `""` | Current display text |
 | `style` | `.dots` | Animation style for this item |
 | `done` | `false` | Whether this item has finished |
-| `succeeded` | `null` | `null` = running, `true` = success (✓), `false` = failure (✗) |
-| `color` | `.default` | Per-item color override (`.default` = use style color) |
+| `succeeded` | `null` | `null` = running, `true` = success, `false` = failure |
+| `color` | `.default` | Per-item line color override |
+| `text_color` | `.default` | Color override for the text |
+| `spinner_color` | `.default` | Color override for the spinner glyph |
+| `bg_color` | `.default` | Background color for the entire line |
+| `text_bg_color` | `.default` | Background color for the text |
+| `spinner_bg_color` | `.default` | Background color for the spinner glyph |
 | `prefix` | `""` | Prefix before spinner glyph |
 | `suffix` | `""` | Suffix after text |
+| `icon` | `null` | Running icon prefix |
+| `success_icon` | `null` | Success icon override (default `✓`) |
+| `failure_icon` | `null` | Failure icon override (default `✗`) |
+| `warning_icon` | `null` | Warning icon override (default `⚠`) |
+| `info_icon` | `null` | Info icon override (default `ℹ`) |
+| `status` | `.running` | Completion status |
+| `messages` | `null` | Messages to cycle through |
+| `icon_messages` | `null` | Message-icon pairs to cycle through |
+| `message_interval_ms` | `1500` | Milliseconds between message transitions |
+| `max_text_width` | `0` | Truncate text at this width (0 = no limit) |
+| `max_suffix_width` | `0` | Truncate suffix at this width (0 = no limit) |
+| `padding_lines_above` | `0` | Empty lines above this spinner |
+| `padding_lines_below` | `0` | Empty lines below this spinner |
 
 ---
 
@@ -261,6 +368,9 @@ pub const BarStyle = struct {
     empty_fg: Color = .default,
     empty_bg: Color = .default,
     attrs: []const Attribute = &.{},
+    fill_gradient: ?*const Gradient = null,
+    empty_gradient: ?*const Gradient = null,
+    complete_fg: Color = .default,
 };
 ```
 
@@ -301,6 +411,8 @@ pub const SpinnerStyle = struct {
     interval_ms: u64 = 80,
     color: Color = .default,
     attrs: []const Attribute = &.{},
+    gradient: ?*const Gradient = null,
+    complete_fg: Color = .default,
 };
 ```
 
@@ -484,7 +596,47 @@ pub const UpdateChecker = struct {
 
 ---
 
-## 13. Module Exports
+## 13. Gradient
+
+### `loaders.Gradient`
+
+Defines a color gradient with interpolation support.
+
+```zig
+pub const Gradient = struct {
+    colors: []const Color,
+    pub fn at(self: *const Gradient, t: f64) Color,
+};
+```
+
+### Built-in Presets
+
+| Preset | Description |
+|--------|-------------|
+| `Gradient.rainbow` | Full rainbow spectrum |
+| `Gradient.fire` | Warm fire tones |
+| `Gradient.ocean` | Cool ocean blues |
+| `Gradient.sunset` | Sunset warmth |
+| `Gradient.neon` | Bright neon |
+| `Gradient.forest` | Forest greens |
+| `Gradient.ice` | Icy blues |
+| `Gradient.pastel` | Soft pastel rainbow |
+| `Gradient.monochrome` | Grayscale |
+| `Gradient.rainbow_reversed` | Reversed rainbow |
+
+### Custom Gradient
+
+```zig
+const my_gradient = loaders.Gradient{
+    .colors = &.{ .red, .yellow, .green },
+};
+```
+
+The `at(t)` method accepts a `f64` from `0.0` to `1.0` and returns the interpolated `Color` at that position.
+
+---
+
+## 14. Module Exports
 
 ```zig
 // Root module
@@ -501,7 +653,7 @@ pub const multi = @import("multi.zig");
 pub const version_info = @import("version.zig");
 
 // Re-exports
-pub const version: []const u8;  // "0.0.1"
+pub const version: []const u8;  // "0.0.3"
 pub const Bar = bar.Bar;
 pub const BarOptions = bar.Options;
 pub const Spinner = spinner.Spinner;
@@ -511,10 +663,12 @@ pub const MultiBarOptions = multi.MultiBarOptions;
 pub const MultiSpinner = multi.MultiSpinner;
 pub const SpinnerItem = multi.SpinnerItem;
 pub const Color = color.Color;
+pub const Rgb = color.Rgb;
 pub const Attribute = color.Attribute;
 pub const Colorizer = color.Colorizer;
 pub const TermInfo = terminal.TermInfo;
 pub const BarStyle = style.BarStyle;
 pub const SpinnerStyle = style.SpinnerStyle;
+pub const Gradient = style.Gradient;
 pub const UpdateChecker = @import("update_checker.zig");
 ```

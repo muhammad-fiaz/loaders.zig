@@ -30,7 +30,7 @@ pub fn main(init: std.process.Init) !void {
     const allocator = arena.allocator();
     const io = init.io;
 
-    const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), null, allocator);
+    const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
     errdefer ms.stop();
 
     const fetch = ms.addItem("Fetching data from API", loaders.SpinnerStyle.dots);
