@@ -38,7 +38,7 @@ pub fn main(init: std.process.Init) !void {
         .attrs = &.{.bold},
     };
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Customizing",
         .total = 200,
         .style = custom_bar_style,

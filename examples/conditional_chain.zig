@@ -15,8 +15,8 @@ var bar2_started = std.atomic.Value(bool).init(false);
 var spinner_done = std.atomic.Value(bool).init(false);
 
 // Globals/static instances to be triggered inside callbacks
-var bar1: *loaders.Bar = undefined;
-var bar2: *loaders.Bar = undefined;
+var bar1: *loaders.ProgressBar = undefined;
+var bar2: *loaders.ProgressBar = undefined;
 var spinner: *loaders.Spinner = undefined;
 
 pub fn main(init: std.process.Init) !void {
@@ -26,36 +26,26 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("Initializing dependent pipeline...\n", .{});
 
     // Initialize Bar 1 (A)
-    var b1 = loaders.Bar.init(io, .{
+    var b1 = loaders.ProgressBar.init(io, .{
         .total = 100,
         .label = "Task A: Download Resources",
-        .label_color = .bright_blue,
         .color = .bright_blue,
         .show_percent = true,
         .show_elapsed = true,
         .on_complete = onBar1Complete,
         .complete_message = "Download completed successfully!",
-        .icon = "📥",
-        .success_icon = "✓",
-        .icon_gap = " ",
-        .label_gap = " ",
     });
     bar1 = &b1;
 
     // Initialize Bar 2 (B) - but we won't start rendering/incrementing it until Bar A is done
-    var b2 = loaders.Bar.init(io, .{
+    var b2 = loaders.ProgressBar.init(io, .{
         .total = 100,
         .label = "Task B: Build & Compile Assets",
-        .label_color = .bright_magenta,
         .color = .bright_magenta,
         .show_percent = true,
         .show_elapsed = true,
         .on_complete = onBar2Complete,
         .complete_message = "Compilation finished!",
-        .icon = "🏗️",
-        .success_icon = "✓",
-        .icon_gap = " ",
-        .label_gap = " ",
     });
     bar2 = &b2;
 
@@ -92,14 +82,14 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("\nPipeline execution complete!\n", .{});
 }
 
-fn onBar1Complete(bar: *loaders.Bar) void {
+fn onBar1Complete(bar: *loaders.ProgressBar) void {
     _ = bar;
     // Callback: Start the second progress bar
     std.debug.print("[Callback A] Task A finished. Starting Task B...\n", .{});
     bar2_started.store(true, .release);
 }
 
-fn onBar2Complete(bar: *loaders.Bar) void {
+fn onBar2Complete(bar: *loaders.ProgressBar) void {
     // Callback: Start Spinner C
     std.debug.print("[Callback B] Task B finished. Starting Task C...\n", .{});
 
@@ -110,13 +100,9 @@ fn onBar2Complete(bar: *loaders.Bar) void {
         .style = loaders.SpinnerStyle.moon,
         .text_color = .bright_yellow,
         .spinner_color = .bright_yellow,
-        .prefix = "Task C: Optimizing bundle",
         .show_elapsed = true,
-        .on_complete = onSpinnerComplete,
-        .icon = "⚙️",
         .success_icon = "✓",
-        .icon_gap = " ",
-        .text_gap = " ",
+        .on_complete = onSpinnerComplete,
     }) catch |err| {
         std.debug.print("Failed to start spinner: {}\n", .{err});
         spinner_done.store(true, .release);

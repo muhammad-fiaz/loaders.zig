@@ -1,5 +1,5 @@
 ---
-description: Complete API reference for all exported types, options, and methods in loaders.zig. Bar, Spinner, MultiBar, MultiSpinner, Color, BarStyle, SpinnerStyle.
+description: Complete API reference for all exported types, options, and methods in loaders.zig. Bar, Spinner, BatchBar, Color, BarStyle, SpinnerStyle.
 head:
   - - meta
     - name: keywords
@@ -20,7 +20,7 @@ Complete API reference for all exported types, options, and methods.
 
 ## 1. Bar (Progress Bar)
 
-### `loaders.Bar`
+### `loaders.ProgressBar`
 
 Core progress bar structure. Thread-safe: `completed` and `total` are atomic values, so `setCompleted` / `increment` are safe to call from any thread. Rendering happens on the calling thread.
 
@@ -45,18 +45,16 @@ Configuration passed to `Bar.init`.
 ```zig
 pub const Options = struct {
     label: []const u8 = "",
-    label_color: Color = .default,
     total: usize = 0,
     width: u16 = 0,
     style: BarStyle = .{},
     show_percent: bool = true,
-    percent_color: Color = .default,
-    bracket_color: Color = .default,
     show_count: bool = false,
     show_elapsed: bool = false,
     show_eta: bool = false,
     show_rate: bool = false,
     unit_is_bytes: bool = false,
+    unit: []const u8 = "",
     message: []const u8 = "",
     complete_message: []const u8 = "",
     suffix: []const u8 = "",
@@ -68,38 +66,55 @@ pub const Options = struct {
     show_date: bool = false,
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
-    fill_gradient: ?*const Gradient = null,
-    empty_gradient: ?*const Gradient = null,
+    smooth_rate: bool = false,
+    smooth_alpha: f64 = 0.2,
+    template: []const u8 = "",
+    min_interval_ms: u64 = 0,
+    fill_color: Color = .default,
+    empty_color: Color = .default,
+    fill_gradient: ?Gradient = null,
+    empty_gradient: ?Gradient = null,
+    color: Color = .default,
+    bg_color: Color = .default,
     complete_color: Color = .default,
+    start_time_offset_sec: i64 = 0,
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
+    initial_completed: usize = 0,
+    success_icon: ?[]const u8 = null,
+    failure_icon: ?[]const u8 = null,
+    warning_icon: ?[]const u8 = null,
+    info_icon: ?[]const u8 = null,
+    disable_new_line: bool = true,
+    messages: ?[]const []const u8 = null,
+    message_interval_ms: u32 = 1500,
     on_progress: ?*const fn (bar: *Bar, completed: usize, total: usize) void = null,
     on_complete: ?*const fn (bar: *Bar) void = null,
     on_success: ?*const fn (bar: *Bar) void = null,
     on_failure: ?*const fn (bar: *Bar) void = null,
     on_warn: ?*const fn (bar: *Bar) void = null,
     on_info: ?*const fn (bar: *Bar) void = null,
-    icon_gap: []const u8 = " ",
-    label_gap: []const u8 = " ",
-    datetime_gap: []const u8 = " ",
-    padding_lines_above: usize = 0,
-    padding_lines_below: usize = 0,
+    hide_after_done: bool = false,
+    time_format_12h: bool = false,
+    max_label_width: usize = 0,
+    max_message_width: usize = 0,
+    max_suffix_width: usize = 0,
 };
 ```
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `label` | `""` | Label printed before the bar |
-| `label_color` | `.default` | Color for the label text |
 | `total` | `0` | Total units (0 = indeterminate / bouncing) |
 | `width` | `0` | Bar width in columns (0 = auto from terminal) |
 | `style` | `.{}` | Visual style preset |
 | `show_percent` | `true` | Show percentage |
-| `percent_color` | `.default` | Color for percentage text |
-| `bracket_color` | `.default` | Color for bracket characters |
 | `show_count` | `false` | Show `current/total` counts |
 | `show_elapsed` | `false` | Show elapsed time |
 | `show_eta` | `false` | Show estimated time remaining |
 | `show_rate` | `false` | Show throughput rate |
 | `unit_is_bytes` | `false` | Format rate as bytes (B/s, KiB/s) |
+| `unit` | `""` | Custom unit label (e.g. "files", "items") |
 | `message` | `""` | Dynamic message after indicators |
 | `complete_message` | `""` | Message shown when bar reaches 100% |
 | `suffix` | `""` | Custom suffix after all indicators |
@@ -111,20 +126,39 @@ pub const Options = struct {
 | `show_date` | `false` | Prepend `[YYYY-MM-DD]` |
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds for date/time |
-| `fill_gradient` | `null` | Gradient for filled portion (overrides `fill_fg`) |
-| `empty_gradient` | `null` | Gradient for empty portion (overrides `empty_fg`) |
+| `smooth_rate` | `false` | Use EMA to smooth rate/ETA display |
+| `smooth_alpha` | `0.2` | EMA alpha for rate smoothing (0.0–1.0) |
+| `template` | `""` | Custom format template (overrides standard layout) |
+| `min_interval_ms` | `0` | Minimum milliseconds between renders |
+| `fill_color` | `.default` | Fill color shorthand (sets style.fill_fg) |
+| `empty_color` | `.default` | Empty color shorthand (sets style.empty_fg) |
+| `fill_gradient` | `null` | Gradient for filled portion |
+| `empty_gradient` | `null` | Gradient for empty portion |
+| `color` | `.default` | Color for the entire bar line |
+| `bg_color` | `.default` | Background color for the entire bar line |
 | `complete_color` | `.default` | Color for filled portion when bar is complete |
-| `on_progress` | `null` | Callback on progress update: `fn(bar, completed, total) void` |
+| `start_time_offset_sec` | `0` | Custom elapsed time offset in seconds |
+| `padding_lines_above` | `0` | Empty lines printed above the bar |
+| `padding_lines_below` | `0` | Empty lines printed below the bar |
+| `initial_completed` | `0` | Initial completed count |
+| `success_icon` | `null` | Custom success icon (default "✓") |
+| `failure_icon` | `null` | Custom failure icon (default "✗") |
+| `warning_icon` | `null` | Custom warning icon (default "⚠") |
+| `info_icon` | `null` | Custom info icon (default "ℹ") |
+| `disable_new_line` | `true` | Disable newline for non-TTY output |
+| `messages` | `null` | Slice of messages to cycle through |
+| `message_interval_ms` | `1500` | Duration in ms to show each message |
+| `on_progress` | `null` | Callback: `fn(bar, completed, total) void` |
 | `on_complete` | `null` | Callback when bar completes/stops |
 | `on_success` | `null` | Callback when `succeed()` is called |
 | `on_failure` | `null` | Callback when `fail()` is called |
 | `on_warn` | `null` | Callback when `warn()` is called |
 | `on_info` | `null` | Callback when `info()` is called |
-| `icon_gap` | `" "` | Spacing after prefix/status icons |
-| `label_gap` | `" "` | Spacing after the label text |
-| `datetime_gap` | `" "` | Spacing after date/time brackets |
-| `padding_lines_above` | `0` | Empty lines printed above the bar |
-| `padding_lines_below` | `0` | Empty lines printed below the bar |
+| `hide_after_done` | `false` | Erase bar line after completion |
+| `time_format_12h` | `false` | Format time as 12-hour AM/PM |
+| `max_label_width` | `0` | Max label width (0 = no limit) |
+| `max_message_width` | `0` | Max message width (0 = no limit) |
+| `max_suffix_width` | `0` | Max suffix width (0 = no limit) |
 
 ---
 
@@ -157,23 +191,40 @@ pub const Options = struct {
     file: ?std.Io.File = null,
     term: ?terminal.TermInfo = null,
     color_enabled: ?bool = null,
-    prefix: []const u8 = "",
     custom_start: []const u8 = "",
     custom_end: []const u8 = "",
     show_date: bool = false,
     show_time: bool = false,
     timezone_offset_sec: i32 = 0,
     allocator: ?std.mem.Allocator = null,
+    interval_override_ms: ?u64 = null,
+    suffix: []const u8 = "",
+    show_elapsed: bool = false,
+    text_color: Color = .default,
+    spinner_color: Color = .default,
+    color: Color = .default,
+    success_icon: ?[]const u8 = null,
+    failure_icon: ?[]const u8 = null,
+    warning_icon: ?[]const u8 = null,
+    info_icon: ?[]const u8 = null,
+    messages: ?[]const []const u8 = null,
+    message_interval_ms: u32 = 1500,
+    time_format_12h: bool = false,
+    max_text_width: usize = 0,
+    max_suffix_width: usize = 0,
+    text_bg_color: Color = .default,
+    spinner_bg_color: Color = .default,
+    bg_color: Color = .default,
+    start_time_offset_sec: i64 = 0,
+    complete_message: []const u8 = "",
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
     on_complete: ?*const fn (sp: *Spinner) void = null,
     on_success: ?*const fn (sp: *Spinner) void = null,
     on_failure: ?*const fn (sp: *Spinner) void = null,
     on_warn: ?*const fn (sp: *Spinner) void = null,
     on_info: ?*const fn (sp: *Spinner) void = null,
-    icon_gap: []const u8 = " ",
-    text_gap: []const u8 = " ",
-    datetime_gap: []const u8 = " ",
-    padding_lines_above: usize = 0,
-    padding_lines_below: usize = 0,
+    hide_after_done: bool = false,
 };
 ```
 
@@ -184,173 +235,44 @@ pub const Options = struct {
 | `file` | `null` | Output file (null = stderr) |
 | `term` | `null` | Terminal info override |
 | `color_enabled` | `null` | Color override |
-| `prefix` | `""` | String before the spinner glyph |
 | `custom_start` | `""` | String at absolute start of line |
 | `custom_end` | `""` | String at absolute end of line |
 | `show_date` | `false` | Prepend `[YYYY-MM-DD]` |
 | `show_time` | `false` | Prepend `[HH:MM:SS]` |
 | `timezone_offset_sec` | `0` | UTC offset in seconds |
 | `allocator` | `null` | Custom allocator (null = page_allocator) |
+| `interval_override_ms` | `null` | Override animation interval in ms |
+| `suffix` | `""` | Suffix text after spinner text |
+| `show_elapsed` | `false` | Show elapsed time after text |
+| `text_color` | `.default` | Color for spinner text |
+| `spinner_color` | `.default` | Color for spinner glyph |
+| `color` | `.default` | Color for entire spinner line |
+| `success_icon` | `null` | Custom success icon (default "✓") |
+| `failure_icon` | `null` | Custom failure icon (default "✗") |
+| `warning_icon` | `null` | Custom warning icon (default "⚠") |
+| `info_icon` | `null` | Custom info icon (default "ℹ") |
+| `messages` | `null` | Slice of messages to cycle through |
+| `message_interval_ms` | `1500` | Duration in ms to show each message |
+| `time_format_12h` | `false` | Format time as 12-hour AM/PM |
+| `max_text_width` | `0` | Max text width (0 = no limit) |
+| `max_suffix_width` | `0` | Max suffix width (0 = no limit) |
+| `text_bg_color` | `.default` | Background color for spinner text |
+| `spinner_bg_color` | `.default` | Background color for spinner glyph |
+| `bg_color` | `.default` | Background color for entire spinner line |
+| `start_time_offset_sec` | `0` | Custom elapsed time offset in seconds |
+| `complete_message` | `""` | Message shown on succeed/fail |
+| `padding_lines_above` | `0` | Empty lines printed above the spinner |
+| `padding_lines_below` | `0` | Empty lines printed below the spinner |
 | `on_complete` | `null` | Callback when spinner stops |
 | `on_success` | `null` | Callback when `succeed()` is called |
 | `on_failure` | `null` | Callback when `fail()` is called |
 | `on_warn` | `null` | Callback when `warn()` is called |
 | `on_info` | `null` | Callback when `info()` is called |
-| `icon_gap` | `" "` | Spacing after prefix/status icons |
-| `text_gap` | `" "` | Spacing after the spinner glyph |
-| `datetime_gap` | `" "` | Spacing after date/time brackets |
-| `padding_lines_above` | `0` | Empty lines printed above the spinner |
-| `padding_lines_below` | `0` | Empty lines printed below the spinner |
+| `hide_after_done` | `false` | Erase spinner line after completion |
 
 ---
 
-## 3. MultiBar
-
-### `loaders.MultiBar`
-
-Renders multiple progress bars concurrently using cursor-up ANSI escapes for in-place animation.
-
-```zig
-pub const MultiBar = struct {
-    pub fn init(io: std.Io, file: std.Io.File, term_info: ?terminal.TermInfo, mbopts: MultiBarOptions) MultiBar;
-    pub fn addBar(mb: *MultiBar, opts: BarOptions) *Bar;
-    pub fn render(mb: *MultiBar) void;
-    pub fn done(mb: *MultiBar) void;
-};
-```
-
-### `loaders.MultiBarOptions`
-
-```zig
-pub const MultiBarOptions = struct {
-    hide_cursor: bool = true,
-    complete_message: []const u8 = "",
-};
-```
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `hide_cursor` | `true` | Hide cursor during rendering (restored on `done()`) |
-| `complete_message` | `""` | Message printed after all bars complete |
-
-**Limit**: Maximum 16 bars per `MultiBar`.
-
----
-
-## 4. MultiSpinner
-
-### `loaders.MultiSpinner`
-
-Renders multiple spinner items on separate lines via a single background thread.
-
-```zig
-pub const MultiSpinner = struct {
-    pub fn start(io: std.Io, file: std.Io.File, opts: MultiSpinnerOptions) !*MultiSpinner;
-    pub fn addItem(ms: *MultiSpinner, text: []const u8, style: SpinnerStyle) *SpinnerItem;
-    pub fn setSucceeded(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
-    pub fn setFailed(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
-    pub fn setWarning(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
-    pub fn setInfo(ms: *MultiSpinner, item: *SpinnerItem, msg: []const u8) void;
-    pub fn stop(ms: *MultiSpinner) void;
-};
-```
-
-**Limit**: Maximum 32 spinner items per `MultiSpinner`.
-
-### `loaders.MultiSpinnerOptions`
-
-Options passed to `MultiSpinner.start()`.
-
-```zig
-pub const MultiSpinnerOptions = struct {
-    color_enabled: ?bool = null,
-    allocator: ?std.mem.Allocator = null,
-    icon_gap: []const u8 = " ",
-    text_gap: []const u8 = " ",
-    spacing_lines: usize = 0,
-};
-```
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `color_enabled` | `null` | Override color enablement. `null` = auto-detect from terminal |
-| `allocator` | `null` | Heap allocator. `null` = page_allocator |
-| `icon_gap` | `" "` | Spacing after prefix/status icons |
-| `text_gap` | `" "` | Spacing after spinner glyph / status symbol |
-| `spacing_lines` | `0` | Empty lines between spinner items |
-
----
-
-## 5. SpinnerItem
-
-### `loaders.SpinnerItem`
-
-State for a single spinner item in a `MultiSpinner`.
-
-```zig
-pub const SpinnerItem = struct {
-    text: [256:0]u8,
-    style: SpinnerStyle,
-    done: bool,
-    succeeded: ?bool,
-    color: Color,
-    text_color: Color,
-    spinner_color: Color,
-    bg_color: Color,
-    text_bg_color: Color,
-    spinner_bg_color: Color,
-    prefix: []const u8,
-    suffix: []const u8,
-    icon: ?[]const u8,
-    success_icon: ?[]const u8,
-    failure_icon: ?[]const u8,
-    warning_icon: ?[]const u8,
-    info_icon: ?[]const u8,
-    status: enum { running, success, failure, warning, info },
-    messages: ?[]const []const u8,
-    icon_messages: ?[]const Message,
-    message_interval_ms: u64,
-    max_text_width: usize,
-    max_suffix_width: usize,
-    padding_lines_above: usize,
-    padding_lines_below: usize,
-
-    pub fn setText(item: *SpinnerItem, s: []const u8) void;
-    pub fn getTextSlice(item: *const SpinnerItem) []const u8;
-};
-```
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `text` | `""` | Current display text |
-| `style` | `.dots` | Animation style for this item |
-| `done` | `false` | Whether this item has finished |
-| `succeeded` | `null` | `null` = running, `true` = success, `false` = failure |
-| `color` | `.default` | Per-item line color override |
-| `text_color` | `.default` | Color override for the text |
-| `spinner_color` | `.default` | Color override for the spinner glyph |
-| `bg_color` | `.default` | Background color for the entire line |
-| `text_bg_color` | `.default` | Background color for the text |
-| `spinner_bg_color` | `.default` | Background color for the spinner glyph |
-| `prefix` | `""` | Prefix before spinner glyph |
-| `suffix` | `""` | Suffix after text |
-| `icon` | `null` | Running icon prefix |
-| `success_icon` | `null` | Success icon override (default `✓`) |
-| `failure_icon` | `null` | Failure icon override (default `✗`) |
-| `warning_icon` | `null` | Warning icon override (default `⚠`) |
-| `info_icon` | `null` | Info icon override (default `ℹ`) |
-| `status` | `.running` | Completion status |
-| `messages` | `null` | Messages to cycle through |
-| `icon_messages` | `null` | Message-icon pairs to cycle through |
-| `message_interval_ms` | `1500` | Milliseconds between message transitions |
-| `max_text_width` | `0` | Truncate text at this width (0 = no limit) |
-| `max_suffix_width` | `0` | Truncate suffix at this width (0 = no limit) |
-| `padding_lines_above` | `0` | Empty lines above this spinner |
-| `padding_lines_below` | `0` | Empty lines below this spinner |
-
----
-
-## 6. BarStyle
+## 3. BarStyle
 
 ### `loaders.BarStyle`
 
@@ -399,7 +321,7 @@ pub const BarStyle = struct {
 
 ---
 
-## 7. SpinnerStyle
+## 4. SpinnerStyle
 
 ### `loaders.SpinnerStyle`
 
@@ -456,7 +378,7 @@ pub const SpinnerStyle = struct {
 
 ---
 
-## 8. Color
+## 5. Color
 
 ### `loaders.Color`
 
@@ -504,7 +426,7 @@ pub const Color = union(enum) {
 
 ---
 
-## 9. Attribute
+## 6. Attribute
 
 ### `loaders.Attribute`
 
@@ -526,7 +448,7 @@ pub const Attribute = enum(u8) {
 
 ---
 
-## 10. Colorizer
+## 7. Colorizer
 
 ### `loaders.Colorizer`
 
@@ -550,7 +472,7 @@ pub const Colorizer = struct {
 
 ---
 
-## 11. TermInfo
+## 8. TermInfo
 
 ### `loaders.TermInfo`
 
@@ -574,7 +496,7 @@ pub const TermInfo = struct {
 
 ---
 
-## 12. UpdateChecker
+## 9. UpdateChecker
 
 ### `loaders.UpdateChecker`
 
@@ -596,7 +518,7 @@ pub const UpdateChecker = struct {
 
 ---
 
-## 13. Gradient
+## 10. Gradient
 
 ### `loaders.Gradient`
 
@@ -636,7 +558,7 @@ The `at(t)` method accepts a `f64` from `0.0` to `1.0` and returns the interpola
 
 ---
 
-## 14. Module Exports
+## 11. Module Exports
 
 ```zig
 // Root module
@@ -649,7 +571,7 @@ pub const terminal = @import("terminal.zig");
 pub const style = @import("style.zig");
 pub const bar = @import("bar.zig");
 pub const spinner = @import("spinner.zig");
-pub const multi = @import("multi.zig");
+pub const batch = @import("batch.zig");
 pub const version_info = @import("version.zig");
 
 // Re-exports
@@ -658,10 +580,9 @@ pub const Bar = bar.Bar;
 pub const BarOptions = bar.Options;
 pub const Spinner = spinner.Spinner;
 pub const SpinnerOptions = spinner.Options;
-pub const MultiBar = multi.MultiBar;
-pub const MultiBarOptions = multi.MultiBarOptions;
-pub const MultiSpinner = multi.MultiSpinner;
-pub const SpinnerItem = multi.SpinnerItem;
+pub const BatchBar = batch.BatchBar;
+pub const BatchOptions = batch.Options;
+pub const TaskInit = batch.TaskInit;
 pub const Color = color.Color;
 pub const Rgb = color.Rgb;
 pub const Attribute = color.Attribute;

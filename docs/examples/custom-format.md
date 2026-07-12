@@ -17,7 +17,7 @@ zig build run-custom_format
 
 ```zig
 // Layout 1: Rate + ETA
-var bar1 = loaders.Bar.init(io, .{
+var bar1 = loaders.ProgressBar.init(io, .{
     .total         = 80,
     .label         = "Upload",
     .unit_is_bytes = true,
@@ -27,7 +27,7 @@ var bar1 = loaders.Bar.init(io, .{
 });
 
 // Layout 2: Spinner prefix + message
-var bar2 = loaders.Bar.init(io, .{
+var bar2 = loaders.ProgressBar.init(io, .{
     .total    = 100,
     .template = "{spinner} [{bar}] {count}  {message}",
     .style    = loaders.BarStyle.neon,
@@ -35,7 +35,7 @@ var bar2 = loaders.Bar.init(io, .{
 });
 
 // Layout 3: Timestamped
-var bar3 = loaders.Bar.init(io, .{
+var bar3 = loaders.ProgressBar.init(io, .{
     .total    = 50,
     .label    = "Indexing",
     .template = "[{date} {time}] {label} [{bar}] {percent}  ETA {eta}",

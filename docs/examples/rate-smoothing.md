@@ -41,7 +41,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("--- Rate Smoothing Demo ---\n\n", .{});
 
     std.debug.print("1. Byte throughput (smooth_rate = true):\n", .{});
-    var bar1 = loaders.Bar.init(io, .{
+    var bar1 = loaders.ProgressBar.init(io, .{
         .total = 100 * 1024 * 1024,
         .label = "Download",
         .unit_is_bytes = true,
@@ -69,7 +69,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     std.debug.print("\n\n2. Custom unit 'items/s' with reset():\n", .{});
-    var bar2 = loaders.Bar.init(io, .{
+    var bar2 = loaders.ProgressBar.init(io, .{
         .total = 200,
         .label = "Items   ",
         .unit = "items",
@@ -96,7 +96,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     std.debug.print("\n\n3. incrementBy() batch updates:\n", .{});
-    var bar3 = loaders.Bar.init(io, .{
+    var bar3 = loaders.ProgressBar.init(io, .{
         .total = 1000,
         .label = "Records ",
         .unit = "records",

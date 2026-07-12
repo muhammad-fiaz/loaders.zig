@@ -16,7 +16,7 @@ pub fn main(init: std.process.Init) !void {
     defer file.close(io);
 
     // 3. Set up progress bar with custom padding
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Downloading PDF",
         .total = 0, // Will be set dynamically from Content-Length
         .unit_is_bytes = true,

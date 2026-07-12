@@ -19,7 +19,7 @@ Instead of the default layout, you can define a custom format string using named
 ## Quick Start
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total    = 100,
     .label    = "Upload",
     .template = "{label} [{bar}] {percent}  ETA {eta}  {rate}",
@@ -106,7 +106,7 @@ It is mainly useful for indeterminate bars to show activity.
 The `{count}` token uses the `unit` option:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total    = 1000,
     .unit     = "records",
     .template = "[{bar}] {count}",
@@ -121,7 +121,7 @@ var bar = loaders.Bar.init(io, .{
 When `unit_is_bytes = true`, `{rate}` formats as bytes-per-second:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total         = 100 * 1024 * 1024,
     .unit_is_bytes = true,
     .template      = "[{bar}] {percent}  {rate}",
@@ -147,12 +147,12 @@ const has_eta = loaders.hasToken("{label} [{bar}] {percent}", "eta"); // false
 The `template` works with all `BarStyle` presets and custom styles:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total       = 100,
     .template    = "{label} [{bar}] {percent}",
     .style       = loaders.BarStyle.fire,
     .width       = 30,
     .label       = "Hot Task",
-    .label_color = .bright_red,
+    .color       = .bright_red,
 });
 ```

@@ -4,7 +4,7 @@
 //!   1. Custom start/end line decorators (.custom_start, .custom_end)
 //!   2. Local Date & Time prefixing (.show_date, .show_time, .timezone_offset_sec)
 //!   3. Responsive auto-resizing (.width = 0)
-//!   4. label_color, percent_color, bracket_color, message, complete_message
+//!   4. message, complete_message
 //!   5. Two sequential asynchronous-like process/task progress bars.
 //!
 //! Run: zig build run-advanced_options
@@ -22,23 +22,16 @@ pub fn main(init: std.process.Init) !void {
 
     // 1. Task #1 (Processing System Core Engine)
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = total_steps,
             .label = "Processing System Core Engine",
-            .label_color = .bright_cyan,
             .show_percent = true,
-            .percent_color = .bright_green,
-            .bracket_color = .bright_black,
             .show_count = true,
             .show_elapsed = true,
             .show_eta = true,
             .show_rate = true,
             .message = "fetching dependencies from CDN...",
             .complete_message = "Done! All steps complete.",
-
-            .icon = "🚀",
-            .icon_gap = "  ",
-            .custom_end = " [Task #1]",
 
             .show_date = true,
             .show_time = true,
@@ -71,23 +64,16 @@ pub fn main(init: std.process.Init) !void {
 
     // 2. Task #2 (Processing System Security Engine)
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = total_steps,
             .label = "Processing System Security Engine",
-            .label_color = .bright_magenta,
             .show_percent = true,
-            .percent_color = .bright_yellow,
-            .bracket_color = .bright_black,
             .show_count = true,
             .show_elapsed = true,
             .show_eta = true,
             .show_rate = true,
             .message = "scanning vulnerabilities...",
             .complete_message = "Done! Security audit passed.",
-
-            .icon = "🛡️",
-            .icon_gap = "  ",
-            .custom_end = " [Task #2]",
 
             .show_date = true,
             .show_time = true,

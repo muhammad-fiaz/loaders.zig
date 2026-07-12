@@ -1,11 +1,9 @@
 //! examples/batch_progress.zig — BatchBar multi-task progress showcase.
 //!
 //! Demonstrates:
-//!   1. Creating a BatchBar with a title
-//!   2. Adding multiple named tasks
-//!   3. Incrementing task progress from different "workers"
-//!   4. Marking tasks as done or failed
-//!   5. Using countByState / allFinished
+//!   1. Creating a BatchBar with tasks configured inline
+//!   2. Staggered task completion with different states
+//!   3. Using countByState / allFinished
 //!
 //! Run: zig build run-batch_progress
 
@@ -23,43 +21,26 @@ pub fn main(init: std.process.Init) !void {
         .show_percent = true,
         .show_count = false,
         .style = loaders.BarStyle.slim,
-        .icon = "⚙️",
-        .icon_gap = "  ",
-        .state_gap = "  ",
+        .tasks = &.{
+            .{ .name = "Compile", .total = 80, .color = .cyan },
+            .{ .name = "Lint   ", .total = 40 },
+            .{ .name = "Tests  ", .total = 60, .fill_color = .green, .empty_color = .bright_black },
+            .{ .name = "Link   ", .total = 20, .color = .bright_magenta },
+        },
     });
-
-    const compile = bb.addTask("Compile", 80);
-    const lint = bb.addTask("Lint   ", 40);
-    const tests = bb.addTask("Tests  ", 60);
-    const link = bb.addTask("Link   ", 20);
-
-    // Configure custom task coloring
-    bb.tasks[compile].color = .cyan;
-    bb.tasks[lint].label_color = .bright_yellow;
-    bb.tasks[tests].fill_color = .green;
-    bb.tasks[tests].empty_color = .bright_black;
-    bb.tasks[link].color = .bright_magenta;
 
     var i: usize = 0;
     while (!bb.allFinished()) {
-        if (i < 80) {
-            bb.setTaskCompleted(compile, i + 1);
-        }
-        if (i < 40) {
-            bb.setTaskCompleted(lint, i + 1);
-        }
-        if (i < 60 and i >= 10) {
-            bb.setTaskCompleted(tests, i - 9);
-        }
-        if (i >= 60 and i < 80) {
-            bb.setTaskCompleted(link, i - 59);
-        }
+        if (i < 80) bb.setTaskCompleted(0, i + 1);
+        if (i < 40) bb.setTaskCompleted(1, i + 1);
+        if (i < 60 and i >= 10) bb.setTaskCompleted(2, i - 9);
+        if (i >= 60 and i < 80) bb.setTaskCompleted(3, i - 59);
 
-        if (i == 39) bb.setTaskDone(lint);
-        if (i == 59) bb.setTaskDone(tests);
+        if (i == 39) bb.setTaskDone(1);
+        if (i == 59) bb.setTaskDone(2);
         if (i == 79) {
-            bb.setTaskDone(compile);
-            bb.setTaskFailed(link);
+            bb.setTaskDone(0);
+            bb.setTaskFailed(3);
         }
 
         bb.render();
@@ -69,11 +50,8 @@ pub fn main(init: std.process.Init) !void {
 
     bb.done();
 
-    const done_count = bb.countByState(.done);
-    const failed_count = bb.countByState(.failed);
-
     std.debug.print(
         "\nPipeline complete: {d} succeeded, {d} failed\n",
-        .{ done_count, failed_count },
+        .{ bb.countByState(.done), bb.countByState(.failed) },
     );
 }

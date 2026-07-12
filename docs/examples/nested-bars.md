@@ -1,5 +1,5 @@
 ---
-description: Outer and inner batch progress bars using loaders.zig MultiBar. Simulates 5 batches of 20 items each.
+description: Outer and inner batch progress bars using BatchBar. Simulates 5 batches of 20 items each.
 head:
   - - meta
     - name: keywords
@@ -9,7 +9,7 @@ head:
       content: Nested Bars Example — loaders.zig
   - - meta
     - property: og:description
-      content: Outer and inner batch progress bars using MultiBar.
+      content: Outer and inner batch progress bars using BatchBar.
 ---
 
 # Nested Bars
@@ -27,38 +27,27 @@ const loaders = @import("loaders");
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
-    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null, .{});
-
-    const outer_bar = mb.addBar(.{
-        .label = "Total Batches",
-        .total = 5,
-        .style = loaders.BarStyle.yellow,
-        .show_percent = true,
-        .show_count = true,
+    var bb = loaders.BatchBar.init(io, .{
+        .tasks = &.{
+            .{ .name = "Total Batches", .total = 5, .color = .yellow },
+            .{ .name = "Current Batch", .total = 20, .color = .green },
+        },
     });
 
-    const inner_bar = mb.addBar(.{
-        .label = "Current Batch",
-        .total = 20,
-        .style = loaders.BarStyle.green,
-        .show_percent = true,
-        .show_count = true,
-    });
-
-    mb.render();
+    bb.render();
 
     for (0..5) |batch| {
-        inner_bar.setCompleted(0);
+        bb.setCompleted(1, 0);
         for (0..20) |item| {
-            inner_bar.setCompleted(item + 1);
-            mb.render();
+            bb.setCompleted(1, item + 1);
+            bb.render();
             try io.sleep(std.Io.Duration.fromMilliseconds(50), .awake);
         }
-        outer_bar.setCompleted(batch + 1);
-        mb.render();
+        bb.setCompleted(0, batch + 1);
+        bb.render();
     }
 
-    mb.done();
+    bb.done();
 }
 ```
 

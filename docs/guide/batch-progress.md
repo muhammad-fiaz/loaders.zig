@@ -113,11 +113,11 @@ Mark a task as failed. The task bar stops progressing.
 
 ### `setTaskWarning(idx) void`
 
-Mark a task as completed with a warning.
+Mark a task as completed with a warning. Sets `completed` to `total` (bar fills to 100%) and applies `complete_fg` color if configured.
 
 ### `setTaskInfo(idx) void`
 
-Mark a task as completed with an information status.
+Mark a task as completed with an information status. Sets `completed` to `total` (bar fills to 100%) and applies `complete_fg` color if configured.
 
 ### `render() void`
 
@@ -149,35 +149,14 @@ main thread calls `render`.
 
 Each `BatchTask` returned by `addTask` can be styled with individual task colors:
 - `color`: Global color for the entire task progress bar line (e.g. `.cyan`).
-- `label_color`: Custom color for the task name/label (e.g. `.bright_yellow`).
 - `fill_color`: Custom filled bar color (e.g. `.green`).
 - `empty_color`: Custom empty bar color.
 
 ```zig
 const compile = bb.addTask("Compile", 100);
 bb.tasks[compile].color = .cyan;
-bb.tasks[compile].label_color = .bright_yellow;
 bb.tasks[compile].fill_color = .green;
 bb.tasks[compile].empty_color = .bright_black;
-```
-
----
-
-## Customizable Spacing Gaps
-
-To adjust spacing between prefix icons, status symbols (`✓`, `✗`, `●`), task names/labels, and the progress bar blocks, you can configure these options:
-
-- **`icon_gap`**: Gap printed after running icons/prefixes (defaults to `" "`).
-- **`state_gap`**: Gap printed after state glyph status indicators (defaults to `" "`).
-- **`label_gap`**: Gap printed after task name/label (defaults to `" "`).
-
-```zig
-var bb = loaders.BatchBar.init(io, .{
-    .icon = "⚙️",
-    .icon_gap = "  ",  // wide gap after icon
-    .state_gap = "   ", // padding before name
-    .label_gap = "  ",
-});
 ```
 
 ---

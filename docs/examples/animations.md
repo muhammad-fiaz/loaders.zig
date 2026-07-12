@@ -105,7 +105,7 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("\n=== Bar Styles ===\n\n", .{});
     for (bar_demos) |demo| {
-        var b = loaders.Bar.init(io, .{
+        var b = loaders.ProgressBar.init(io, .{
             .label = demo.name,
             .total = 40,
             .style = demo.style,

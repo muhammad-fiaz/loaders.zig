@@ -21,7 +21,7 @@ pub fn main(init: std.process.Init) !void {
     const total_bytes: usize = 50 * 1024 * 1024; // 50 MB
     var rng = Lcg.init(42);
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Downloading",
         .total = total_bytes,
         .show_percent = true,
@@ -31,7 +31,6 @@ pub fn main(init: std.process.Init) !void {
         .unit_is_bytes = true,
         .style = loaders.BarStyle.cyan,
     });
-    defer bar.done();
 
     var downloaded: usize = 0;
     while (downloaded < total_bytes) {
@@ -43,6 +42,7 @@ pub fn main(init: std.process.Init) !void {
         try io.sleep(std.Io.Duration.fromMilliseconds(100), .awake);
     }
 
-    // Final newline
-    std.debug.print("\nDownloaded: output.bin\n", .{});
+    bar.done();
+
+    std.debug.print("Downloaded: output.bin\n", .{});
 }

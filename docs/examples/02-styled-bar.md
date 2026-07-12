@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     for (styles) |s| {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = s.name,
             .total = total,
             .style = s.style,

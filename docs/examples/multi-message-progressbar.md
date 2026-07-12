@@ -1,5 +1,5 @@
 ---
-description: Dynamic humor/status message cycling and progress loop using loaders.zig. Showcase of progress bar, spinner, and MultiSpinner with auto-cycling messages and callbacks.
+description: Dynamic humor/status message cycling and progress loop using loaders.zig. Showcase of progress bar, spinner, and BatchBar with auto-cycling messages and callbacks.
 head:
   - - meta
     - name: keywords
@@ -26,7 +26,7 @@ Dynamic humor/status message cycling and progress loop using loaders.zig.
 //! Demonstrates:
 //!   1. Progress bar with auto-cycling humorous messages and callbacks
 //!   2. Spinner with auto-cycling humorous messages
-//!   3. MultiSpinner with concurrent auto-cycling messages
+//!   3. BatchBar with concurrent tasks
 //!
 //! Run: zig build run-multi_message_progressbar
 
@@ -45,30 +45,30 @@ pub fn main(init: std.process.Init) !void {
     // 1. Single progress bar cycling humor messages and callbacks
     {
         std.debug.print("1. Progress Bar cycling humorous tasks:\n", .{});
-        const humor_msgs = [_]loaders.Message{
-            .{ .text = "Reticulating splines...", .icon = "⚙️" },
-            .{ .text = "Locating the floppy drive...", .icon = "💾" },
-            .{ .text = "Feeding the hamsters...", .icon = "🐹" },
-            .{ .text = "Brewing coffee...", .icon = "☕" },
-            .{ .text = "Calibrating flux capacitor...", .icon = "⚡" },
+        const humor_msgs = [_][]const u8{
+            "Reticulating splines...",
+            "Locating the floppy drive...",
+            "Feeding the hamsters...",
+            "Brewing coffee...",
+            "Calibrating flux capacitor...",
         };
 
         const cb_struct = struct {
-            pub fn onProgress(bar: *loaders.Bar, completed: usize, total: usize) void {
+            pub fn onProgress(bar: *loaders.ProgressBar, completed: usize, total: usize) void {
                 _ = bar;
                 _ = completed;
                 _ = total;
             }
-            pub fn onComplete(bar: *loaders.Bar) void {
+            pub fn onComplete(bar: *loaders.ProgressBar) void {
                 _ = bar;
                 std.debug.print(" -> Progress completed callback fired!\n", .{});
             }
         };
 
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .label = "Processing",
-            .icon_messages = &humor_msgs,
+            .messages = &humor_msgs,
             .message_interval_ms = 400,
             .width = 30,
             .on_progress = cb_struct.onProgress,
@@ -88,16 +88,16 @@ pub fn main(init: std.process.Init) !void {
     // 2. Single Spinner cycling humor messages
     {
         std.debug.print("2. Spinner cycling humorous messages:\n", .{});
-        const spinner_msgs = [_]loaders.Message{
-            .{ .text = "Searching for wifi...", .icon = "📡" },
-            .{ .text = "Loading more RAM...", .icon = "💾" },
-            .{ .text = "Asking the rubber duck...", .icon = "🦆" },
-            .{ .text = "Cleaning up compiler errors...", .icon = "🧹" },
+        const spinner_msgs = [_][]const u8{
+            "Searching for wifi...",
+            "Loading more RAM...",
+            "Asking the rubber duck...",
+            "Cleaning up compiler errors...",
         };
         const sp = try loaders.Spinner.start(io, .{
             .text = "Starting...",
             .style = loaders.SpinnerStyle.progress_pie, // Use new progress_pie style!
-            .icon_messages = &spinner_msgs,
+            .messages = &spinner_msgs,
             .message_interval_ms = 500,
             .allocator = allocator,
         });
@@ -108,34 +108,20 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("\n", .{});
     }
 
-    // 3. MultiSpinner cycling humorous messages
+    // 3. BatchBar concurrent tasks with messages
     {
-        std.debug.print("3. Multi-Spinner with concurrent message cycling:\n", .{});
-        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
-        errdefer ms.stop();
-
-        const task1 = ms.addItem("Worker 1", loaders.SpinnerStyle.bounce_dots); // Use new bounce_dots style!
-        const t1_msgs = [_]loaders.Message{
-            .{ .text = "Computing digit 120,490 of Pi...", .icon = "🧮" },
-            .{ .text = "Generating excuses...", .icon = "😅" },
-            .{ .text = "Resolving pointer confusion...", .icon = "👉" },
-        };
-        task1.icon_messages = &t1_msgs;
-        task1.message_interval_ms = 600;
-
-        const task2 = ms.addItem("Worker 2", loaders.SpinnerStyle.stars); // Use new stars style!
-        const t2_msgs = [_]loaders.Message{
-            .{ .text = "Analyzing galactic signal...", .icon = "📡" },
-            .{ .text = "Warming up lasers...", .icon = "🔫" },
-            .{ .text = "Decoding planetary signals...", .icon = "🌌" },
-        };
-        task2.icon_messages = &t2_msgs;
-        task2.message_interval_ms = 800;
+        std.debug.print("3. BatchBar with concurrent message cycling:\n", .{});
+        var bb = loaders.BatchBar.init(io, .{
+            .tasks = &.{
+                .{ .name = "Worker 1", .total = 1 },
+                .{ .name = "Worker 2", .total = 1 },
+            },
+        });
 
         try io.sleep(std.Io.Duration.fromMilliseconds(3000), .awake);
-        ms.setSucceeded(task1, "Done computing!");
-        ms.setSucceeded(task2, "Decoded successfully!");
-        ms.stop();
+        bb.succeed(0, "Done computing!");
+        bb.succeed(1, "Decoded successfully!");
+        bb.done();
         std.debug.print("\n", .{});
     }
 }

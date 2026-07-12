@@ -26,7 +26,7 @@ By default, progress indicators write to the standard error stream. However, you
 const file = try std.fs.cwd().createFile("output.log", .{});
 defer file.close();
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Writing log",
     .total = 100,
     .file = file, // Direct file output
@@ -37,7 +37,7 @@ var bar = loaders.Bar.init(io, .{
 
 ## 2. Multi-Threaded Progress Safety
 
-All counters on `loaders.Bar` use atomic registers (`std.atomic.Value`). The completed units and total units can be modified from separate threads safely using `.setCompleted()`, `.increment()`, or `.incrementBy()`.
+All counters on `loaders.ProgressBar` use atomic registers (`std.atomic.Value`). The completed units and total units can be modified from separate threads safely using `.setCompleted()`, `.increment()`, or `.incrementBy()`.
 
 Rendering operations, however, are **not thread-safe**. Refrain from calling `bar.render()` concurrently from multiple threads. Instead, configure background workers to only update completed units, and have a single rendering coordinator thread periodically invoke `bar.render()` (e.g. at 30fps / every 33ms) or call `mb.render()` in a coordinated multi-bar set.
 
@@ -49,10 +49,10 @@ The library is fully compatible with custom threading models and async event loo
 
 In non-TTY environments (such as CI/CD logs, redirected pipelines, or files), progress bars tend to output a new line for every single update frame, creating thousands of log lines.
 
-By default, `loaders.Bar` disables this behavior via `disable_new_line = true` (which is the default). This ensures progress updates are hidden until the final line on completion. You can re-enable intermediate log lines by configuring `disable_new_line = false`:
+By default, `loaders.ProgressBar` disables this behavior via `disable_new_line = true` (which is the default). This ensures progress updates are hidden until the final line on completion. You can re-enable intermediate log lines by configuring `disable_new_line = false`:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .disable_new_line = false, // Output new line on every render frame
 });
@@ -64,7 +64,7 @@ var bar = loaders.Bar.init(io, .{
 
 For low-latency CLI tools, you want to avoid dynamic memory heap allocations entirely inside the inner loops.
 
-`loaders.Bar` is designed with high-performance static rendering in mind. It uses a fixed, stack-allocated internal write buffer (`write_buf: [4096]u8`), completely avoiding heap allocator queries during `render` cycles.
+`loaders.ProgressBar` is designed with high-performance static rendering in mind. It uses a fixed, stack-allocated internal write buffer (`write_buf: [4096]u8`), completely avoiding heap allocator queries during `render` cycles.
 
 ---
 
@@ -90,35 +90,30 @@ If these checks return `false`, `loaders.zig` automatically enters passive mode,
 You can add empty spacing lines above and below progress indicators to separate them from other terminal output. The renderer moves the cursor dynamically to clear and redraw these empty spaces, preventing ghosting:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .padding_lines_above = 1, // 1 blank line above
     .padding_lines_below = 1, // 1 blank line below
 });
 ```
 
-For concurrent or grouped task renderers (`MultiBar`, `MultiSpinner`, `BatchBar`), you can configure the number of empty newline margins to render *in between* each individual task using `spacing_lines`:
+For concurrent or grouped task renderers (`BatchBar`), you can configure the number of empty newline margins to render *in between* each individual task using `spacing_lines`:
 
 ```zig
-// In MultiBarOptions:
-var mb = loaders.MultiBar.init(io, file, null, .{
-    .spacing_lines = 1, // 1 empty line in between each progress bar
-});
-
-// In MultiSpinner:
-ms.spacing_lines = 1; // 1 empty line in between each spinner item
-
-// In BatchOptions:
 var bb = loaders.BatchBar.init(io, .{
     .title = "Build Pipeline",
     .spacing_lines = 1, // 1 empty line in between each batch task
+    .tasks = &.{
+        .{ .name = "Compile", .total = 100 },
+        .{ .name = "Link", .total = 50 },
+    },
 });
 ```
 
 To prefill a progress bar to a starting value when initializing, use `initial_completed`:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .initial_completed = 35, // Prefilled to 35%
 });
@@ -127,7 +122,7 @@ var bar = loaders.Bar.init(io, .{
 To shift elapsed times and ETA calculations (for instance, when resuming a paused task), use `start_time_offset_sec`:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .start_time_offset_sec = 60, // Shift time by 60 seconds
 });

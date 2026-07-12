@@ -64,7 +64,7 @@
 | **Simple & Fluent API** | Add progress indicators in just a few lines. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/getting-started) |
 | **Progress Bars** | Animated single-bar progress with percentage, ETA, and rate display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/progress-bar) |
 | **Spinners** | Background-threaded terminal spinners for non-blocking work. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/spinner) |
-| **Multi Progress** | Render multiple concurrent bars or spinners together. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/multi-progress) |
+| **Multi Progress** | Render multiple concurrent bars or spinners together via BatchBar. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/multi-progress) |
 | **Batch Progress** | Track multiple named tasks with per-task state (pending/running/done/failed). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/batch-progress) |
 | **Format Templates** | Custom layout strings using `{label}`, `{bar}`, `{percent}`, `{eta}`, `{rate}` tokens. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/format-templates) |
 | **Rate Smoothing** | EMA-based rate/ETA smoothing for stable throughput display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
@@ -227,19 +227,21 @@ const loaders = @import("loaders");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
-    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null, .{});
-
-    const a = mb.addBar(.{ .label = "Asset A", .total = 100 });
-    const b = mb.addBar(.{ .label = "Asset B", .total = 100 });
+    var bb = loaders.BatchBar.init(io, .{
+        .tasks = &.{
+            .{ .name = "Asset A", .total = 100, .color = .cyan },
+            .{ .name = "Asset B", .total = 100, .color = .green },
+        },
+    });
 
     for (0..100) |i| {
-        a.setCompleted(i + 1);
-        b.setCompleted(i + 1);
-        mb.render();
+        bb.setTaskCompleted(0, i + 1);
+        bb.setTaskCompleted(1, i + 1);
+        bb.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(20), .awake);
     }
 
-    mb.done();
+    bb.done();
 }
 ```
 
@@ -260,23 +262,26 @@ pub fn main(init: std.process.Init) !void {
 
 ## Configuration
 
-The core options are available through `BarOptions` and `SpinnerOptions` in the API reference.
+The core options are available through `ProgressBar.Options` and `Spinner.Options` in the API reference.
 
-- `label`, `text`, `prefix`, and `icon` for user-facing messages and prefixes
+- `label` and `text` for user-facing messages
 - `total`, `show_percent`, `show_elapsed`, `show_eta`, and `show_rate` for progress details
 - `style`, `color_enabled`, and custom bracket/fill fields for output control
 - `file` and `term` for stream selection and terminal capability detection
 - `success_icon`, `failure_icon`, `warning_icon`, and `info_icon` for custom status symbols
 - `disable_new_line` to prevent spamming logs in non-TTY environments
-- `icon_messages` for auto-cycling humorous or status messages with per-message custom icons
+- `messages` for auto-cycling status messages during animation
 - `on_progress` and `on_complete` callbacks to fire custom functions on progress updates and bar completions
 - `time_format_12h` option to render date/time prefixes in a 12-hour AM/PM format (defaults to 24-hour)
 - `max_label_width`, `max_message_width`, `max_suffix_width` (for bars), `max_text_width` (for spinners), and `max_name_width` (for batch tasks) to enforce visual terminal column width truncation constraints
-- `icon_gap`, `label_gap`, `datetime_gap` (for bars), `text_gap`, `state_gap` (for batch tasks/multi spinners) to specify custom explicit padding and space gaps between emojis, prefix icons, timestamp brackets, labels, and text contents (defaults to `" "` or `""`)
 - `padding_lines_above` and `padding_lines_below` to insert blank padding lines above and below progress indicators, automatically positioning the cursor for clean, ghosting-free in-place redrawing
 - `initial_completed` to start a progress bar with a prefilled progress value
 - `start_time_offset_sec` to shift elapsed time and ETA calculations (e.g. for resuming tasks)
-- `bg_color`, `text_bg_color`, `spinner_bg_color`, `label_bg_color`, `bracket_bg_color`, `percent_bg_color`, `fill_bg_color`, `empty_bg_color` to set explicit background colors on components
+- `color` and `bg_color` for whole-line foreground and background coloring
+- `fill_color` and `empty_color` to override bar fill/empty segment colors
+- `fill_gradient` and `empty_gradient` for gradient rendering on bar segments
+- `complete_color` for the bar color when 100% complete
+- `template` for custom format strings using `{label}`, `{bar}`, `{percent}`, `{eta}`, `{rate}`, `{count}`, `{time}`, `{date}`, `{message}`, `{spinner}`, `{icon}` tokens
 
 ### I/O Progress Tracking
 

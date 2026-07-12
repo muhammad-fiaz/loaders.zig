@@ -87,7 +87,7 @@ loaders.zig/
 │   ├── loaders.zig        # Root module (public API entry point)
 │   ├── bar.zig            # Progress bar implementation
 │   ├── spinner.zig        # Background-threaded spinner
-│   ├── multi.zig          # MultiBar + MultiSpinner
+│   ├── batch.zig           # BatchBar multi-task progress
 │   ├── color.zig          # ANSI color/escape code generation
 │   ├── style.zig          # BarStyle + SpinnerStyle presets
 │   ├── terminal.zig       # TTY detection, terminal sizing

@@ -28,7 +28,7 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const total: usize = 50;
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Processing",
         .total = total,
         .show_percent = true,

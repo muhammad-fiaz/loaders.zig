@@ -1,5 +1,5 @@
 ---
-description: Browse all built-in visual presets for progress bars and spinners. 18 bar styles and 33 spinner animations ready to use.
+description: Browse all built-in visual presets for progress bars and spinners. 25 bar styles and 43 spinner animations ready to use.
 head:
   - - meta
     - name: keywords
@@ -27,7 +27,7 @@ Standard solid block visual style. Premium, bold, and clean:
 - **Empty**: `░`
 
 ```zig
-var bar = loaders.Bar.init(io, .{ .style = loaders.BarStyle.block });
+var bar = loaders.ProgressBar.init(io, .{ .style = loaders.BarStyle.block });
 ```
 
 ---
@@ -40,7 +40,7 @@ Uses shaded Unicode blocks for a lighter, textured visual feel:
 - **Empty**: `░`
 
 ```zig
-var bar = loaders.Bar.init(io, .{ .style = loaders.BarStyle.shaded });
+var bar = loaders.ProgressBar.init(io, .{ .style = loaders.BarStyle.shaded });
 ```
 
 ---
@@ -52,7 +52,7 @@ Fully compatible retro ASCII layout. Great for legacy shells or stdout redirecti
 - **Empty**: ` ` (space)
 
 ```zig
-var bar = loaders.Bar.init(io, .{ .style = loaders.BarStyle.ascii });
+var bar = loaders.ProgressBar.init(io, .{ .style = loaders.BarStyle.ascii });
 ```
 
 ---
@@ -66,7 +66,7 @@ An elegant minimalist look with a leading arrow tip and zero brackets:
 - **Color**: Cyan fill on bright-black empty line
 
 ```zig
-var bar = loaders.Bar.init(io, .{ .style = loaders.BarStyle.minimal });
+var bar = loaders.ProgressBar.init(io, .{ .style = loaders.BarStyle.minimal });
 ```
 
 ---
@@ -92,7 +92,7 @@ Ten built-in gradient presets for rainbow, fire, ocean, and other colorful effec
 
 ```zig
 // Gradient on filled portion
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .fill_gradient = loaders.Gradient.rainbow,
 });

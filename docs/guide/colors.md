@@ -39,7 +39,6 @@ pub const Color = union(enum) {
 Pass color names directly as field literals:
 
 ```zig
-.label_color = .bright_cyan,
 .fill_color  = .green,
 .empty_color = .bright_black,
 ```
@@ -109,13 +108,10 @@ Colors can be applied at two levels:
 ### 1. Bar-level shorthands (recommended)
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total       = 100,
     .fill_color  = loaders.Color.fromHex("#00FFAA"),
     .empty_color = .bright_black,
-    .label_color = .bright_white,
-    .percent_color = .yellow,
-    .bracket_color = .bright_black,
 });
 ```
 
@@ -123,17 +119,17 @@ var bar = loaders.Bar.init(io, .{
 You can color the entire progress bar line (including label, counts, elapsed, brackets, percentage, suffix, etc.) with a single color option:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .color = .cyan, // Colors the entire progress bar line cyan
 });
 ```
-Sub-component colors (like `.label_color`, `.fill_color`, `.bracket_color`) still act as overrides.
+Sub-component colors (like `.fill_color`, `.empty_color`) still act as overrides.
 
 ### 3. Full `BarStyle` struct
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .style = .{
         .fill    = "▓",
@@ -169,18 +165,18 @@ const sp = try loaders.Spinner.start(io, .{
 
 ---
 
-## Multi-Spinner Item Colors
+## Multi-Task Colors
 
-`SpinnerItem` in `MultiSpinner` supports:
-- `color`: Global color for the entire spinner item line.
-- `text_color`: Specific text color override.
-- `spinner_color`: Specific spinner glyph color override.
+`BatchBar` supports styling overrides per-task:
+- `color`: Global color for the entire task progress bar line.
 
 ```zig
-const item = ms.addItem("Compiling assets", .aesthetic);
-item.color = .magenta;
-item.text_color = .bright_white;
-item.spinner_color = .bright_red;
+var bb = loaders.BatchBar.init(io, .{
+    .tasks = &.{
+        .{ .name = "Compile", .total = 100, .color = .cyan },
+        .{ .name = "Link", .total = 50, .color = .green },
+    },
+});
 ```
 
 ---
@@ -189,14 +185,12 @@ item.spinner_color = .bright_red;
 
 `BatchTask` in `BatchBar` supports styling overrides per-task:
 - `color`: Global color for the entire task progress bar line.
-- `label_color`: Custom color for the task name/label.
 - `fill_color`: Custom filled bar color.
 - `empty_color`: Custom empty bar color.
 
 ```zig
 const compile = bb.addTask("Compile", 100);
 bb.tasks[compile].color = .cyan;
-bb.tasks[compile].label_color = .bright_yellow;
 bb.tasks[compile].fill_color = .green;
 ```
 
@@ -209,19 +203,13 @@ bb.tasks[compile].fill_color = .green;
 - `bg_color`: The background color for the entire line (re-applied automatically across resets).
 - `text_bg_color`: Background color for the text label.
 - `spinner_bg_color`: Background color override for the spinner or status glyph.
-- `label_bg_color`: Background color override for the progress bar label.
-- `bracket_bg_color`: Background color override for the progress bar brackets.
-- `percent_bg_color`: Background color override for the percentage indicator.
-- `fill_bg_color`: Background color override for the filled progress bar blocks.
-- `empty_bg_color`: Background color override for the empty progress bar blocks.
 
 Example:
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .bg_color = .bright_black, // Highlight the whole line background
     .fill_color = .green,
-    .fill_bg_color = .bright_green,
 });
 ```
 
@@ -248,7 +236,7 @@ const color_on = loaders.terminal.shouldEnableColor(
     loaders.terminal.query(.stderr(), io),
     environ,
 );
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .color_enabled = color_on,
     ...
 });

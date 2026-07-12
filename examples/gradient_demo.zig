@@ -12,7 +12,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Rainbow gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Rainbow",
             .total = 100,
             .show_percent = true,
@@ -33,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Fire gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Fire   ",
             .total = 100,
             .show_percent = true,
@@ -54,7 +54,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Ocean gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Ocean ",
             .total = 100,
             .show_percent = true,
@@ -75,7 +75,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Sunset gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Sunset",
             .total = 100,
             .show_percent = true,
@@ -96,7 +96,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Neon gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Neon  ",
             .total = 100,
             .show_percent = true,
@@ -117,7 +117,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Forest gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Forest",
             .total = 100,
             .show_percent = true,
@@ -138,7 +138,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Ice gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Ice   ",
             .total = 100,
             .show_percent = true,
@@ -159,7 +159,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Pastel gradient bar
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Pastel",
             .total = 100,
             .show_percent = true,

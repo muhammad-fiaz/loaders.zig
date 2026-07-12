@@ -1,68 +1,46 @@
-//! multi_spinner.zig — Demonstrates MultiSpinner with per-item colors and states.
+//! multi_spinner.zig — Demonstrates BatchBar with staggered task completion.
+//!
+//! Five concurrent tasks with different styles and staggered finish states.
 
 const std = @import("std");
 const loaders = @import("loaders");
 
 pub fn main(init: std.process.Init) !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
     const io = init.io;
 
-    std.debug.print("--- Multi-Spinner Demo ---\n", .{});
+    std.debug.print("--- Multi-Task Spinner Demo ---\n", .{});
 
-    const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
-    errdefer ms.stop();
-    ms.icon_gap = "  ";
-    ms.text_gap = "  ";
-    ms.spacing_lines = 1;
+    var bb = loaders.BatchBar.init(io, .{
+        .title = "▶  Processing Items",
+        .show_percent = true,
+        .show_count = true,
+        .style = loaders.BarStyle.dots,
+        .tasks = &.{
+            .{ .name = "Fetching data from API    ", .total = 100, .color = .cyan },
+            .{ .name = "Parsing JSON response     ", .total = 100, .color = .bright_yellow },
+            .{ .name = "Compiling assets          ", .total = 100, .color = .{ .rgb = .{ .r = 160, .g = 100, .b = 255 } } },
+            .{ .name = "Uploading to CDN          ", .total = 100, .color = .bright_blue },
+            .{ .name = "Running health checks     ", .total = 100, .color = .green },
+        },
+    });
 
-    const fetch = ms.addItem("Fetching data from API", loaders.SpinnerStyle.dots);
-    const parse = ms.addItem("Parsing JSON response", loaders.SpinnerStyle.arc);
-    const build = ms.addItem("Compiling assets", loaders.SpinnerStyle.aesthetic);
-    const upload = ms.addItem("Uploading to CDN", loaders.SpinnerStyle.pulse);
-    const check = ms.addItem("Running health checks", loaders.SpinnerStyle.wifi);
+    for (0..100) |i| {
+        bb.setTaskCompleted(0, i + 1);
+        if (i < 80) bb.setTaskCompleted(1, i + 1);
+        if (i < 60) bb.setTaskCompleted(2, i + 1);
+        if (i < 40) bb.setTaskCompleted(3, i + 1);
+        if (i < 90) bb.setTaskCompleted(4, i + 1);
 
-    fetch.icon = "📥";
-    parse.icon = "⚙️";
-    build.icon = "🏗️";
-    upload.icon = "📤";
-    check.icon = "🩺";
+        bb.render();
+        try io.sleep(std.Io.Duration.fromMilliseconds(30), .awake);
+    }
 
-    // Give each item a distinct coloring strategy
-    fetch.color = .cyan; // Whole line colored cyan
-    parse.color = .bright_yellow; // Whole line colored bright yellow
+    bb.setTaskDone(0);
+    bb.setTaskDone(1);
+    bb.setTaskFailed(2);
+    bb.setTaskWarning(3);
+    bb.setTaskDone(4);
 
-    // Custom overrides for build spinner
-    build.color = .{ .rgb = .{ .r = 160, .g = 100, .b = 255 } }; // Global purple
-    build.text_color = .bright_white; // Specific text color override (white text)
-    build.spinner_color = .bright_red; // Specific glyph color override (red glyph)
-
-    upload.color = .bright_blue;
-    check.color = .green;
-
-    // Suffixes
-    fetch.suffix = "(50 KB/s)";
-
-    // Simulate staggered completions
-    io.sleep(std.Io.Duration.fromMilliseconds(800), .awake) catch {};
-    ms.setSucceeded(fetch, "Data fetched (128 records)");
-
-    io.sleep(std.Io.Duration.fromMilliseconds(600), .awake) catch {};
-    ms.setSucceeded(parse, "JSON parsed successfully");
-
-    io.sleep(std.Io.Duration.fromMilliseconds(1200), .awake) catch {};
-    ms.setFailed(build, "Compilation failed: missing symbol");
-
-    io.sleep(std.Io.Duration.fromMilliseconds(400), .awake) catch {};
-    ms.setWarning(upload, "Upload skipped (CDN unreachable)");
-
-    io.sleep(std.Io.Duration.fromMilliseconds(700), .awake) catch {};
-    ms.setSucceeded(check, "All health checks passed");
-
-    io.sleep(std.Io.Duration.fromMilliseconds(200), .awake) catch {};
-    ms.stop();
-
+    bb.done();
     std.debug.print("\nFinished.\n", .{});
 }

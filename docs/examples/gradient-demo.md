@@ -26,7 +26,7 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     // Rainbow gradient bar
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Rainbow",
         .total = 100,
         .show_percent = true,

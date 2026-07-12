@@ -4,45 +4,41 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Create the loaders module
     const loaders_module = b.createModule(.{
         .root_source_file = b.path("src/loaders.zig"),
     });
 
-    // Expose the module for external projects
     _ = b.addModule("loaders", .{
         .root_source_file = b.path("src/loaders.zig"),
     });
 
-    // Build examples
     const examples = [_]struct { name: []const u8, path: []const u8 }{
         .{ .name = "01_basic_bar", .path = "examples/01_basic_bar.zig" },
         .{ .name = "02_styled_bar", .path = "examples/02_styled_bar.zig" },
-        .{ .name = "basic_bar", .path = "examples/basic_bar.zig" },
-        .{ .name = "spinner", .path = "examples/spinner.zig" },
-        .{ .name = "multi_spinner", .path = "examples/multi_spinner.zig" },
-        .{ .name = "multi_progress", .path = "examples/multi_progress.zig" },
-        .{ .name = "custom_style", .path = "examples/custom_style.zig" },
-        .{ .name = "download_simulation", .path = "examples/download_simulation.zig" },
-        .{ .name = "nested_bars", .path = "examples/nested_bars.zig" },
-        .{ .name = "eta_and_rate", .path = "examples/eta_and_rate.zig" },
-        .{ .name = "themed_bar", .path = "examples/themed_bar.zig" },
-        .{ .name = "iterator_wrap", .path = "examples/iterator_wrap.zig" },
-        .{ .name = "custom_template", .path = "examples/custom_template.zig" },
         .{ .name = "advanced_options", .path = "examples/advanced_options.zig" },
         .{ .name = "animations", .path = "examples/animations.zig" },
+        .{ .name = "basic_bar", .path = "examples/basic_bar.zig" },
         .{ .name = "batch_progress", .path = "examples/batch_progress.zig" },
-        .{ .name = "custom_format", .path = "examples/custom_format.zig" },
         .{ .name = "color_demo", .path = "examples/color_demo.zig" },
-        .{ .name = "rate_smoothing", .path = "examples/rate_smoothing.zig" },
-        .{ .name = "icon_demo", .path = "examples/icon_demo.zig" },
-        .{ .name = "multi_message_progressbar", .path = "examples/multi_message_progressbar.zig" },
         .{ .name = "conditional_chain", .path = "examples/conditional_chain.zig" },
-        .{ .name = "io_progress", .path = "examples/io_progress.zig" },
+        .{ .name = "custom_format", .path = "examples/custom_format.zig" },
+        .{ .name = "custom_style", .path = "examples/custom_style.zig" },
+        .{ .name = "custom_template", .path = "examples/custom_template.zig" },
+        .{ .name = "download_simulation", .path = "examples/download_simulation.zig" },
+        .{ .name = "eta_and_rate", .path = "examples/eta_and_rate.zig" },
         .{ .name = "gradient_demo", .path = "examples/gradient_demo.zig" },
+        .{ .name = "icon_demo", .path = "examples/icon_demo.zig" },
+        .{ .name = "io_progress", .path = "examples/io_progress.zig" },
+        .{ .name = "iterator_wrap", .path = "examples/iterator_wrap.zig" },
+        .{ .name = "multi_message_progressbar", .path = "examples/multi_message_progressbar.zig" },
+        .{ .name = "multi_progress", .path = "examples/multi_progress.zig" },
+        .{ .name = "multi_spinner", .path = "examples/multi_spinner.zig" },
+        .{ .name = "nested_bars", .path = "examples/nested_bars.zig" },
+        .{ .name = "rate_smoothing", .path = "examples/rate_smoothing.zig" },
+        .{ .name = "spinner", .path = "examples/spinner.zig" },
+        .{ .name = "themed_bar", .path = "examples/themed_bar.zig" },
     };
 
-    // Create run-all-examples step
     const run_all_examples = b.step("run-all-examples", "Run all examples sequentially");
     const examples_step = b.step("examples", "Build all examples");
     var previous_run_step: ?*std.Build.Step = null;
@@ -59,8 +55,6 @@ pub fn build(b: *std.Build) void {
         });
         exe.root_module.addImport("loaders", loaders_module);
 
-        // Force sequential compilation to avoid parallel LLVM OOM by making
-        // this compilation step depend on the previous installation step
         if (previous_install_step) |prev| {
             exe.step.dependOn(prev);
         }
@@ -75,7 +69,6 @@ pub fn build(b: *std.Build) void {
         const run_step = b.step("run-" ++ example.name, "Run " ++ example.name ++ " example");
         run_step.dependOn(&run_exe.step);
 
-        // Add to run-all-examples
         const run_all_exe = b.addRunArtifact(exe);
         run_all_exe.stdio = .inherit;
         run_all_exe.step.dependOn(&install_exe.step);
@@ -97,12 +90,11 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-
     const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
 
-    // Library
+    // Static library
     const lib = b.addLibrary(.{
         .name = "loaders",
         .linkage = .static,

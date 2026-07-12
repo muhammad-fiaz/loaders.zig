@@ -105,16 +105,16 @@ Both `BarStyle` and `SpinnerStyle` support gradient-based color rendering, where
 pub const BarStyle = struct {
     // ... existing fields ...
     /// Optional gradient for the filled portion. When set, overrides fill_fg with per-character interpolated colors.
-    fill_gradient: ?*const Gradient = null,
+    fill_gradient: ?Gradient = null,
     /// Optional gradient for the empty portion. When set, overrides empty_fg with per-character interpolated colors.
-    empty_gradient: ?*const Gradient = null,
+    empty_gradient: ?Gradient = null,
     /// Color for the filled portion when bar is complete (100% or stopped). Takes precedence over fill_gradient.
     complete_fg: Color = .default,
 };
 ```
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .style = .{
         .fill_gradient = loaders.Gradient.rainbow,
@@ -168,7 +168,7 @@ const my_gradient = loaders.Gradient{
     .colors = &.{ .red, .yellow, .green },
 };
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .style = .{
         .fill_gradient = &my_gradient,

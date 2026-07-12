@@ -17,9 +17,6 @@ pub fn main(init: std.process.Init) !void {
             .text = "Initializing system...",
             .style = loaders.SpinnerStyle.dots,
             .allocator = allocator,
-            .icon = "⚙️",
-            .icon_gap = "  ",
-            .text_gap = "  ",
         });
         errdefer sp.stop(io);
 
@@ -37,9 +34,6 @@ pub fn main(init: std.process.Init) !void {
             .text = "Downloading assets...",
             .style = loaders.SpinnerStyle.line,
             .allocator = allocator,
-            .icon = "📥",
-            .icon_gap = "  ",
-            .text_gap = "  ",
         });
         errdefer sp.stop(io);
 
@@ -57,9 +51,6 @@ pub fn main(init: std.process.Init) !void {
             .text = "Synchronizing database...",
             .style = loaders.SpinnerStyle.moon,
             .allocator = allocator,
-            .icon = "🌕",
-            .icon_gap = "  ",
-            .text_gap = "  ",
         });
         errdefer sp.stop(io);
 

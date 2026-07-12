@@ -69,19 +69,21 @@ const bar_demos = [_]struct {
 pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
+    const allocator = arena.allocator();
 
     const io = init.io;
 
     std.debug.print("\n=== Spinner Styles ===\n\n", .{});
 
-    // Show each spinner style for ~800ms
+    // Show each spinner style for ~500ms
     for (spinner_demos) |demo| {
         const sp = try loaders.Spinner.start(io, .{
             .text = demo.name,
             .style = demo.style,
+            .allocator = allocator,
         });
         errdefer sp.stop(io);
-        io.sleep(std.Io.Duration.fromMilliseconds(800), .awake) catch {};
+        io.sleep(std.Io.Duration.fromMilliseconds(500), .awake) catch {};
         sp.succeed(io, demo.name);
     }
 
@@ -89,7 +91,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Show each bar style filling from 0 to 100
     for (bar_demos) |demo| {
-        var b = loaders.Bar.init(io, .{
+        var b = loaders.ProgressBar.init(io, .{
             .label = demo.name,
             .total = 40,
             .style = demo.style,
@@ -100,7 +102,7 @@ pub fn main(init: std.process.Init) !void {
         while (j <= 40) : (j += 1) {
             b.setCompleted(j);
             b.render();
-            io.sleep(std.Io.Duration.fromMilliseconds(20), .awake) catch {};
+            io.sleep(std.Io.Duration.fromMilliseconds(10), .awake) catch {};
         }
         b.done();
     }

@@ -17,7 +17,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("--- Custom Format Template Demo ---\n\n", .{});
 
     std.debug.print("1. Classic rate + ETA layout:\n", .{});
-    var bar1 = loaders.Bar.init(io, .{
+    var bar1 = loaders.ProgressBar.init(io, .{
         .total = 80 * 1024 * 8,
         .label = "Upload",
         .unit_is_bytes = true,
@@ -28,7 +28,6 @@ pub fn main(init: std.process.Init) !void {
         .fill_color = .{ .rgb = .{ .r = 0, .g = 160, .b = 220 } },
         .width = 30,
     });
-    defer bar1.done();
     for (0..80) |i| {
         bar1.setCompleted(i * 1024 * 8);
         bar1.render();
@@ -36,8 +35,9 @@ pub fn main(init: std.process.Init) !void {
     }
     bar1.setCompleted(80 * 1024 * 8);
     bar1.render();
+    bar1.done();
 
-    std.debug.print("\n\n2. Message + spinner prefix:\n", .{});
+    std.debug.print("\n2. Message + spinner prefix:\n", .{});
     const messages = [_][]const u8{
         "reading config...",
         "validating inputs...",
@@ -45,34 +45,34 @@ pub fn main(init: std.process.Init) !void {
         "writing output...",
         "finalizing...",
     };
-    var bar2 = loaders.Bar.init(io, .{
+    var bar2 = loaders.ProgressBar.init(io, .{
         .total = 100,
         .template = "{spinner} [{bar}] {count}  {message}",
         .style = loaders.BarStyle.neon,
         .width = 25,
     });
-    defer bar2.done();
     for (0..100) |i| {
         bar2.setCompleted(i + 1);
         bar2.setMessage(messages[(i / 20) % messages.len]);
         bar2.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(50), .awake);
     }
+    bar2.done();
 
-    std.debug.print("\n\n3. Date/time prefix:\n", .{});
-    var bar3 = loaders.Bar.init(io, .{
+    std.debug.print("\n3. Date/time prefix:\n", .{});
+    var bar3 = loaders.ProgressBar.init(io, .{
         .total = 50,
         .label = "Indexing",
         .template = "[{date} {time}] {label} [{bar}] {percent}  ETA {eta}",
         .style = loaders.BarStyle.green,
         .width = 20,
     });
-    defer bar3.done();
     for (0..50) |i| {
         bar3.setCompleted(i + 1);
         bar3.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(60), .awake);
     }
+    bar3.done();
 
-    std.debug.print("\n\nAll templates complete.\n", .{});
+    std.debug.print("\nAll templates complete.\n", .{});
 }

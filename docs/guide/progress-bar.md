@@ -1,5 +1,5 @@
 ---
-description: Deep dive into using, configuring, and updating single progress bars with loaders.Bar. Covers lifecycle, increment methods, indeterminate mode, auto-sizing, and decorators.
+description: Deep dive into using, configuring, and updating single progress bars with loaders.ProgressBar. Covers lifecycle, increment methods, indeterminate mode, auto-sizing, and decorators.
 head:
   - - meta
     - name: keywords
@@ -9,23 +9,23 @@ head:
       content: Progress Bars Guide — loaders.zig
   - - meta
     - property: og:description
-      content: Deep dive into using, configuring, and updating single progress bars with loaders.Bar.
+      content: Deep dive into using, configuring, and updating single progress bars with loaders.ProgressBar.
 ---
 
 # Progress Bars Guide
 
-This article provides a deep dive into using, configuring, and updating single progress bars with `loaders.Bar`.
+This article provides a deep dive into using, configuring, and updating single progress bars with `loaders.ProgressBar`.
 
 ---
 
 ## 1. Initialisation and Lifecycle
 
-A progress bar is created using `loaders.Bar.init(io, opts)`. The returned struct contains internal states (timers, atomic completed counters, term constraints). It is safe to stack-allocate or heap-allocate this structure.
+A progress bar is created using `loaders.ProgressBar.init(io, opts)`. The returned struct contains internal states (timers, atomic completed counters, term constraints). It is safe to stack-allocate or heap-allocate this structure.
 
 When the rendering loop finishes, you **must** call `bar.done()` to clean up terminal cursor states and write the final carriage return newline:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Processing",
     .total = 100,
 });
@@ -36,7 +36,7 @@ defer bar.done();
 
 ## 2. Incrementing Completed States
 
-`loaders.Bar` supports highly flexible thread-safe updates:
+`loaders.ProgressBar` supports highly flexible thread-safe updates:
 
 - **`bar.setCompleted(n)`**: Explicitly sets completed count to a specific value.
 - **`bar.increment()`**: Increments the completed count by 1.
@@ -51,7 +51,7 @@ All mutation methods perform atomic updates (`.release`), making it completely s
 If you are performing work where the total count is unknown (e.g. streaming an unknown number of chunks over a TCP socket), set `.total = 0`:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Downloading stream",
     .total = 0, // Indeterminate progress
 });
@@ -78,12 +78,12 @@ The library re-queries the terminal columns dynamically on every single frame re
 - **`show_date`**: Prepends the current calendar date (`[YYYY-MM-DD]`).
 - **`show_time`**: Prepends the current calendar time (`[HH:MM:SS]`).
 - **`timezone_offset_sec`**: Shifts the UTC clock time to your local timezone (e.g. `19800` shifts UTC by +5:30 to match IST local time).
-- **`color`**: Colors the entire progress bar line (e.g. `.yellow`). Specific overrides like `fill_color` or `label_color` take precedence.
+- **`color`**: Colors the entire progress bar line (e.g. `.yellow`). Specific overrides like `fill_color` or `empty_color` take precedence.
 
 ### Example Configuration
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .label = "Processing Task",
     .show_percent = true,
@@ -103,11 +103,10 @@ This renders as:
 
 ---
 
-## 6. Custom Icons and Completion Statuses
+## 6. Custom Completion Status Icons
 
-You can configure optional running icons and dynamic completion status icons on progress bars:
+You can configure dynamic completion status icons on progress bars:
 
-- **`icon`**: Running icon prefix (e.g. `"🚀"`) printed at the beginning of the line.
 - **`success_icon`**: Custom status icon on success (defaults to `"✓"`).
 - **`failure_icon`**: Custom status icon on failure (defaults to `"✗"`).
 - **`warning_icon`**: Custom status icon on warning (defaults to `"⚠"`).
@@ -123,14 +122,28 @@ Instead of standard `done()`, you can call dynamic completion methods when your 
 - **`bar.info(msg)`**: Renders info status, stops the bar, and updates the message.
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
-    .icon = "🚀",
     .success_icon = "✨",
 });
 
 // perform work
 bar.succeed("Deployment complete!");
+```
+
+### Hide After Done
+
+When you want the progress bar to disappear completely after finishing (instead of showing a completion line), set `hide_after_done`:
+
+- **`hide_after_done`**: When `true`, the progress bar line is erased from the terminal after `done`/`succeed`/`fail`/`warn`/`info` instead of printing the final state (defaults to `false`).
+
+```zig
+var bar = loaders.ProgressBar.init(io, .{
+    .total = 100,
+    .hide_after_done = true,
+});
+// ... do work ...
+bar.succeed(""); // progress bar line is erased, nothing printed
 ```
 
 ---
@@ -140,19 +153,18 @@ bar.succeed("Deployment complete!");
 You can pass a list of messages to the progress bar options to automatically cycle through them at a set interval during active loading:
 
 - **`messages`**: Slice of string messages (e.g. `&[_][]const u8 { "Feeding hamsters...", "Reticulating splines..." }`).
-- **`icon_messages`**: Slice of `Message` structures with custom per-message text and icons (e.g. `&[_]loaders.Message { .{ .text = "Feeding hamsters...", .icon = "🐹" } }`).
 - **`message_interval_ms`**: Duration in milliseconds to show each message (defaults to `1500`).
 
 ```zig
-const humor_msgs = [_]loaders.Message{
-    .{ .text = "Feeding hamsters...", .icon = "🐹" },
-    .{ .text = "Brewing coffee...", .icon = "☕" },
+const humor_msgs = [_][]const u8{
+    "Feeding hamsters...",
+    "Brewing coffee...",
 };
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .label = "Processing",
-    .icon_messages = &humor_msgs,
+    .messages = &humor_msgs,
     .message_interval_ms = 400,
 });
 ```
@@ -161,34 +173,34 @@ var bar = loaders.Bar.init(io, .{
 
 ## 8. Progress and Completion Callbacks
 
-`loaders.Bar` supports registering callback functions to execute custom logic on progress updates and bar completion:
+`loaders.ProgressBar` supports registering callback functions to execute custom logic on progress updates and bar completion:
 
-- **`on_progress`**: Fired whenever `completed` is updated (via `setCompleted`, `increment`, `incrementBy`). Function signature: `fn(bar: *loaders.Bar, completed: usize, total: usize) void`.
-- **`on_complete`**: Fired exactly once when `completed` reaches or exceeds `total`, or when a stop method (`done`, `succeed`, `fail`, etc.) is called. Function signature: `fn(bar: *loaders.Bar) void`.
-- **`on_success`**: Fired when `succeed()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
-- **`on_failure`**: Fired when `fail()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
-- **`on_warn`**: Fired when `warn()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
-- **`on_info`**: Fired when `info()` is called. Function signature: `fn(bar: *loaders.Bar) void`.
+- **`on_progress`**: Fired whenever `completed` is updated (via `setCompleted`, `increment`, `incrementBy`). Function signature: `fn(bar: *loaders.ProgressBar, completed: usize, total: usize) void`.
+- **`on_complete`**: Fired exactly once when `completed` reaches or exceeds `total`, or when a stop method (`done`, `succeed`, `fail`, etc.) is called. Function signature: `fn(bar: *loaders.ProgressBar) void`.
+- **`on_success`**: Fired when `succeed()` is called. Function signature: `fn(bar: *loaders.ProgressBar) void`.
+- **`on_failure`**: Fired when `fail()` is called. Function signature: `fn(bar: *loaders.ProgressBar) void`.
+- **`on_warn`**: Fired when `warn()` is called. Function signature: `fn(bar: *loaders.ProgressBar) void`.
+- **`on_info`**: Fired when `info()` is called. Function signature: `fn(bar: *loaders.ProgressBar) void`.
 
 ### Example
 
 ```zig
 const cb_struct = struct {
-    pub fn onProgress(bar: *loaders.Bar, completed: usize, total: usize) void {
+    pub fn onProgress(bar: *loaders.ProgressBar, completed: usize, total: usize) void {
         // Custom progress reporting logic
     }
-    pub fn onComplete(bar: *loaders.Bar) void {
+    pub fn onComplete(bar: *loaders.ProgressBar) void {
         std.debug.print("Task finished callback triggered!\n", .{});
     }
-    pub fn onSuccess(bar: *loaders.Bar) void {
+    pub fn onSuccess(bar: *loaders.ProgressBar) void {
         std.debug.print("Task succeeded!\n", .{});
     }
-    pub fn onFailure(bar: *loaders.Bar) void {
+    pub fn onFailure(bar: *loaders.ProgressBar) void {
         std.debug.print("Task failed!\n", .{});
     }
 };
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .on_progress = cb_struct.onProgress,
     .on_complete = cb_struct.onComplete,
@@ -201,7 +213,7 @@ var bar = loaders.Bar.init(io, .{
 
 ## 9. 12-Hour Time and Visual Width Truncation Controls
 
-To prevent screen overflow or text wrapping when labels, messages, or suffixes are exceptionally long, `loaders.Bar` offers explicit width truncation controls:
+To prevent screen overflow or text wrapping when labels, messages, or suffixes are exceptionally long, `loaders.ProgressBar` offers explicit width truncation controls:
 
 - **`time_format_12h`**: When `true`, formats date/time prefixes using a 12-hour AM/PM format (e.g. `[2026-05-26 05:19:41 PM]`).
 - **`max_label_width`**: Sets the maximum number of visual terminal columns occupied by the label. Excess characters are safely truncated and appended with `…`.
@@ -210,7 +222,7 @@ To prevent screen overflow or text wrapping when labels, messages, or suffixes a
 
 ### Example
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .label = "Super Long Label That Might Overflow The Screen",
     .max_label_width = 15, // Truncated to 15 columns: "Super Long Labe…"
@@ -223,25 +235,9 @@ var bar = loaders.Bar.init(io, .{
 
 ---
 
-## 10. Customizable Spacing Gaps and Padding
+## 10. Padding
 
-To prevent overlapping on wide-glyph emoji renderings or customize layout, you can override default spacing gaps and add padding lines:
-
-### Spacing Gaps
-
-- **`icon_gap`**: Spacing printed after prefix/status icons (defaults to `" "`).
-- **`label_gap`**: Spacing printed after the label (defaults to `" "`).
-- **`datetime_gap`**: Spacing printed after the date/time prefix brackets (defaults to `" "`).
-
-```zig
-var bar = loaders.Bar.init(io, .{
-    .total = 100,
-    .icon = "🛡️",
-    .icon_gap = "   ", // explicit wide gap after shield emoji
-    .label = "Processing",
-    .label_gap = "  ",
-});
-```
+To prevent overlapping on wide-glyph emoji renderings or customize layout, you can add padding lines:
 
 ### Padding Lines
 
@@ -251,7 +247,7 @@ Add empty lines above or below the bar for visual spacing in multi-bar layouts:
 - **`padding_lines_below`**: Number of empty lines printed below the bar (defaults to `0`).
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .label = "Task A",
     .padding_lines_above = 1, // one blank line above
@@ -270,7 +266,7 @@ Progress bars support gradient-based color rendering where each filled or empty 
 **Using gradients via `BarOptions` shorthands:**
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .fill_gradient = loaders.Gradient.rainbow,  // Rainbow gradient on filled portion
     .empty_gradient = loaders.Gradient.ocean,    // Ocean gradient on empty portion
@@ -280,7 +276,7 @@ var bar = loaders.Bar.init(io, .{
 **Using gradients via `BarStyle`:**
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .style = .{
         .fill_gradient = loaders.Gradient.fire,
@@ -313,7 +309,7 @@ const my_gradient = loaders.Gradient{
     .colors = &.{ .red, .yellow, .green },
 };
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .fill_gradient = &my_gradient,
 });
@@ -326,13 +322,13 @@ The `Gradient.at(t)` method accepts a `f64` from `0.0` to `1.0` and returns the 
 When a progress bar reaches 100% or is stopped via `succeed()`/`fail()`/etc., you can display the filled portion in a different color:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .complete_color = .green,  // Shorthand: fills entire bar green on completion
 });
 
 // Or via style:
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .total = 100,
     .style = .{
         .complete_fg = .bright_green,

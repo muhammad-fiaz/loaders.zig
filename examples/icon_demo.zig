@@ -15,14 +15,10 @@ pub fn main(init: std.process.Init) !void {
     // 1. Progress Bar with Running Icon and succeed() completion
     {
         std.debug.print("1. Progress Bar with custom running icon and succeed() completion:\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 50,
-            .icon = "🚀",
-            .success_icon = "✨",
             .label = "Deploying app",
             .width = 30,
-            .icon_gap = "  ",
-            .label_gap = "  ",
         });
         errdefer bar.done();
 
@@ -38,14 +34,10 @@ pub fn main(init: std.process.Init) !void {
     // 2. Progress Bar with fail() completion
     {
         std.debug.print("2. Progress Bar with custom failure icon and fail() completion:\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 50,
-            .icon = "📦",
-            .failure_icon = "💥",
             .label = "Testing code",
             .width = 30,
-            .icon_gap = "  ",
-            .label_gap = "  ",
         });
         errdefer bar.done();
 
@@ -61,16 +53,12 @@ pub fn main(init: std.process.Init) !void {
     // 3. Progress Bar with template formatting using {icon} token
     {
         std.debug.print("3. Progress Bar using template formatting with '{{icon}}' token:\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 50,
-            .icon = "⚙️",
-            .success_icon = "✅",
             .label = "Build",
             .template = "{icon}{label} {bar} {percent} - {message}",
             .message = "compiling...",
             .width = 20,
-            .icon_gap = "  ",
-            .label_gap = "  ",
         });
         errdefer bar.done();
 
@@ -88,11 +76,8 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("4. Spinner with running icon prefix and custom status icons:\n", .{});
         const sp = try loaders.Spinner.start(io, .{
             .text = "Initializing modules...",
-            .icon = "🔧",
             .success_icon = "🎉",
             .allocator = allocator,
-            .icon_gap = "  ",
-            .text_gap = "  ",
         });
         errdefer sp.stop(io);
 
@@ -103,16 +88,12 @@ pub fn main(init: std.process.Init) !void {
     // 5. Non-TTY newline configuration demo
     {
         std.debug.print("\n5. Non-TTY newline configuration demo (disable_new_line = true):\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 10,
             .label = "Silent log",
             .term = loaders.TermInfo.dumb, // non-TTY
             .disable_new_line = true,
-            .icon = "💾",
-            .success_icon = "💾 ✓",
             .width = 20,
-            .icon_gap = "  ",
-            .label_gap = "  ",
         });
         errdefer bar.done();
 
@@ -125,31 +106,31 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("\n", .{});
     }
 
-    // 6. MultiSpinner with custom icons and statuses
+    // 6. BatchBar with custom icons and staggered states
     {
-        std.debug.print("6. MultiSpinner with custom running/status icons:\n", .{});
-        const ms = try loaders.MultiSpinner.start(io, std.Io.File.stderr(), .{ .allocator = allocator });
-        errdefer ms.stop();
-        ms.icon_gap = "  ";
-        ms.text_gap = "  ";
+        std.debug.print("6. BatchBar with custom running/status icons:\n", .{});
+        var bb = loaders.BatchBar.init(io, .{
+            .title = "▶  Module Downloads",
+            .show_percent = true,
+            .style = loaders.BarStyle.slim,
+            .icon = "📥",
+            .tasks = &.{
+                .{ .name = "Download module A", .total = 100, .success_icon = "🎁", .failure_icon = "❌" },
+                .{ .name = "Download module B", .total = 100, .success_icon = "🎁" },
+            },
+        });
 
-        const task1 = ms.addItem("Download module A", .dots);
-        task1.icon = "📥";
-        task1.success_icon = "🎁";
-        task1.failure_icon = "❌";
-
-        const task2 = ms.addItem("Download module B", .dots);
-        task2.icon = "📥";
-        task2.success_icon = "🎁";
-
-        try io.sleep(std.Io.Duration.fromMilliseconds(500), .awake);
-        ms.setSucceeded(task1, "Module A retrieved successfully!");
-
-        try io.sleep(std.Io.Duration.fromMilliseconds(400), .awake);
-        ms.setWarning(task2, "Module B retrieved with cache warnings.");
+        for (0..100) |i| {
+            bb.setTaskCompleted(0, i + 1);
+            if (i < 90) bb.setTaskCompleted(1, i + 1);
+            bb.render();
+            try io.sleep(std.Io.Duration.fromMilliseconds(10), .awake);
+        }
+        bb.setTaskDone(0);
+        bb.setTaskWarning(1);
 
         try io.sleep(std.Io.Duration.fromMilliseconds(200), .awake);
-        ms.stop();
+        bb.done();
         std.debug.print("\n", .{});
     }
 
@@ -164,34 +145,83 @@ pub fn main(init: std.process.Init) !void {
             .failure_icon = "💥",
             .warning_icon = "⚠️",
             .info_icon = "📢",
-            .icon_gap = "  ",
-            .state_gap = "  ",
-            .label_gap = "  ",
+            .tasks = &.{
+                .{ .name = "Verify auth  ", .total = 10 },
+                .{ .name = "Build bundle ", .total = 20, .icon = "🏗️" },
+                .{ .name = "Deploy server", .total = 30 },
+            },
         });
 
-        const step1 = bb.addTask("Verify auth  ", 10);
-        const step2 = bb.addTask("Build bundle ", 20);
-        const step3 = bb.addTask("Deploy server", 30);
-
-        bb.tasks[step2].icon = "🏗️"; // Task-specific override
-
-        // Simulating runs
-        bb.setTaskCompleted(step1, 10);
-        bb.setTaskDone(step1);
+        bb.setTaskCompleted(0, 10);
+        bb.setTaskDone(0);
         bb.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(300), .awake);
 
-        bb.setTaskCompleted(step2, 20);
-        bb.setTaskWarning(step2); // warning state
+        bb.setTaskCompleted(1, 20);
+        bb.setTaskWarning(1);
         bb.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(300), .awake);
 
-        bb.setTaskCompleted(step3, 15);
-        bb.setTaskInfo(step3); // info state
+        bb.setTaskCompleted(2, 15);
+        bb.setTaskInfo(2);
         bb.render();
         try io.sleep(std.Io.Duration.fromMilliseconds(200), .awake);
 
         bb.done();
+        std.debug.print("\n", .{});
+    }
+
+    // 8. Spinner with hide_after_done — disappears after completion
+    {
+        std.debug.print("8. Spinner with hide_after_done (line erased after completion):\n", .{});
+        const sp = try loaders.Spinner.start(io, .{
+            .text = "Secret background task...",
+            .hide_after_done = true,
+            .allocator = allocator,
+        });
+        errdefer sp.stop(io);
+
+        try io.sleep(std.Io.Duration.fromMilliseconds(800), .awake);
+        sp.succeed(io, ""); // spinner line is erased — nothing printed
+        std.debug.print("  (spinner line was erased)\n", .{});
+    }
+
+    // 9. Progress Bar with hide_after_done — disappears after completion
+    {
+        std.debug.print("9. Progress Bar with hide_after_done (line erased after completion):\n", .{});
+        var bar = loaders.ProgressBar.init(io, .{
+            .total = 30,
+            .hide_after_done = true,
+            .width = 25,
+        });
+        errdefer bar.done();
+
+        for (0..30) |i| {
+            bar.setCompleted(i + 1);
+            bar.render();
+            try io.sleep(std.Io.Duration.fromMilliseconds(20), .awake);
+        }
+        bar.succeed(""); // progress bar line is erased
+        std.debug.print("  (progress bar line was erased)\n", .{});
+    }
+
+    // 10. Progress Bar with background colors
+    {
+        std.debug.print("10. Progress Bar with background colors:\n", .{});
+        var bar = loaders.ProgressBar.init(io, .{
+            .total = 40,
+            .label = "BG Demo",
+            .width = 25,
+            .bg_color = .blue,
+        });
+        errdefer bar.done();
+
+        for (0..40) |i| {
+            bar.setCompleted(i + 1);
+            bar.render();
+            try io.sleep(std.Io.Duration.fromMilliseconds(20), .awake);
+        }
+        bar.done();
         std.debug.print("\n", .{});
     }
 }

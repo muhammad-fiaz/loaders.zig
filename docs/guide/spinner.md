@@ -89,12 +89,11 @@ try performUnsafeOperation();
 sp.succeed(io, "Completed!");
 ```
 
-### Custom Prefix and Status Icons
+### Custom Status Icons
 
-You can configure a running prefix icon, custom color, and override the completion status symbols:
+You can configure custom color and override the completion status symbols:
 
 - **`color`**: Colors the entire spinner line (e.g. `.cyan`). Specific overrides like `text_color` or `spinner_color` take precedence.
-- **`icon`**: Optional running icon (e.g. `"🔧"`) displayed before the spinner animation.
 - **`success_icon`**: Custom symbol on success (e.g. `"🎉"`, defaults to `"✓"`).
 - **`failure_icon`**: Custom symbol on failure (e.g. `"💥"`, defaults to `"✗"`).
 - **`warning_icon`**: Custom symbol on warning (e.g. `"⚠️"`, defaults to `"⚠"`).
@@ -103,7 +102,6 @@ You can configure a running prefix icon, custom color, and override the completi
 ```zig
 const sp = try loaders.Spinner.start(io, .{
     .text = "Initializing core system...",
-    .icon = "🔧",
     .success_icon = "🎉",
     .color = .cyan, // colors the entire spinner line cyan
 });
@@ -118,19 +116,18 @@ sp.succeed(io, "Initialization complete!");
 You can pass a list of messages to the spinner options to automatically cycle through them at a set interval during active loading:
 
 - **`messages`**: Slice of string messages (e.g. `&[_][]const u8 { "Feeding hamsters...", "Reticulating splines..." }`).
-- **`icon_messages`**: Slice of `Message` structures with custom per-message text and icons (e.g. `&[_]loaders.Message { .{ .text = "Feeding hamsters...", .icon = "🐹" } }`).
 - **`message_interval_ms`**: Duration in milliseconds to show each message (defaults to `1500`).
 
 ```zig
-const spinner_msgs = [_]loaders.Message{
-    .{ .text = "Searching for wifi...", .icon = "📡" },
-    .{ .text = "Loading more RAM...", .icon = "💾" },
-    .{ .text = "Asking the rubber duck...", .icon = "🦆" },
+const spinner_msgs = [_][]const u8{
+    "Searching for wifi...",
+    "Loading more RAM...",
+    "Asking the rubber duck...",
 };
 
 const sp = try loaders.Spinner.start(io, .{
     .style = loaders.SpinnerStyle.progress_pie,
-    .icon_messages = &spinner_msgs,
+    .messages = &spinner_msgs,
     .message_interval_ms = 800,
 });
 ```
@@ -153,23 +150,6 @@ const sp = try loaders.Spinner.start(io, .{
 });
 ```
 
-### Customizable Spacing Gaps
-
-Overriding standard space separators helps tailor alignments and accommodate wide-glyph emojis:
-
-- **`icon_gap`**: String printed after prefix icons (defaults to `" "`).
-- **`text_gap`**: String printed after the active spinner frame/status icon (defaults to `" "`).
-- **`datetime_gap`**: String printed after date/time prefix brackets (defaults to `" "`).
-
-```zig
-const sp = try loaders.Spinner.start(io, .{
-    .icon = "🛡️",
-    .icon_gap = "  ",
-    .text = "Initializing core module...",
-    .text_gap = "   ", // wider spacing before status glyphs
-});
-```
-
 ### Padding Lines
 
 Add empty lines above or below the spinner for visual spacing in multi-spinner layouts:
@@ -183,6 +163,21 @@ const sp = try loaders.Spinner.start(io, .{
     .padding_lines_above = 1, // one blank line above
     .padding_lines_below = 1, // one blank line below
 });
+```
+
+### Hide After Done
+
+When you want the spinner to disappear completely after finishing (instead of showing a success/failure line), set `hide_after_done`:
+
+- **`hide_after_done`**: When `true`, the spinner line is erased from the terminal after `stop`/`succeed`/`fail`/`warn`/`info` instead of printing the final state (defaults to `false`).
+
+```zig
+const sp = try loaders.Spinner.start(io, .{
+    .text = "Background task...",
+    .hide_after_done = true,
+});
+// ... do work ...
+sp.succeed(io, ""); // spinner line is erased, nothing printed
 ```
 
 ### Gradient Spinner Glyphs

@@ -6,41 +6,29 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("--- Running Nested Bars Simulation ---\n", .{});
 
-    var mb = loaders.MultiBar.init(io, std.Io.File.stderr(), null, .{});
-
-    const outer_bar = mb.addBar(.{
-        .label = "Total Batches",
-        .total = 5,
-        .style = loaders.BarStyle.yellow,
+    var bb = loaders.BatchBar.init(io, .{
+        .title = "▶  Batch Progress",
         .show_percent = true,
         .show_count = true,
+        .tasks = &.{
+            .{ .name = "Total Batches", .total = 5, .color = .yellow },
+            .{ .name = "Current Batch", .total = 20, .color = .green },
+        },
     });
-
-    const inner_bar = mb.addBar(.{
-        .label = "Current Batch",
-        .total = 20,
-        .style = loaders.BarStyle.green,
-        .show_percent = true,
-        .show_count = true,
-    });
-
-    mb.render();
 
     for (0..5) |batch| {
-        // Reset inner bar for new batch
-        inner_bar.setCompleted(0);
+        bb.setTaskCompleted(1, 0);
 
-        // Simulating work
         for (0..20) |item| {
-            inner_bar.setCompleted(item + 1);
-            mb.render();
+            bb.setTaskCompleted(1, item + 1);
+            bb.render();
             try io.sleep(std.Io.Duration.fromMilliseconds(50), .awake);
         }
 
-        outer_bar.setCompleted(batch + 1);
-        mb.render();
+        bb.setTaskCompleted(0, batch + 1);
+        bb.render();
     }
 
-    mb.done();
+    bb.done();
     std.debug.print("\nAll batches completed successfully!\n", .{});
 }

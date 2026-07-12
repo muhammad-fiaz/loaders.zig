@@ -99,7 +99,7 @@ const loaders = @import("loaders");
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Loading Assets",
         .total = 100,
         .show_percent = true,

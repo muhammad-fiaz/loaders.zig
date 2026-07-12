@@ -20,7 +20,7 @@ pub fn main(init: std.process.Init) !void {
 
     inline for (themes) |theme| {
         std.debug.print("\nTheme: {s}\n", .{theme.name});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Progress",
             .total = 100,
             .style = theme.style,

@@ -1,8 +1,8 @@
-//! bar.zig — Animated progress bar.
+//! progressbar.zig — Animated progress bar.
 //!
 //! Usage (5 lines):
 //!
-//!   var bar = Bar.init(io, .{});
+//!   var bar = ProgressBar.init(io, .{});
 //!   defer bar.done();
 //!   bar.setTotal(100);
 //!   for (0..100) |i| {
@@ -16,7 +16,6 @@ const utils = @import("utils.zig");
 const color_mod = @import("color.zig");
 const style_mod = @import("style.zig");
 const terminal = @import("terminal.zig");
-const format_mod = @import("format.zig");
 
 pub const Color = color_mod.Color;
 pub const Colorizer = color_mod.Colorizer;
@@ -28,10 +27,6 @@ pub const Message = style_mod.Message;
 pub const Options = struct {
     /// Label printed before the bar. May be empty.
     label: []const u8 = "",
-    /// Color used to render the label text. `.default` = no color.
-    label_color: Color = .default,
-    /// Background color for the label text. `.default` = no color.
-    label_bg_color: Color = .default,
     /// Total number of units (0 = indeterminate).
     total: usize = 0,
     /// Width of the bar in columns (0 = auto from terminal width).
@@ -40,18 +35,6 @@ pub const Options = struct {
     style: BarStyle = .{},
     /// Whether to show percentage.
     show_percent: bool = true,
-    /// Color used for the percentage indicator. `.default` = no color.
-    percent_color: Color = .default,
-    /// Background color for the percentage indicator. `.default` = no color.
-    percent_bg_color: Color = .default,
-    /// Color used for the bracket characters. `.default` = no color.
-    bracket_color: Color = .default,
-    /// Background color for the bracket characters. `.default` = no color.
-    bracket_bg_color: Color = .default,
-    /// Background color for filled blocks shorthand (sets style.fill_bg if .default).
-    fill_bg_color: Color = .default,
-    /// Background color for empty blocks shorthand (sets style.empty_bg if .default).
-    empty_bg_color: Color = .default,
     /// Whether to show `current/total` counts.
     show_count: bool = false,
     /// Whether to show elapsed time.
@@ -78,10 +61,7 @@ pub const Options = struct {
     term: ?terminal.TermInfo = null,
     /// Enable color. If null, auto-detected from terminal.
     color_enabled: ?bool = null,
-    /// Printed at the absolute start of the progress bar line.
-    custom_start: []const u8 = "",
-    /// Printed at the absolute end of the progress bar line.
-    custom_end: []const u8 = "",
+
     /// Whether to show current date [YYYY-MM-DD].
     show_date: bool = false,
     /// Whether to show current time [HH:MM:SS].
@@ -119,36 +99,27 @@ pub const Options = struct {
     padding_lines_below: usize = 0,
     /// Initial completed count.
     initial_completed: usize = 0,
-    /// Optional running icon prefix.
-    icon: ?[]const u8 = null,
-    /// Optional custom success icon.
-    success_icon: ?[]const u8 = null,
-    /// Optional custom failure icon.
-    failure_icon: ?[]const u8 = null,
-    /// Optional custom warning icon.
-    warning_icon: ?[]const u8 = null,
-    /// Optional custom info icon.
-    info_icon: ?[]const u8 = null,
     /// Disable newline for non-TTY output.
     disable_new_line: bool = true,
     /// Array of messages to cycle through during run.
     messages: ?[]const []const u8 = null,
-    /// Array of message-icon objects to cycle through during run.
-    icon_messages: ?[]const Message = null,
     /// Interval in milliseconds to transition messages.
     message_interval_ms: u32 = 1500,
     /// Callback on progress update.
-    on_progress: ?*const fn (bar: *Bar, completed: usize, total: usize) void = null,
+    on_progress: ?*const fn (bar: *ProgressBar, completed: usize, total: usize) void = null,
     /// Callback when progress bar completes/stops.
-    on_complete: ?*const fn (bar: *Bar) void = null,
+    on_complete: ?*const fn (bar: *ProgressBar) void = null,
     /// Callback when bar succeeds (succeed() called).
-    on_success: ?*const fn (bar: *Bar) void = null,
+    on_success: ?*const fn (bar: *ProgressBar) void = null,
     /// Callback when bar fails (fail() called).
-    on_failure: ?*const fn (bar: *Bar) void = null,
+    on_failure: ?*const fn (bar: *ProgressBar) void = null,
     /// Callback when bar warns (warn() called).
-    on_warn: ?*const fn (bar: *Bar) void = null,
+    on_warn: ?*const fn (bar: *ProgressBar) void = null,
     /// Callback when bar provides info (info() called).
-    on_info: ?*const fn (bar: *Bar) void = null,
+    on_info: ?*const fn (bar: *ProgressBar) void = null,
+    /// When true, the progress bar line is erased from the terminal after
+    /// done/succeed/fail/warn/info instead of printing the final state.
+    hide_after_done: bool = false,
     /// Format time as 12-hour AM/PM format (defaults to 24-hour).
     time_format_12h: bool = false,
     /// Maximum label width limit (0 = no limit). Truncates label if exceeded.
@@ -157,14 +128,6 @@ pub const Options = struct {
     max_message_width: usize = 0,
     /// Maximum suffix width limit (0 = no limit). Truncates suffix if exceeded.
     max_suffix_width: usize = 0,
-    /// Flag indicating that this bar is managed by a MultiBar parent layout.
-    is_multibar: bool = false,
-    /// Spacing gap after icons (defaults to " ").
-    icon_gap: []const u8 = " ",
-    /// Spacing gap after label (defaults to " ").
-    label_gap: []const u8 = " ",
-    /// Spacing gap after date/time prefix (defaults to " ").
-    datetime_gap: []const u8 = " ",
 };
 
 /// A single animated progress bar.
@@ -172,7 +135,7 @@ pub const Options = struct {
 /// Thread safety: `completed` is an atomic value, so `setCompleted` /
 /// `increment` are safe to call from any thread. All rendering happens on
 /// the thread that calls `render`.
-pub const Bar = struct {
+pub const ProgressBar = struct {
     io: std.Io,
     opts: Options,
 
@@ -202,13 +165,12 @@ pub const Bar = struct {
 
     msg_index: usize,
     last_msg_change_time: i64,
-    msg_icon: ?[]const u8,
     first_render: bool,
 
-    /// Create a `Bar` and start timing.
+    /// Create a `ProgressBar` and start timing.
     ///
     /// The returned struct is large — prefer stack or heap allocation.
-    pub fn init(io: std.Io, opts: Options) Bar {
+    pub fn init(io: std.Io, opts: Options) ProgressBar {
         terminal.setupTerminal();
 
         const file = opts.file orelse std.Io.File.stderr();
@@ -216,7 +178,7 @@ pub const Bar = struct {
         const color_on = opts.color_enabled orelse term_info.ansi_supported;
         const now = std.Io.Clock.awake.now(io);
 
-        const initial_message = if (opts.icon_messages) |imsgs| (if (imsgs.len > 0) imsgs[0].text else opts.message) else if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.message) else opts.message;
+        const initial_message = if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.message) else opts.message;
         var msg_buf: [512:0]u8 = @splat(0);
         const msg_len = blk: {
             const src = initial_message;
@@ -231,14 +193,8 @@ pub const Bar = struct {
         if (opts.fill_color != .default and resolved_style.fill_fg == .default) {
             resolved_style.fill_fg = opts.fill_color;
         }
-        if (opts.fill_bg_color != .default and resolved_style.fill_bg == .default) {
-            resolved_style.fill_bg = opts.fill_bg_color;
-        }
         if (opts.empty_color != .default and resolved_style.empty_fg == .default) {
             resolved_style.empty_fg = opts.empty_color;
-        }
-        if (opts.empty_bg_color != .default and resolved_style.empty_bg == .default) {
-            resolved_style.empty_bg = opts.empty_bg_color;
         }
         if (opts.fill_gradient != null and resolved_style.fill_gradient == null) {
             resolved_style.fill_gradient = opts.fill_gradient;
@@ -253,9 +209,7 @@ pub const Bar = struct {
         var resolved_opts = opts;
         resolved_opts.style = resolved_style;
 
-        const initial_icon = if (opts.icon_messages) |imsgs| (if (imsgs.len > 0) imsgs[0].icon else null) else null;
-
-        return Bar{
+        return ProgressBar{
             .io = io,
             .opts = resolved_opts,
             .completed = std.atomic.Value(usize).init(opts.initial_completed),
@@ -281,35 +235,34 @@ pub const Bar = struct {
             .status_color = .default,
             .msg_index = 0,
             .last_msg_change_time = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms))),
-            .msg_icon = initial_icon,
             .first_render = true,
         };
     }
 
     /// Update the total.
-    pub fn setTotal(bar: *Bar, total: usize) void {
+    pub fn setTotal(bar: *ProgressBar, total: usize) void {
         bar.total.store(total, .release);
     }
 
     /// Atomically set the completed count.
-    pub fn setCompleted(bar: *Bar, n: usize) void {
+    pub fn setCompleted(bar: *ProgressBar, n: usize) void {
         bar.completed.store(n, .release);
         bar.triggerCallbacks(n);
     }
 
     /// Atomically increment the completed count by 1.
-    pub fn increment(bar: *Bar) void {
+    pub fn increment(bar: *ProgressBar) void {
         const prev = bar.completed.fetchAdd(1, .release);
         bar.triggerCallbacks(prev + 1);
     }
 
     /// Atomically increment the completed count by `n`.
-    pub fn incrementBy(bar: *Bar, n: usize) void {
+    pub fn incrementBy(bar: *ProgressBar, n: usize) void {
         const prev = bar.completed.fetchAdd(n, .release);
         bar.triggerCallbacks(prev + n);
     }
 
-    fn triggerCallbacks(bar: *Bar, n: usize) void {
+    fn triggerCallbacks(bar: *ProgressBar, n: usize) void {
         const total = bar.total.load(.acquire);
         if (bar.opts.on_progress) |cb| {
             cb(bar, n, total);
@@ -325,7 +278,7 @@ pub const Bar = struct {
 
     /// Update the dynamic message shown after the indicators.
     /// Safe to call from any thread; rendered on the next `render()` call.
-    pub fn setMessage(bar: *Bar, msg: []const u8) void {
+    pub fn setMessage(bar: *ProgressBar, msg: []const u8) void {
         const len = @min(msg.len, 511);
         @memcpy(bar.msg_buf[0..len], msg[0..len]);
         bar.msg_buf[len] = 0;
@@ -333,12 +286,12 @@ pub const Bar = struct {
     }
 
     /// Update the custom unit label.
-    pub fn setUnit(bar: *Bar, unit: []const u8) void {
+    pub fn setUnit(bar: *ProgressBar, unit: []const u8) void {
         bar.opts.unit = unit;
     }
 
     /// Reset progress to 0 and restart the elapsed timer.
-    pub fn reset(bar: *Bar) void {
+    pub fn reset(bar: *ProgressBar) void {
         bar.completed.store(0, .release);
         bar.smoothed_rate = 0.0;
         bar.spinner_frame = 0;
@@ -348,14 +301,14 @@ pub const Bar = struct {
     }
 
     /// Return the current progress fraction (0.0–1.0).
-    pub fn currentFraction(bar: *const Bar) f64 {
+    pub fn currentFraction(bar: *const ProgressBar) f64 {
         const completed = bar.completed.load(.acquire);
         const total = bar.total.load(.acquire);
         return utils.fraction(completed, total);
     }
 
     /// Return elapsed milliseconds since init/reset.
-    pub fn elapsedMs(bar: *const Bar) u64 {
+    pub fn elapsedMs(bar: *const ProgressBar) u64 {
         const now = std.Io.Clock.awake.now(bar.io);
         const elapsed_ns = now.nanoseconds - bar.started_ns;
         if (elapsed_ns <= 0) return 0;
@@ -365,7 +318,7 @@ pub const Bar = struct {
     /// Render one frame to the terminal (call periodically from your loop).
     ///
     /// Write errors are silently ignored — the bar simply does not update.
-    pub fn render(bar: *Bar) void {
+    pub fn render(bar: *ProgressBar) void {
         // Throttle
         if (bar.opts.min_interval_ms > 0) {
             const now_ns = std.Io.Clock.awake.now(bar.io).nanoseconds;
@@ -376,8 +329,7 @@ pub const Bar = struct {
         bar.renderInner() catch {};
     }
 
-    pub fn renderInner(bar: *Bar) !void {
-        if (bar.opts.is_multibar) return;
+    pub fn renderInner(bar: *ProgressBar) !void {
         if (bar.opts.width == 0) {
             bar.term = terminal.query(bar.file, bar.io);
         }
@@ -424,7 +376,7 @@ pub const Bar = struct {
         if (line_color != .default or bar.opts.bg_color != .default) {
             try bar.colorizer.reset(w);
         }
-        if (bar.term.is_tty or !bar.opts.disable_new_line) {
+        if (!bar.opts.disable_new_line or bar.term.is_tty) {
             try w.writeByte('\n');
         }
 
@@ -450,30 +402,12 @@ pub const Bar = struct {
     /// Render bar content into an external writer.
     ///
     /// Does NOT emit a clearLine prefix or a trailing newline/flush.
-    /// Used by `MultiBar` to batch all bars through a single writer.
-    pub fn renderContent(bar: *Bar, w: *std.Io.Writer) !void {
+    pub fn renderContent(bar: *ProgressBar, w: *std.Io.Writer) !void {
         const completed = bar.completed.load(.acquire);
         const total = bar.total.load(.acquire);
 
         // Cycle messages if configured
-        if (bar.opts.icon_messages) |imsgs| {
-            if (imsgs.len > 0 and !bar.done_flag.load(.acquire)) {
-                const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(bar.io).nanoseconds, std.time.ns_per_ms)));
-                if (bar.last_msg_change_time == 0) {
-                    bar.last_msg_change_time = now;
-                    bar.setMessage(imsgs[0].text);
-                    bar.msg_icon = imsgs[0].icon;
-                }
-                const elapsed = now - bar.last_msg_change_time;
-                if (elapsed >= bar.opts.message_interval_ms) {
-                    bar.msg_index = (bar.msg_index + 1) % imsgs.len;
-                    const item = imsgs[bar.msg_index];
-                    bar.setMessage(item.text);
-                    bar.msg_icon = item.icon;
-                    bar.last_msg_change_time = now;
-                }
-            }
-        } else if (bar.opts.messages) |msgs| {
+        if (bar.opts.messages) |msgs| {
             if (msgs.len > 0 and !bar.done_flag.load(.acquire)) {
                 const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(bar.io).nanoseconds, std.time.ns_per_ms)));
                 if (bar.last_msg_change_time == 0) {
@@ -521,7 +455,7 @@ pub const Bar = struct {
             else
                 .default;
 
-            const ctx = format_mod.RenderCtx{
+            const ctx = RenderCtx{
                 .label = bar.opts.label,
                 .completed = completed,
                 .total = total,
@@ -539,25 +473,14 @@ pub const Bar = struct {
                 .spinner_frames = &.{ "|", "/", "-", "\\" },
                 .spinner_color = .default,
                 .spinner_bg_color = .default,
-                .icon = bar.opts.icon,
-                .msg_icon = bar.msg_icon,
                 .status_icon = bar.status_icon,
                 .status_color = bar.status_color,
                 .line_color = line_color,
                 .line_bg_color = bar.opts.bg_color,
-                .label_color = bar.opts.label_color,
-                .label_bg_color = bar.opts.label_bg_color,
-                .percent_color = bar.opts.percent_color,
-                .percent_bg_color = bar.opts.percent_bg_color,
                 .fill_color = bar.opts.fill_color,
-                .fill_bg_color = bar.opts.fill_bg_color,
                 .empty_color = bar.opts.empty_color,
-                .empty_bg_color = bar.opts.empty_bg_color,
-                .icon_gap = bar.opts.icon_gap,
-                .label_gap = bar.opts.label_gap,
-                .datetime_gap = bar.opts.datetime_gap,
             };
-            try format_mod.renderTemplate(w, bar.opts.template, &ctx);
+            try renderTemplate(w, bar.opts.template, &ctx);
             bar.spinner_frame += 1;
             return;
         }
@@ -593,19 +516,12 @@ pub const Bar = struct {
         var render_count = (bar.opts.show_count and total > 0);
         var render_datetime = (bar.opts.show_date or bar.opts.show_time);
 
-        const custom_start_len = utils.stringDisplayWidth(bar.opts.custom_start);
-        const custom_end_len = utils.stringDisplayWidth(bar.opts.custom_end);
+        const custom_start_len: usize = 0;
+        const custom_end_len: usize = 0;
 
         var icon_len: usize = 0;
         if (bar.status_icon) |s_icon| {
             icon_len = utils.stringDisplayWidth(s_icon) + 1;
-        } else {
-            if (bar.opts.icon) |icon| {
-                if (icon.len > 0) icon_len += utils.stringDisplayWidth(icon) + 1;
-            }
-            if (bar.msg_icon) |icon| {
-                if (icon.len > 0) icon_len += utils.stringDisplayWidth(icon) + 1;
-            }
         }
 
         var dt_len: usize = 0;
@@ -725,44 +641,14 @@ pub const Bar = struct {
             try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
         }
 
-        // Print Custom Start
-        if (bar.opts.custom_start.len > 0) {
-            try w.writeAll(bar.opts.custom_start);
-        }
-
-        // Print Icons (without line background color to avoid emoji highlighting)
+        // Print Status Icon
         if (bar.status_icon) |s_icon| {
             if (line_color != .default or line_bg_color != .default) {
                 try bar.colorizer.reset(w);
             }
             try color_mod.writeColored(w, bar.colorizer, s_icon, bar.status_color, .default, &.{.bold});
-            try w.writeAll(bar.opts.icon_gap);
+            try w.writeAll(" ");
             if (line_color != .default or line_bg_color != .default) {
-                try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
-            }
-        } else {
-            var printed_any = false;
-            if (bar.opts.icon) |icon| {
-                if (icon.len > 0) {
-                    if (line_color != .default or line_bg_color != .default) {
-                        try bar.colorizer.reset(w);
-                    }
-                    try w.writeAll(icon);
-                    try w.writeAll(bar.opts.icon_gap);
-                    printed_any = true;
-                }
-            }
-            if (bar.msg_icon) |icon| {
-                if (icon.len > 0) {
-                    if (line_color != .default or line_bg_color != .default) {
-                        try bar.colorizer.reset(w);
-                    }
-                    try w.writeAll(icon);
-                    try w.writeAll(bar.opts.icon_gap);
-                    printed_any = true;
-                }
-            }
-            if (printed_any and (line_color != .default or line_bg_color != .default)) {
                 try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
             }
         }
@@ -775,45 +661,24 @@ pub const Bar = struct {
                 var dbuf: [16]u8 = undefined;
                 var tbuf: [32]u8 = undefined;
                 const t_str = if (bar.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                try w.print("[{s} {s}]", .{ utils.formatDate(&dbuf, ts), t_str });
-                try w.writeAll(bar.opts.datetime_gap);
+                try w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str });
             } else if (bar.opts.show_date) {
                 var dbuf: [16]u8 = undefined;
-                try w.print("[{s}]", .{utils.formatDate(&dbuf, ts)});
-                try w.writeAll(bar.opts.datetime_gap);
+                try w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)});
             } else if (bar.opts.show_time) {
                 var tbuf: [32]u8 = undefined;
                 const t_str = if (bar.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                try w.print("[{s}]", .{t_str});
-                try w.writeAll(bar.opts.datetime_gap);
+                try w.print("[{s}] ", .{t_str});
             }
         }
 
         // Print Label
         if (bar.opts.label.len > 0) {
-            if (bar.opts.label_color != .default or bar.opts.label_bg_color != .default) {
-                try color_mod.writeColored(w, bar.colorizer, label_str, bar.opts.label_color, bar.opts.label_bg_color, &.{});
-                try w.writeAll(bar.opts.label_gap);
-                if (line_color != .default or line_bg_color != .default) {
-                    try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
-                }
-            } else {
-                try w.print("{s}", .{label_str});
-                try w.writeAll(bar.opts.label_gap);
-            }
+            try w.print("{s} ", .{label_str});
         }
 
         // Left bracket
-        if (bar.opts.bracket_color != .default or bar.opts.bracket_bg_color != .default) {
-            try bar.colorizer.begin(w, bar.opts.bracket_color, bar.opts.bracket_bg_color, &.{});
-        }
         try w.writeAll(bar.opts.style.left_bracket);
-        if (bar.opts.bracket_color != .default or bar.opts.bracket_bg_color != .default) {
-            try bar.colorizer.reset(w);
-            if (line_color != .default or line_bg_color != .default) {
-                try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
-            }
-        }
 
         if (total == 0) {
             try renderIndeterminate(bar, w, completed, bar_width);
@@ -826,31 +691,13 @@ pub const Bar = struct {
         }
 
         // Right bracket
-        if (bar.opts.bracket_color != .default or bar.opts.bracket_bg_color != .default) {
-            try bar.colorizer.begin(w, bar.opts.bracket_color, bar.opts.bracket_bg_color, &.{});
-        }
         try w.writeAll(bar.opts.style.right_bracket);
-        if (bar.opts.bracket_color != .default or bar.opts.bracket_bg_color != .default) {
-            try bar.colorizer.reset(w);
-            if (line_color != .default or line_bg_color != .default) {
-                try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
-            }
-        }
 
         // Percentage
         if (total > 0 and bar.opts.show_percent) {
             const frac = utils.fraction(completed, total);
-            if (bar.opts.percent_color != .default or bar.opts.percent_bg_color != .default) {
-                try bar.colorizer.begin(w, bar.opts.percent_color, bar.opts.percent_bg_color, &.{});
-            }
             var pbuf: [8]u8 = undefined;
             try w.print(" {s}", .{utils.formatPercent(&pbuf, frac)});
-            if (bar.opts.percent_color != .default or bar.opts.percent_bg_color != .default) {
-                try bar.colorizer.reset(w);
-                if (line_color != .default or line_bg_color != .default) {
-                    try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
-                }
-            }
         }
 
         // Print Count
@@ -894,11 +741,6 @@ pub const Bar = struct {
             try w.print(" {s}", .{suffix_str});
         }
 
-        // Print Custom End
-        if (bar.opts.custom_end.len > 0) {
-            try w.writeAll(bar.opts.custom_end);
-        }
-
         // Reset global color
         if (line_color != .default or line_bg_color != .default) {
             try bar.colorizer.reset(w);
@@ -906,7 +748,7 @@ pub const Bar = struct {
     }
 
     fn renderDeterminate(
-        bar: *Bar,
+        bar: *ProgressBar,
         w: *std.Io.Writer,
         completed: usize,
         total: usize,
@@ -1006,7 +848,7 @@ pub const Bar = struct {
     }
 
     fn renderIndeterminate(
-        bar: *Bar,
+        bar: *ProgressBar,
         w: *std.Io.Writer,
         tick: usize,
         bar_width: usize,
@@ -1042,18 +884,22 @@ pub const Bar = struct {
     }
 
     /// Print a final "done" line and move to the next line.
-    pub fn done(bar: *Bar) void {
+    pub fn done(bar: *ProgressBar) void {
         if (bar.done_flag.swap(true, .acq_rel)) return;
         if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
         if (bar.status_icon == null) {
-            if (bar.opts.icon != null or bar.opts.success_icon != null) {
-                bar.status_icon = bar.opts.success_icon orelse "✓";
-                bar.status_color = .green;
-            }
+            bar.status_icon = "✓";
+            bar.status_color = .green;
         }
-        bar.renderFinal() catch {};
+        if (bar.opts.hide_after_done) {
+            if (bar.term.is_tty) {
+                bar.eraseLine();
+            }
+        } else {
+            bar.renderFinal() catch {};
+        }
         if (!bar.on_complete_called.swap(true, .acq_rel)) {
             if (bar.opts.on_complete) |cb| {
                 cb(bar);
@@ -1062,16 +908,22 @@ pub const Bar = struct {
     }
 
     /// Stop and print a success line (✓ green tick).
-    pub fn succeed(bar: *Bar, msg: []const u8) void {
+    pub fn succeed(bar: *ProgressBar, msg: []const u8) void {
         if (bar.done_flag.swap(true, .acq_rel)) return;
-        bar.status_icon = bar.opts.success_icon orelse "✓";
+        bar.status_icon = "✓";
         bar.status_color = .green;
         if (msg.len > 0) {
             bar.setMessage(msg);
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
-        bar.renderFinal() catch {};
+        if (bar.opts.hide_after_done) {
+            if (bar.term.is_tty) {
+                bar.eraseLine();
+            }
+        } else {
+            bar.renderFinal() catch {};
+        }
         if (bar.opts.on_success) |cb| {
             cb(bar);
         }
@@ -1083,16 +935,22 @@ pub const Bar = struct {
     }
 
     /// Stop and print a failure line (✗ red cross).
-    pub fn fail(bar: *Bar, msg: []const u8) void {
+    pub fn fail(bar: *ProgressBar, msg: []const u8) void {
         if (bar.done_flag.swap(true, .acq_rel)) return;
-        bar.status_icon = bar.opts.failure_icon orelse "✗";
+        bar.status_icon = "✗";
         bar.status_color = .red;
         if (msg.len > 0) {
             bar.setMessage(msg);
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
-        bar.renderFinal() catch {};
+        if (bar.opts.hide_after_done) {
+            if (bar.term.is_tty) {
+                bar.eraseLine();
+            }
+        } else {
+            bar.renderFinal() catch {};
+        }
         if (bar.opts.on_failure) |cb| {
             cb(bar);
         }
@@ -1104,7 +962,7 @@ pub const Bar = struct {
     }
 
     /// Stop and print a warning line (⚠ yellow warning).
-    pub fn warn(bar: *Bar, msg: []const u8) void {
+    pub fn warn(bar: *ProgressBar, msg: []const u8) void {
         if (bar.done_flag.swap(true, .acq_rel)) return;
         bar.status_icon = bar.opts.warning_icon orelse "⚠";
         bar.status_color = .yellow;
@@ -1113,7 +971,13 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
-        bar.renderFinal() catch {};
+        if (bar.opts.hide_after_done) {
+            if (bar.term.is_tty) {
+                bar.eraseLine();
+            }
+        } else {
+            bar.renderFinal() catch {};
+        }
         if (bar.opts.on_warn) |cb| {
             cb(bar);
         }
@@ -1125,7 +989,7 @@ pub const Bar = struct {
     }
 
     /// Stop and print an info line (ℹ cyan info).
-    pub fn info(bar: *Bar, msg: []const u8) void {
+    pub fn info(bar: *ProgressBar, msg: []const u8) void {
         if (bar.done_flag.swap(true, .acq_rel)) return;
         bar.status_icon = bar.opts.info_icon orelse "ℹ";
         bar.status_color = .cyan;
@@ -1134,7 +998,13 @@ pub const Bar = struct {
         } else if (bar.opts.complete_message.len > 0) {
             bar.setMessage(bar.opts.complete_message);
         }
-        bar.renderFinal() catch {};
+        if (bar.opts.hide_after_done) {
+            if (bar.term.is_tty) {
+                bar.eraseLine();
+            }
+        } else {
+            bar.renderFinal() catch {};
+        }
         if (bar.opts.on_info) |cb| {
             cb(bar);
         }
@@ -1145,42 +1015,91 @@ pub const Bar = struct {
         }
     }
 
-    pub fn getActiveIcon(bar: *const Bar) []const u8 {
+    pub fn getActiveIcon(bar: *const ProgressBar) []const u8 {
         if (bar.status_icon) |s_icon| {
             return s_icon;
         }
-        return bar.opts.icon orelse "";
+        return "";
     }
 
-    fn renderFinal(bar: *Bar) !void {
-        if (bar.opts.is_multibar) return;
+    fn eraseLine(bar: *ProgressBar) void {
         var fw: std.Io.File.Writer = .init(bar.file, bar.io, &bar.write_buf);
         const w = &fw.interface;
+        // The cursor sits one line below the content (plus any below-padding)
+        // after the last render frame. Move up to the content line first.
+        bar.colorizer.cursorUp(w, 1 + bar.opts.padding_lines_below) catch {};
+        bar.colorizer.clearLine(w) catch {};
+        fw.flush() catch {};
+    }
+
+    fn renderFinal(bar: *ProgressBar) !void {
         const total = bar.total.load(.acquire);
         if (total > 0) {
             bar.completed.store(total, .release);
         }
-        try bar.renderInner();
+        // Do a single atomic render: write everything into one buffer
+        // and flush once, avoiding the double-writer issue where
+        // renderInner() flushes its own writer and then renderFinal()
+        // flushes a second writer with just '\n'.
+        var fw: std.Io.File.Writer = .init(bar.file, bar.io, &bar.write_buf);
+        const w = &fw.interface;
+
+        if (bar.term.is_tty and !bar.first_render) {
+            try bar.colorizer.cursorUp(w, bar.opts.padding_lines_above + 1 + bar.opts.padding_lines_below);
+        }
+        bar.first_render = false;
+
+        var i: usize = 0;
+        while (i < bar.opts.padding_lines_above) : (i += 1) {
+            if (bar.opts.bg_color != .default) {
+                try bar.colorizer.begin(w, .default, bar.opts.bg_color, &.{});
+            }
+            try bar.colorizer.clearLine(w);
+            try w.writeByte('\n');
+            if (bar.opts.bg_color != .default) {
+                try bar.colorizer.reset(w);
+            }
+        }
+
+        const line_color = if (bar.opts.color != .default) bar.opts.color else .default;
+        const line_bg_color = bar.opts.bg_color;
+        if (line_color != .default or line_bg_color != .default) {
+            try bar.colorizer.begin(w, line_color, line_bg_color, &.{});
+        }
+        try bar.colorizer.clearLine(w);
+        try bar.renderContent(w);
+        if (line_color != .default or line_bg_color != .default) {
+            try bar.colorizer.reset(w);
+        }
         try w.writeByte('\n');
+
+        i = 0;
+        while (i < bar.opts.padding_lines_below) : (i += 1) {
+            if (bar.opts.bg_color != .default) {
+                try bar.colorizer.begin(w, .default, bar.opts.bg_color, &.{});
+            }
+            try bar.colorizer.clearLine(w);
+            try w.writeByte('\n');
+            if (bar.opts.bg_color != .default) {
+                try bar.colorizer.reset(w);
+            }
+        }
+
+        if (bar.term.is_tty) {
+            try bar.colorizer.cr(w);
+        }
         try fw.flush();
     }
 
-    fn effectiveBarWidth(bar: *const Bar, total: usize) usize {
+    fn effectiveBarWidth(bar: *const ProgressBar, total: usize) usize {
         const term_cols = bar.term.cols;
         var occupied: usize = 0;
 
-        occupied += utils.stringDisplayWidth(bar.opts.custom_start);
-        occupied += utils.stringDisplayWidth(bar.opts.custom_end);
+        occupied += 0;
+        occupied += 0;
 
         if (bar.status_icon) |s_icon| {
             occupied += utils.stringDisplayWidth(s_icon) + 1;
-        } else {
-            if (bar.opts.icon) |icon| {
-                if (icon.len > 0) occupied += utils.stringDisplayWidth(icon) + 1;
-            }
-            if (bar.msg_icon) |icon| {
-                if (icon.len > 0) occupied += utils.stringDisplayWidth(icon) + 1;
-            }
         }
 
         if (bar.opts.show_date and bar.opts.show_time) {
@@ -1236,14 +1155,14 @@ pub const Bar = struct {
         return @max(2, avail);
     }
 
-    fn elapsedSeconds(bar: *const Bar) u64 {
+    fn elapsedSeconds(bar: *const ProgressBar) u64 {
         const now = std.Io.Clock.awake.now(bar.io);
         const elapsed_ns = now.nanoseconds - bar.started_ns;
         const base_s = @as(i64, @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s)));
         return @intCast(@max(0, base_s + bar.opts.start_time_offset_sec));
     }
 
-    fn etaSeconds(bar: *const Bar, completed: usize, total: usize) u64 {
+    fn etaSeconds(bar: *const ProgressBar, completed: usize, total: usize) u64 {
         if (completed >= total) return 0;
         const elapsed = @as(f64, @floatFromInt(bar.elapsedSeconds()));
         if (elapsed <= 0.0) return 0;
@@ -1253,6 +1172,8 @@ pub const Bar = struct {
         return @intFromFloat(remaining / rate);
     }
 };
+
+pub const Bar = ProgressBar;
 
 test "Bar.init default options" {
     const io = std.Options.debug_io;
@@ -1424,26 +1345,20 @@ test "Bar custom icons and succeed/fail statuses" {
         .file = invalid_file,
         .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
         .color_enabled = false,
-        .icon = "🚀",
-        .success_icon = "✨",
-        .failure_icon = "💥",
     });
-    try std.testing.expectEqualSlices(u8, "🚀", bar.getActiveIcon());
+    try std.testing.expectEqualSlices(u8, "", bar.getActiveIcon());
 
     bar.succeed("Success!");
-    try std.testing.expectEqualSlices(u8, "✨", bar.getActiveIcon());
+    try std.testing.expectEqualSlices(u8, "✓", bar.getActiveIcon());
 
     var bar2 = Bar.init(io, .{
         .total = 100,
         .file = invalid_file,
         .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
         .color_enabled = false,
-        .icon = "🚀",
-        .success_icon = "✨",
-        .failure_icon = "💥",
     });
     bar2.fail("Failure!");
-    try std.testing.expectEqualSlices(u8, "💥", bar2.getActiveIcon());
+    try std.testing.expectEqualSlices(u8, "✗", bar2.getActiveIcon());
 }
 
 test "Bar template with {icon} token" {
@@ -1457,7 +1372,6 @@ test "Bar template with {icon} token" {
         .file = invalid_file,
         .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
         .color_enabled = false,
-        .icon = "🚀",
         .template = "{icon} {percent}",
     });
     bar.setCompleted(50);
@@ -1505,7 +1419,7 @@ test "Bar multi-message cycling" {
     try std.testing.expectEqualSlices(u8, "Step 2...", bar.msg_buf[0..bar.msg_len]);
 }
 
-test "Bar callbacks and icon_messages" {
+test "Bar callbacks and messages" {
     const io = std.Options.debug_io;
     const invalid_file = std.Io.File{
         .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
@@ -1515,36 +1429,32 @@ test "Bar callbacks and icon_messages" {
     const TestCb = struct {
         var progress_calls: usize = 0;
         var complete_calls: usize = 0;
-        pub fn progress(b: *Bar, completed: usize, total: usize) void {
+        pub fn progress(b: *ProgressBar, completed: usize, total: usize) void {
             _ = b;
             _ = completed;
             _ = total;
             progress_calls += 1;
         }
-        pub fn complete(b: *Bar) void {
+        pub fn complete(b: *ProgressBar) void {
             _ = b;
             complete_calls += 1;
         }
     };
 
-    const msgs = [_]Message{
-        .{ .text = "First", .icon = "⭐" },
-        .{ .text = "Second", .icon = "🔥" },
-    };
+    const msgs = &.{ "First", "Second" };
 
     var bar = Bar.init(io, .{
         .total = 10,
         .file = invalid_file,
         .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
         .color_enabled = false,
-        .icon_messages = &msgs,
+        .messages = msgs,
         .message_interval_ms = 5,
         .disable_new_line = false,
         .on_progress = TestCb.progress,
         .on_complete = TestCb.complete,
     });
 
-    try std.testing.expectEqualSlices(u8, "⭐", bar.msg_icon.?);
     try std.testing.expectEqualSlices(u8, "First", bar.msg_buf[0..bar.msg_len]);
 
     bar.setCompleted(5);
@@ -1598,7 +1508,7 @@ pub fn ProgressReader(comptime ReaderType: type) type {
     return struct {
         const Self = @This();
         underlying_reader: ReaderType,
-        bar: *Bar,
+        bar: *ProgressBar,
 
         pub fn read(self: *Self, dest: []u8) !usize {
             const bytes_read = try self.underlying_reader.read(dest);
@@ -1636,7 +1546,7 @@ pub fn ProgressReader(comptime ReaderType: type) type {
     };
 }
 
-pub fn progressReader(bar: *Bar, underlying: anytype) ProgressReader(@TypeOf(underlying)) {
+pub fn progressReader(bar: *ProgressBar, underlying: anytype) ProgressReader(@TypeOf(underlying)) {
     return .{
         .underlying_reader = underlying,
         .bar = bar,
@@ -1647,7 +1557,7 @@ pub fn ProgressWriter(comptime WriterType: type) type {
     return struct {
         const Self = @This();
         underlying_writer: WriterType,
-        bar: *Bar,
+        bar: *ProgressBar,
 
         pub fn write(self: *Self, bytes: []const u8) !usize {
             const bytes_written = try self.underlying_writer.write(bytes);
@@ -1681,7 +1591,7 @@ pub fn ProgressWriter(comptime WriterType: type) type {
     };
 }
 
-pub fn progressWriter(bar: *Bar, underlying: anytype) ProgressWriter(@TypeOf(underlying)) {
+pub fn progressWriter(bar: *ProgressBar, underlying: anytype) ProgressWriter(@TypeOf(underlying)) {
     return .{
         .underlying_writer = underlying,
         .bar = bar,
@@ -1690,10 +1600,10 @@ pub fn progressWriter(bar: *Bar, underlying: anytype) ProgressWriter(@TypeOf(und
 
 pub const ProgressIoReader = struct {
     underlying: *std.Io.Reader,
-    bar: *Bar,
+    bar: *ProgressBar,
     interface: std.Io.Reader,
 
-    pub fn init(bar: *Bar, underlying: *std.Io.Reader) ProgressIoReader {
+    pub fn init(bar: *ProgressBar, underlying: *std.Io.Reader) ProgressIoReader {
         return .{
             .underlying = underlying,
             .bar = bar,
@@ -1722,16 +1632,16 @@ pub const ProgressIoReader = struct {
     }
 };
 
-pub fn progressIoReader(bar: *Bar, underlying: *std.Io.Reader) ProgressIoReader {
+pub fn progressIoReader(bar: *ProgressBar, underlying: *std.Io.Reader) ProgressIoReader {
     return ProgressIoReader.init(bar, underlying);
 }
 
 pub const ProgressIoWriter = struct {
     underlying: *std.Io.Writer,
-    bar: *Bar,
+    bar: *ProgressBar,
     interface: std.Io.Writer,
 
-    pub fn init(bar: *Bar, underlying: *std.Io.Writer) ProgressIoWriter {
+    pub fn init(bar: *ProgressBar, underlying: *std.Io.Writer) ProgressIoWriter {
         return .{
             .underlying = underlying,
             .bar = bar,
@@ -1766,7 +1676,7 @@ pub const ProgressIoWriter = struct {
     }
 };
 
-pub fn progressIoWriter(bar: *Bar, underlying: *std.Io.Writer) ProgressIoWriter {
+pub fn progressIoWriter(bar: *ProgressBar, underlying: *std.Io.Writer) ProgressIoWriter {
     return ProgressIoWriter.init(bar, underlying);
 }
 
@@ -1849,4 +1759,255 @@ test "Bar ProgressReader and ProgressWriter" {
     // Both reader and writer are wrapped, so completion increments by 2x data.len
     try std.testing.expectEqual(data.len * 2, bar.completed.load(.acquire));
     try std.testing.expectEqualSlices(u8, data, dest_buf2[0..data.len]);
+}
+
+// ============================================================================
+// Template rendering engine (inlined from format.zig)
+// ============================================================================
+
+/// Context passed to the template renderer describing bar state.
+pub const RenderCtx = struct {
+    label: []const u8 = "",
+    completed: usize = 0,
+    total: usize = 0,
+    elapsed_s: u64 = 0,
+    eta_s: u64 = 0,
+    rate: f64 = 0.0,
+    unit_is_bytes: bool = false,
+    unit: []const u8 = "",
+    message: []const u8 = "",
+    timestamp_s: i64 = 0,
+    bar_width: usize = 20,
+    style: BarStyle = .{},
+    colorizer: Colorizer = .{ .enabled = false, .ansi_enabled = false },
+    spinner_frame: usize = 0,
+    spinner_frames: []const []const u8 = &.{ "|", "/", "-", "\\" },
+    spinner_color: Color = .default,
+    spinner_bg_color: Color = .default,
+    status_icon: ?[]const u8 = null,
+    status_color: Color = .default,
+    line_color: Color = .default,
+    line_bg_color: Color = .default,
+    fill_color: Color = .default,
+    empty_color: Color = .default,
+};
+
+/// Render a format template string to `w` using the provided context.
+///
+/// Supported tokens: `{label}`, `{bar}`, `{percent}`, `{elapsed}`, `{eta}`,
+/// `{rate}`, `{count}`, `{time}`, `{date}`, `{message}`, `{spinner}`, `{icon}`
+pub fn renderTemplate(w: *std.Io.Writer, template: []const u8, ctx: *const RenderCtx) !void {
+    if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+        try ctx.colorizer.begin(w, ctx.line_color, ctx.line_bg_color, &.{});
+    }
+    var rest = template;
+    while (rest.len > 0) {
+        if (std.mem.indexOf(u8, rest, "{")) |brace_start| {
+            if (brace_start > 0) {
+                try w.writeAll(rest[0..brace_start]);
+            }
+            const after_brace = rest[brace_start + 1 ..];
+            if (std.mem.indexOf(u8, after_brace, "}")) |brace_end| {
+                const token = after_brace[0..brace_end];
+                try renderToken(w, token, ctx);
+                rest = after_brace[brace_end + 1 ..];
+            } else {
+                try w.writeAll(rest[brace_start..]);
+                break;
+            }
+        } else {
+            try w.writeAll(rest);
+            break;
+        }
+    }
+    if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+        try ctx.colorizer.reset(w);
+    }
+}
+
+fn renderToken(w: *std.Io.Writer, token: []const u8, ctx: *const RenderCtx) !void {
+    if (std.mem.eql(u8, token, "icon")) {
+        if (ctx.status_icon) |s_icon| {
+            if (s_icon.len > 0) {
+                try color_mod.writeColored(w, ctx.colorizer, s_icon, ctx.status_color, .default, &.{.bold});
+                try w.writeByte(' ');
+            }
+        }
+    } else if (std.mem.eql(u8, token, "label")) {
+        try w.writeAll(ctx.label);
+    } else if (std.mem.eql(u8, token, "bar")) {
+        try renderBarFill(w, ctx);
+        if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+            try ctx.colorizer.begin(w, ctx.line_color, ctx.line_bg_color, &.{});
+        }
+    } else if (std.mem.eql(u8, token, "percent")) {
+        if (ctx.total > 0) {
+            var buf: [8]u8 = undefined;
+            const frac = utils.fraction(ctx.completed, ctx.total);
+            const pct_str = utils.formatPercent(&buf, frac);
+            try w.writeAll(pct_str);
+        } else {
+            try w.writeAll("  ?%");
+        }
+    } else if (std.mem.eql(u8, token, "elapsed")) {
+        var buf: [16]u8 = undefined;
+        try w.writeAll(utils.formatEta(&buf, ctx.elapsed_s));
+    } else if (std.mem.eql(u8, token, "eta")) {
+        if (ctx.total > 0 and ctx.completed > 0 and ctx.eta_s > 0) {
+            var buf: [16]u8 = undefined;
+            try w.writeAll(utils.formatEta(&buf, ctx.eta_s));
+        } else {
+            try w.writeAll("?:??");
+        }
+    } else if (std.mem.eql(u8, token, "rate")) {
+        if (ctx.rate > 0) {
+            var buf: [32]u8 = undefined;
+            try w.writeAll(utils.formatRate(&buf, ctx.rate, ctx.unit_is_bytes));
+        } else {
+            try w.writeAll("?/s");
+        }
+    } else if (std.mem.eql(u8, token, "count")) {
+        var buf: [64]u8 = undefined;
+        try w.writeAll(utils.formatCount(&buf, ctx.completed, ctx.total, ctx.unit));
+    } else if (std.mem.eql(u8, token, "time")) {
+        var buf: [16]u8 = undefined;
+        try w.writeAll(utils.formatTime(&buf, ctx.timestamp_s));
+    } else if (std.mem.eql(u8, token, "date")) {
+        var buf: [16]u8 = undefined;
+        try w.writeAll(utils.formatDate(&buf, ctx.timestamp_s));
+    } else if (std.mem.eql(u8, token, "message")) {
+        try w.writeAll(ctx.message);
+    } else if (std.mem.eql(u8, token, "spinner")) {
+        if (ctx.spinner_frames.len > 0) {
+            const frame = ctx.spinner_frames[ctx.spinner_frame % ctx.spinner_frames.len];
+            try color_mod.writeColored(w, ctx.colorizer, frame, ctx.spinner_color, ctx.spinner_bg_color, &.{});
+            try w.writeByte(' ');
+            if (ctx.line_color != .default or ctx.line_bg_color != .default) {
+                try ctx.colorizer.begin(w, ctx.line_color, ctx.line_bg_color, &.{});
+            }
+        }
+    } else {
+        try w.writeByte('{');
+        try w.writeAll(token);
+        try w.writeByte('}');
+    }
+}
+
+fn renderBarFill(w: *std.Io.Writer, ctx: *const RenderCtx) !void {
+    const bar_width = ctx.bar_width;
+    const s = ctx.style;
+    const c = ctx.colorizer;
+
+    const fill_fg_col = if (ctx.fill_color != .default) ctx.fill_color else s.fill_fg;
+    const empty_fg_col = if (ctx.empty_color != .default) ctx.empty_color else s.empty_fg;
+    const fill_bg_col = s.fill_bg;
+    const empty_bg_col = s.empty_bg;
+
+    if (ctx.total == 0) {
+        const bounce_len = @max(1, bar_width / 5);
+        const range = bar_width -| bounce_len;
+        const pos = if (range == 0) 0 else blk: {
+            const cycle = range * 2;
+            const t = ctx.completed % cycle;
+            break :blk if (t <= range) t else cycle - t;
+        };
+        var i: usize = 0;
+        while (i < bar_width) : (i += 1) {
+            if (i >= pos and i < pos + bounce_len) {
+                if (s.fill_gradient) |grad| {
+                    const gt = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(gt), fill_bg_col, s.attrs);
+                } else {
+                    try c.begin(w, fill_fg_col, fill_bg_col, s.attrs);
+                }
+                try w.writeAll(s.fill);
+                try c.reset(w);
+            } else {
+                try c.begin(w, empty_fg_col, empty_bg_col, &.{});
+                try w.writeAll(s.empty);
+                try c.reset(w);
+            }
+        }
+        return;
+    }
+
+    const frac = utils.fraction(ctx.completed, ctx.total);
+    const filled = @as(usize, @intFromFloat(@as(f64, @floatFromInt(bar_width)) * frac));
+    const filled_clamped = @min(filled, bar_width);
+    const empty = bar_width - filled_clamped;
+    const is_complete = ctx.total > 0 and ctx.completed >= ctx.total;
+    const use_complete = is_complete and s.complete_fg != .default;
+
+    if (filled_clamped > 0) {
+        if (use_complete) {
+            try c.begin(w, s.complete_fg, fill_bg_col, s.attrs);
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) try w.writeAll(s.fill);
+                try w.writeAll(s.tip);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) try w.writeAll(s.fill);
+            }
+            try c.reset(w);
+        } else if (s.fill_gradient) |grad| {
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) {
+                    const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(t), fill_bg_col, s.attrs);
+                    try w.writeAll(s.fill);
+                    try c.reset(w);
+                }
+                const tip_t = if (bar_width > 1) @as(f64, @floatFromInt(filled_clamped -| 1)) / @as(f64, @floatFromInt(bar_width - 1)) else 1.0;
+                try c.begin(w, grad.at(tip_t), fill_bg_col, s.attrs);
+                try w.writeAll(s.tip);
+                try c.reset(w);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) {
+                    const t = if (bar_width > 1) @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                    try c.begin(w, grad.at(t), fill_bg_col, s.attrs);
+                    try w.writeAll(s.fill);
+                    try c.reset(w);
+                }
+            }
+        } else {
+            try c.begin(w, fill_fg_col, fill_bg_col, s.attrs);
+            if (s.tip.len > 0 and filled_clamped < bar_width) {
+                var i: usize = 0;
+                while (i < filled_clamped -| 1) : (i += 1) try w.writeAll(s.fill);
+                try w.writeAll(s.tip);
+            } else {
+                var i: usize = 0;
+                while (i < filled_clamped) : (i += 1) try w.writeAll(s.fill);
+            }
+            try c.reset(w);
+        }
+    }
+
+    if (empty > 0) {
+        if (s.empty_gradient) |grad| {
+            var i: usize = 0;
+            while (i < empty) : (i += 1) {
+                const offset = filled_clamped + i;
+                const t = if (bar_width > 1) @as(f64, @floatFromInt(offset)) / @as(f64, @floatFromInt(bar_width - 1)) else 0.0;
+                try c.begin(w, grad.at(t), empty_bg_col, &.{});
+                try w.writeAll(s.empty);
+                try c.reset(w);
+            }
+        } else {
+            try c.begin(w, empty_fg_col, empty_bg_col, &.{});
+            var i: usize = 0;
+            while (i < empty) : (i += 1) try w.writeAll(s.empty);
+            try c.reset(w);
+        }
+    }
+}
+
+/// Check if `template` contains a given token.
+pub fn hasToken(template: []const u8, token: []const u8) bool {
+    var needle_buf: [64]u8 = undefined;
+    const needle = std.fmt.bufPrint(&needle_buf, "{{{s}}}", .{token}) catch return false;
+    return std.mem.indexOf(u8, template, needle) != null;
 }

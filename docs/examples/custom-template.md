@@ -38,7 +38,7 @@ pub fn main(init: std.process.Init) !void {
         .fill_fg = .cyan,
     };
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .total = total_steps,
         .style = custom_bar_style,
         .show_percent = true,

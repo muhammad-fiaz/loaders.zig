@@ -19,7 +19,7 @@ head:
 ## Quick Start
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Downloading",
     .total = 100,
     .style = .{
@@ -56,7 +56,7 @@ const my_gradient = loaders.Gradient{
     },
 };
 
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Custom",
     .total = 100,
     .style = .{
@@ -95,7 +95,7 @@ var sp = try loaders.Spinner.start(io, .{
 Combine gradients with custom fill characters for unique effects:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Fire",
     .total = 100,
     .style = .{
@@ -112,7 +112,7 @@ var bar = loaders.Bar.init(io, .{
 Apply a gradient to the unfilled portion:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .label = "Dual Gradient",
     .total = 100,
     .style = .{
@@ -127,7 +127,7 @@ var bar = loaders.Bar.init(io, .{
 Use gradient bars in custom format templates:
 
 ```zig
-var bar = loaders.Bar.init(io, .{
+var bar = loaders.ProgressBar.init(io, .{
     .template = "{label} [{bar}] {percent}",
     .style = .{
         .fill_gradient = loaders.Gradient.ocean,

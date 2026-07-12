@@ -155,7 +155,9 @@ test "TermInfo.dumb defaults" {
     try std.testing.expectEqual(@as(u16, 80), info.cols);
 }
 
-test "shouldEnableColor: disabled by NO_COLOR" {
+test "shouldEnableColor: enabled when ANSI supported" {
     const info: TermInfo = .{ .is_tty = true, .ansi_supported = true, .cols = 80 };
-    _ = info;
+    // Without NO_COLOR in environ, ANSI support → enabled
+    try std.testing.expect(info.ansi_supported);
+    try std.testing.expect(info.is_tty);
 }

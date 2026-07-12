@@ -53,7 +53,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     for (named_colors) |nc| {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .width = 25,
             .label = nc.name,
@@ -69,7 +69,7 @@ pub fn main(init: std.process.Init) !void {
     std.debug.print("\n2. 256-color palette (every 32nd color):\n", .{});
     var palette_idx: u8 = 0;
     while (true) {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .width = 25,
             .label = "ansi256",
@@ -97,7 +97,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     for (rgb_colors) |rc| {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .width = 25,
             .label = rc.name,
@@ -120,7 +120,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     for (hex_colors) |hc| {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .width = 25,
             .label = hc.name,
@@ -156,7 +156,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     for (styles) |st| {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .total = 100,
             .width = 25,
             .label = st.name,

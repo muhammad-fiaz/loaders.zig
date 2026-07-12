@@ -52,12 +52,8 @@ pub const BatchTask = struct {
     info_icon: ?[]const u8 = null,
     color: Color = .default,
     bg_color: Color = .default,
-    label_color: Color = .default,
-    label_bg_color: Color = .default,
     fill_color: Color = .default,
-    fill_bg_color: Color = .default,
     empty_color: Color = .default,
-    empty_bg_color: Color = .default,
     /// Number of empty padding lines printed above this task line.
     padding_lines_above: usize = 0,
     /// Number of empty padding lines printed below this task line.
@@ -102,14 +98,31 @@ pub const BatchOptions = struct {
     info_icon: ?[]const u8 = null,
     /// Maximum visual column width for task name (0 = no limit). Truncates if exceeded.
     max_name_width: usize = 0,
-    /// Spacing gap after icons (defaults to " ").
-    icon_gap: []const u8 = " ",
-    /// Spacing gap after task label/name (defaults to " ").
-    label_gap: []const u8 = " ",
-    /// Spacing gap after task state icon (defaults to " ").
-    state_gap: []const u8 = " ",
     /// Number of empty lines to print between individual tasks.
     spacing_lines: usize = 0,
+    /// Pre-configured tasks. Each entry declares name, total, and all per-task
+    /// overrides (color, icons, style, padding, etc.) in one place.
+    /// Tasks are created in order during `init`.
+    tasks: []const TaskInit = &.{},
+};
+
+/// Initializer for a single task, used inside `BatchOptions.tasks`.
+/// All fields default to "no override" so you only specify what you need.
+pub const TaskInit = struct {
+    name: []const u8 = "",
+    total: usize = 0,
+    style: ?BarStyle = null,
+    icon: ?[]const u8 = null,
+    success_icon: ?[]const u8 = null,
+    failure_icon: ?[]const u8 = null,
+    warning_icon: ?[]const u8 = null,
+    info_icon: ?[]const u8 = null,
+    color: Color = .default,
+    bg_color: Color = .default,
+    fill_color: Color = .default,
+    empty_color: Color = .default,
+    padding_lines_above: usize = 0,
+    padding_lines_below: usize = 0,
 };
 
 /// A grouped multi-task progress renderer.
@@ -125,14 +138,14 @@ pub const BatchBar = struct {
     write_buf: [8192]u8,
     done_flag: bool,
 
-    /// Initialize a BatchBar.
+    /// Initialize a BatchBar. Tasks declared in `opts.tasks` are created automatically.
     pub fn init(io: std.Io, opts: BatchOptions) BatchBar {
         terminal.setupTerminal();
         const file = opts.file orelse std.Io.File.stderr();
         const ti = opts.term orelse terminal.query(file, io);
         const color_on = opts.color_enabled orelse ti.ansi_supported;
 
-        return .{
+        var bb = BatchBar{
             .io = io,
             .opts = opts,
             .tasks = undefined,
@@ -148,6 +161,41 @@ pub const BatchBar = struct {
             .write_buf = undefined,
             .done_flag = false,
         };
+
+        for (opts.tasks) |tc| {
+            _ = bb.addTaskInit(tc);
+        }
+
+        return bb;
+    }
+
+    /// Add a task from a `TaskInit` config. Returns its task index.
+    pub fn addTaskInit(bb: *BatchBar, tc: TaskInit) usize {
+        const i = bb.count;
+        std.debug.assert(i < max_tasks);
+        bb.tasks[i] = BatchTask{
+            .total = tc.total,
+            .completed = std.atomic.Value(usize).init(0),
+            .state = .pending,
+            .style = tc.style orelse bb.opts.style,
+            .icon = tc.icon,
+            .success_icon = tc.success_icon,
+            .failure_icon = tc.failure_icon,
+            .warning_icon = tc.warning_icon,
+            .info_icon = tc.info_icon,
+            .color = tc.color,
+            .bg_color = tc.bg_color,
+            .fill_color = tc.fill_color,
+            .empty_color = tc.empty_color,
+            .padding_lines_above = tc.padding_lines_above,
+            .padding_lines_below = tc.padding_lines_below,
+        };
+        const len = @min(tc.name.len, 127);
+        @memcpy(bb.tasks[i].name[0..len], tc.name[0..len]);
+        bb.tasks[i].name[len] = 0;
+        bb.tasks[i].name_len = len;
+        bb.count += 1;
+        return i;
     }
 
     /// Add a task with a name and total steps. Returns its task index.
@@ -159,13 +207,8 @@ pub const BatchBar = struct {
             .completed = std.atomic.Value(usize).init(0),
             .state = .pending,
             .style = bb.opts.style,
-            .icon = null,
-            .success_icon = null,
-            .failure_icon = null,
-            .warning_icon = null,
-            .info_icon = null,
             .color = .default,
-            .label_color = .default,
+            .bg_color = .default,
             .fill_color = .default,
             .empty_color = .default,
         };
@@ -212,13 +255,17 @@ pub const BatchBar = struct {
     /// Mark a task as completed with warning.
     pub fn setTaskWarning(bb: *BatchBar, idx: usize) void {
         std.debug.assert(idx < bb.count);
-        bb.tasks[idx].state = .warn;
+        const t = &bb.tasks[idx];
+        t.completed.store(t.total, .release);
+        t.state = .warn;
     }
 
     /// Mark a task as completed with info.
     pub fn setTaskInfo(bb: *BatchBar, idx: usize) void {
         std.debug.assert(idx < bb.count);
-        bb.tasks[idx].state = .info;
+        const t = &bb.tasks[idx];
+        t.completed.store(t.total, .release);
+        t.state = .info;
     }
 
     /// Render all task bars in-place.
@@ -280,29 +327,8 @@ pub const BatchBar = struct {
                 }
             }
 
-            const state_col: color_mod.Color = switch (t.state) {
-                .done => .green,
-                .failed => .red,
-                .warn => .yellow,
-                .info => .cyan,
-                else => .default,
-            };
-
-            const line_color = if (t.color != .default)
-                t.color
-            else if (state_col != .default)
-                state_col
-            else
-                .default;
-
-            if (line_color != .default or t.bg_color != .default) {
-                try bb.colorizer.begin(w, line_color, t.bg_color, &.{});
-            }
             try bb.colorizer.clearLine(w);
             try bb.renderTask(w, t);
-            if (line_color != .default or t.bg_color != .default) {
-                try bb.colorizer.reset(w);
-            }
             try w.writeByte('\n');
 
             i = 0;
@@ -354,7 +380,7 @@ pub const BatchBar = struct {
                     try c.reset(w);
                 }
                 try w.writeAll(icon);
-                try w.writeAll(bb.opts.icon_gap);
+                try w.writeAll(" ");
                 if (line_color != .default or line_bg_color != .default) {
                     try c.begin(w, line_color, line_bg_color, &.{});
                 }
@@ -367,7 +393,8 @@ pub const BatchBar = struct {
             .running => try color_mod.writeColored(w, c, "●", .cyan, .default, &.{}),
             .done => {
                 const sym = t.success_icon orelse bb.opts.success_icon orelse "✓";
-                try color_mod.writeColored(w, c, sym, .green, .default, &.{.bold});
+                const sym_color = if (s.complete_fg != .default) s.complete_fg else .green;
+                try color_mod.writeColored(w, c, sym, sym_color, .default, &.{.bold});
             },
             .failed => {
                 const sym = t.failure_icon orelse bb.opts.failure_icon orelse "✗";
@@ -375,15 +402,17 @@ pub const BatchBar = struct {
             },
             .warn => {
                 const sym = t.warning_icon orelse bb.opts.warning_icon orelse "⚠";
-                try color_mod.writeColored(w, c, sym, .yellow, .default, &.{.bold});
+                const sym_color = if (s.complete_fg != .default) s.complete_fg else .yellow;
+                try color_mod.writeColored(w, c, sym, sym_color, .default, &.{.bold});
             },
             .info => {
                 const sym = t.info_icon orelse bb.opts.info_icon orelse "ℹ";
-                try color_mod.writeColored(w, c, sym, .cyan, .default, &.{.bold});
+                const sym_color = if (s.complete_fg != .default) s.complete_fg else .cyan;
+                try color_mod.writeColored(w, c, sym, sym_color, .default, &.{.bold});
             },
         }
 
-        try w.writeAll(bb.opts.state_gap);
+        try w.writeAll(" ");
 
         if (line_color != .default or line_bg_color != .default) {
             try c.begin(w, line_color, line_bg_color, &.{});
@@ -397,16 +426,8 @@ pub const BatchBar = struct {
         else
             name_slice;
 
-        if (t.label_color != .default or t.label_bg_color != .default) {
-            try color_mod.writeColored(w, c, name_str, t.label_color, t.label_bg_color, &.{});
-            try w.writeAll(bb.opts.label_gap);
-            if (line_color != .default or line_bg_color != .default) {
-                try c.begin(w, line_color, line_bg_color, &.{});
-            }
-        } else {
-            try w.writeAll(name_str);
-            try w.writeAll(bb.opts.label_gap);
-        }
+        try w.writeAll(name_str);
+        try w.writeAll(" ");
 
         // Left bracket
         try w.writeAll(s.left_bracket);
@@ -419,10 +440,10 @@ pub const BatchBar = struct {
             @max(10, @as(usize, bb.term.cols) / 2 -| visual_name_len -| 20);
 
         const fill_fg_col = if (t.fill_color != .default) t.fill_color else s.fill_fg;
-        const fill_bg_col = if (t.fill_bg_color != .default) t.fill_bg_color else s.fill_bg;
+        const fill_bg_col = s.fill_bg;
         const empty_fg_col = if (t.empty_color != .default) t.empty_color else s.empty_fg;
-        const empty_bg_col = if (t.empty_bg_color != .default) t.empty_bg_color else s.empty_bg;
-        const is_task_complete = t.state == .done or t.state == .failed;
+        const empty_bg_col = s.empty_bg;
+        const is_task_complete = t.state != .pending and t.state != .running;
         const use_complete = is_task_complete and s.complete_fg != .default;
 
         if (total == 0) {

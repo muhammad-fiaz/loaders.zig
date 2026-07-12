@@ -6,7 +6,7 @@ pub fn main(init: std.process.Init) !void {
 
     std.debug.print("--- Dynamic ETA and Rate Simulation ---\n", .{});
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Processing",
         .total = 1000,
         .show_percent = true,

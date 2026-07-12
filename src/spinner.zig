@@ -30,12 +30,6 @@ pub const Options = struct {
     term: ?terminal.TermInfo = null,
     /// Enable color. If null, auto-detected.
     color_enabled: ?bool = null,
-    /// Prefix character(s) shown before the glyph (e.g. empty string or "  ").
-    prefix: []const u8 = "",
-    /// Printed at the absolute start of the spinner line.
-    custom_start: []const u8 = "",
-    /// Printed at the absolute end of the spinner line.
-    custom_end: []const u8 = "",
     /// Whether to show current date [YYYY-MM-DD].
     show_date: bool = false,
     /// Whether to show current time [HH:MM:SS].
@@ -56,8 +50,6 @@ pub const Options = struct {
     spinner_color: Color = .default,
     /// Color used for the entire spinner line. `.default` = use sub-component colors.
     color: Color = .default,
-    /// Optional running icon prefix.
-    icon: ?[]const u8 = null,
     /// Optional custom success icon.
     success_icon: ?[]const u8 = null,
     /// Optional custom failure icon.
@@ -68,8 +60,6 @@ pub const Options = struct {
     info_icon: ?[]const u8 = null,
     /// Array of messages to cycle through during run.
     messages: ?[]const []const u8 = null,
-    /// Array of message-icon objects to cycle through during run.
-    icon_messages: ?[]const Message = null,
     /// Interval in milliseconds to transition messages.
     message_interval_ms: u32 = 1500,
     /// Format time as 12-hour AM/PM format (defaults to 24-hour).
@@ -78,12 +68,6 @@ pub const Options = struct {
     max_text_width: usize = 0,
     /// Maximum suffix width limit (0 = no limit). Truncates suffix if exceeded.
     max_suffix_width: usize = 0,
-    /// Spacing gap after icons (defaults to " ").
-    icon_gap: []const u8 = " ",
-    /// Spacing gap after spinner/status glyph (defaults to " ").
-    text_gap: []const u8 = " ",
-    /// Spacing gap after date/time prefix (defaults to " ").
-    datetime_gap: []const u8 = " ",
     /// Background color override for the spinner text. `.default` = no color.
     text_bg_color: Color = .default,
     /// Background color override for the spinner glyph. `.default` = no color.
@@ -108,6 +92,9 @@ pub const Options = struct {
     on_warn: ?*const fn (sp: *Spinner) void = null,
     /// Callback when spinner provides info (info() called).
     on_info: ?*const fn (sp: *Spinner) void = null,
+    /// When true, the spinner line is erased from the terminal after
+    /// stop/succeed/fail/warn/info instead of printing the final state.
+    hide_after_done: bool = false,
 };
 
 /// An animated spinner that runs its render loop on a background thread.
@@ -131,7 +118,6 @@ pub const Spinner = struct {
 
     // Static text storage (updated atomically)
     text_buf: [256:0]u8,
-    msg_icon: ?[]const u8,
 
     /// Start the spinner. Spawns a background render thread.
     /// Must call `stop`, `succeed`, or `fail` to clean up.
@@ -148,8 +134,6 @@ pub const Spinner = struct {
 
         var resolved_opts = opts;
         resolved_opts.file = file;
-
-        const initial_icon = if (opts.icon_messages) |imsgs| (if (imsgs.len > 0) imsgs[0].icon else null) else null;
 
         const now = std.Io.Clock.awake.now(io);
 
@@ -169,16 +153,17 @@ pub const Spinner = struct {
             .text = undefined,
             .thread = undefined,
             .text_buf = @splat(0),
-            .msg_icon = initial_icon,
         };
 
-        const initial_message = if (opts.icon_messages) |imsgs| (if (imsgs.len > 0) imsgs[0].text else opts.text) else if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.text) else opts.text;
+        const initial_message = if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.text) else opts.text;
         sp.updateText(initial_message);
         sp.text = std.atomic.Value([*:0]const u8).init(sp.text_buf[0..].ptr);
 
         if (sp.term.is_tty) {
             sp.thread = try std.Thread.spawn(.{}, renderLoop, .{ sp, io });
         }
+        // In non-TTY mode, we skip the initial print.
+        // The final state will be printed by printFinal when succeed/fail/warn/info is called.
 
         return sp;
     }
@@ -218,14 +203,20 @@ pub const Spinner = struct {
         if (sp.term.is_tty) {
             sp.thread.join();
         }
-        const sym = sp.opts.success_icon orelse "✓";
-        const final_text = if (text.len > 0)
-            text
-        else if (sp.opts.complete_message.len > 0)
-            sp.opts.complete_message
-        else
-            std.mem.sliceTo(&sp.text_buf, 0);
-        sp.printFinal(io, final_text, sym, .green);
+        if (sp.opts.hide_after_done) {
+            if (sp.term.is_tty) {
+                sp.eraseLine(io);
+            }
+        } else {
+            const sym = sp.opts.success_icon orelse "✓";
+            const final_text = if (text.len > 0)
+                text
+            else if (sp.opts.complete_message.len > 0)
+                sp.opts.complete_message
+            else
+                std.mem.sliceTo(&sp.text_buf, 0);
+            sp.printFinal(io, final_text, sym, .green);
+        }
         if (sp.opts.on_success) |cb| {
             cb(sp);
         }
@@ -242,14 +233,20 @@ pub const Spinner = struct {
         if (sp.term.is_tty) {
             sp.thread.join();
         }
-        const sym = sp.opts.failure_icon orelse "✗";
-        const final_text = if (text.len > 0)
-            text
-        else if (sp.opts.complete_message.len > 0)
-            sp.opts.complete_message
-        else
-            std.mem.sliceTo(&sp.text_buf, 0);
-        sp.printFinal(io, final_text, sym, .red);
+        if (sp.opts.hide_after_done) {
+            if (sp.term.is_tty) {
+                sp.eraseLine(io);
+            }
+        } else {
+            const sym = sp.opts.failure_icon orelse "✗";
+            const final_text = if (text.len > 0)
+                text
+            else if (sp.opts.complete_message.len > 0)
+                sp.opts.complete_message
+            else
+                std.mem.sliceTo(&sp.text_buf, 0);
+            sp.printFinal(io, final_text, sym, .red);
+        }
         if (sp.opts.on_failure) |cb| {
             cb(sp);
         }
@@ -266,14 +263,20 @@ pub const Spinner = struct {
         if (sp.term.is_tty) {
             sp.thread.join();
         }
-        const sym = sp.opts.warning_icon orelse "⚠";
-        const final_text = if (text.len > 0)
-            text
-        else if (sp.opts.complete_message.len > 0)
-            sp.opts.complete_message
-        else
-            std.mem.sliceTo(&sp.text_buf, 0);
-        sp.printFinal(io, final_text, sym, .yellow);
+        if (sp.opts.hide_after_done) {
+            if (sp.term.is_tty) {
+                sp.eraseLine(io);
+            }
+        } else {
+            const sym = sp.opts.warning_icon orelse "⚠";
+            const final_text = if (text.len > 0)
+                text
+            else if (sp.opts.complete_message.len > 0)
+                sp.opts.complete_message
+            else
+                std.mem.sliceTo(&sp.text_buf, 0);
+            sp.printFinal(io, final_text, sym, .yellow);
+        }
         if (sp.opts.on_warn) |cb| {
             cb(sp);
         }
@@ -290,14 +293,20 @@ pub const Spinner = struct {
         if (sp.term.is_tty) {
             sp.thread.join();
         }
-        const sym = sp.opts.info_icon orelse "ℹ";
-        const final_text = if (text.len > 0)
-            text
-        else if (sp.opts.complete_message.len > 0)
-            sp.opts.complete_message
-        else
-            std.mem.sliceTo(&sp.text_buf, 0);
-        sp.printFinal(io, final_text, sym, .cyan);
+        if (sp.opts.hide_after_done) {
+            if (sp.term.is_tty) {
+                sp.eraseLine(io);
+            }
+        } else {
+            const sym = sp.opts.info_icon orelse "ℹ";
+            const final_text = if (text.len > 0)
+                text
+            else if (sp.opts.complete_message.len > 0)
+                sp.opts.complete_message
+            else
+                std.mem.sliceTo(&sp.text_buf, 0);
+            sp.printFinal(io, final_text, sym, .cyan);
+        }
         if (sp.opts.on_info) |cb| {
             cb(sp);
         }
@@ -312,16 +321,72 @@ pub const Spinner = struct {
         var buf: [512]u8 = undefined;
         var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
         const w = &fw.interface;
-        if (sp.opts.custom_start.len > 0) {
-            try w.writeAll(sp.opts.custom_start);
+
+        // Apply line background color
+        const line_bg = sp.opts.bg_color;
+        if (line_bg != .default) {
+            sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
         }
-        try w.print("{s} {s}", .{ sp.opts.prefix, text });
+
+        // Print datetime
+        const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
+        const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
+        if (sp.opts.show_date and sp.opts.show_time) {
+            var dbuf: [16]u8 = undefined;
+            var tbuf: [32]u8 = undefined;
+            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
+            w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
+        } else if (sp.opts.show_date) {
+            var dbuf: [16]u8 = undefined;
+            w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
+        } else if (sp.opts.show_time) {
+            var tbuf: [32]u8 = undefined;
+            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
+            w.print("[{s}] ", .{t_str}) catch {};
+        }
+
+        // Re-apply line bg after icons
+        if (line_bg != .default) {
+            sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
+        }
+
+        // Print spinner glyph
+        const glyph = sp.opts.style.frames[0];
+        const glyph_color = if (sp.opts.style.gradient) |grad|
+            grad.at(0.0)
+        else if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
+        color_mod.writeColored(w, sp.colorizer, glyph, glyph_color, sp.opts.spinner_bg_color, sp.opts.style.attrs) catch {};
+        try w.writeAll(" ");
+
+        // Print text with text_color/text_bg_color
+        const text_color = sp.opts.text_color;
+        const text_bg = sp.opts.text_bg_color;
+        if (text_color != .default or text_bg != .default) {
+            sp.colorizer.begin(w, text_color, text_bg, &.{}) catch {};
+        }
+        try w.writeAll(text);
+        if (text_color != .default or text_bg != .default) {
+            sp.colorizer.reset(w) catch {};
+            // Restore line bg after text
+            if (line_bg != .default) {
+                sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
+            }
+        }
+
+        // Print suffix with truncation
         if (sp.opts.suffix.len > 0) {
-            try w.print(" {s}", .{sp.opts.suffix});
+            const suffix_str = if (sp.opts.max_suffix_width > 0)
+                utils.truncateUtf8(&buf, sp.opts.suffix, sp.opts.max_suffix_width)
+            else
+                sp.opts.suffix;
+            try w.print(" {s}", .{suffix_str});
         }
-        if (sp.opts.custom_end.len > 0) {
-            try w.writeAll(sp.opts.custom_end);
+
+        // Reset line background
+        if (line_bg != .default) {
+            sp.colorizer.reset(w) catch {};
         }
+
         try w.writeByte('\n');
         try fw.flush();
     }
@@ -336,6 +401,9 @@ pub const Spinner = struct {
         var buf: [64]u8 = undefined;
         var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
         const w = &fw.interface;
+        // The cursor sits one line below the content (plus any below-padding)
+        // after the render thread's last frame. Move up to the content line first.
+        sp.colorizer.cursorUp(w, 1 + sp.opts.padding_lines_below) catch {};
         sp.colorizer.clearLine(w) catch {};
         fw.flush() catch {};
     }
@@ -346,21 +414,11 @@ pub const Spinner = struct {
         const w = &fw.interface;
 
         if (sp.term.is_tty) {
-            // +1 for the main content line
-            sp.colorizer.cursorUp(w, 1 + sp.opts.padding_lines_above + sp.opts.padding_lines_below) catch {};
-        }
-
-        // Above padding lines
-        var i: usize = 0;
-        while (i < sp.opts.padding_lines_above) : (i += 1) {
-            if (sp.opts.bg_color != .default) {
-                sp.colorizer.begin(w, .default, sp.opts.bg_color, &.{}) catch {};
-            }
-            sp.colorizer.clearLine(w) catch {};
-            w.writeByte('\n') catch {};
-            if (sp.opts.bg_color != .default) {
-                sp.colorizer.reset(w) catch {};
-            }
+            // The render thread left the cursor one line below the content
+            // (after the \n written after each frame). Move back up past
+            // below-padding lines AND the content line to overwrite it.
+            const lines_down = sp.opts.padding_lines_below + 1;
+            sp.colorizer.cursorUp(w, lines_down) catch {};
         }
 
         const line_color = if (sp.opts.color != .default) sp.opts.color else sym_color;
@@ -371,57 +429,20 @@ pub const Spinner = struct {
         }
         sp.colorizer.clearLine(w) catch {};
 
-        if (sp.opts.custom_start.len > 0) {
-            w.writeAll(sp.opts.custom_start) catch {};
-        }
-
         const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
         const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
         if (sp.opts.show_date and sp.opts.show_time) {
             var dbuf: [16]u8 = undefined;
             var tbuf: [32]u8 = undefined;
             const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s} {s}]", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
-            w.writeAll(sp.opts.datetime_gap) catch {};
+            w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
         } else if (sp.opts.show_date) {
             var dbuf: [16]u8 = undefined;
-            w.print("[{s}]", .{utils.formatDate(&dbuf, ts)}) catch {};
-            w.writeAll(sp.opts.datetime_gap) catch {};
+            w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
         } else if (sp.opts.show_time) {
             var tbuf: [32]u8 = undefined;
             const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s}]", .{t_str}) catch {};
-            w.writeAll(sp.opts.datetime_gap) catch {};
-        }
-
-        if (sp.opts.prefix.len > 0) {
-            w.writeAll(sp.opts.prefix) catch {};
-        }
-
-        // Print Icons (without line background color to avoid emoji highlighting)
-        if (sp.opts.icon) |icon| {
-            if (icon.len > 0) {
-                if (sp.opts.prefix.len > 0) {
-                    w.writeAll(sp.opts.icon_gap) catch {};
-                }
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.reset(w) catch {};
-                }
-                w.writeAll(icon) catch {};
-                w.writeAll(sp.opts.icon_gap) catch {};
-            }
-        }
-        if (sp.msg_icon) |icon| {
-            if (icon.len > 0) {
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.reset(w) catch {};
-                }
-                w.writeAll(icon) catch {};
-                w.writeAll(sp.opts.icon_gap) catch {};
-            }
-        }
-        if (line_color != .default or line_bg_color != .default) {
-            sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
+            w.print("[{s}] ", .{t_str}) catch {};
         }
 
         // Use complete_fg from style if set, otherwise use the state color
@@ -430,7 +451,7 @@ pub const Spinner = struct {
         else
             sym_color;
         color_mod.writeColored(w, sp.colorizer, symbol, actual_sym_color, sp.opts.spinner_bg_color, &.{.bold}) catch {};
-        w.writeAll(sp.opts.text_gap) catch {};
+        w.writeAll(" ") catch {};
 
         if (line_color != .default or line_bg_color != .default) {
             sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
@@ -462,22 +483,20 @@ pub const Spinner = struct {
             w.print(" {s}", .{suffix_str}) catch {};
         }
 
-        if (sp.opts.custom_end.len > 0) {
-            w.writeAll(sp.opts.custom_end) catch {};
-        }
-
         if (line_color != .default or line_bg_color != .default) {
             sp.colorizer.reset(w) catch {};
         }
 
-        // Below padding lines
-        i = 0;
+        // Below padding lines — write \n first to move past the
+        // final-state line, THEN clearLine on the new (empty) line.
+        // Previous order (clearLine then \n) erased the final state.
+        var i: usize = 0;
         while (i < sp.opts.padding_lines_below) : (i += 1) {
+            w.writeByte('\n') catch {};
             if (sp.opts.bg_color != .default) {
                 sp.colorizer.begin(w, .default, sp.opts.bg_color, &.{}) catch {};
             }
             sp.colorizer.clearLine(w) catch {};
-            w.writeByte('\n') catch {};
             if (sp.opts.bg_color != .default) {
                 sp.colorizer.reset(w) catch {};
             }
@@ -499,19 +518,7 @@ pub const Spinner = struct {
         var msg_index: usize = 0;
 
         while (!sp.stop_flag.load(.acquire)) {
-            if (sp.opts.icon_messages) |imsgs| {
-                if (imsgs.len > 0) {
-                    const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms)));
-                    const elapsed = now - last_msg_change_time;
-                    if (elapsed >= sp.opts.message_interval_ms) {
-                        msg_index = (msg_index + 1) % imsgs.len;
-                        const item = imsgs[msg_index];
-                        sp.setText(item.text);
-                        sp.msg_icon = item.icon;
-                        last_msg_change_time = now;
-                    }
-                }
-            } else if (sp.opts.messages) |msgs| {
+            if (sp.opts.messages) |msgs| {
                 if (msgs.len > 0) {
                     const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms)));
                     const elapsed = now - last_msg_change_time;
@@ -528,7 +535,7 @@ pub const Spinner = struct {
                 const w = &fw.interface;
 
                 if (!first_render) {
-                    sp.colorizer.cursorUp(w, sp.opts.padding_lines_above + sp.opts.padding_lines_below) catch {};
+                    sp.colorizer.cursorUp(w, sp.opts.padding_lines_above + 1 + sp.opts.padding_lines_below) catch {};
                 }
                 first_render = false;
 
@@ -553,57 +560,20 @@ pub const Spinner = struct {
                     sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
                 }
 
-                if (sp.opts.custom_start.len > 0) {
-                    w.writeAll(sp.opts.custom_start) catch {};
-                }
-
                 const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
                 const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
                 if (sp.opts.show_date and sp.opts.show_time) {
                     var dbuf: [16]u8 = undefined;
                     var tbuf: [32]u8 = undefined;
                     const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                    w.print("[{s} {s}]", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
-                    w.writeAll(sp.opts.datetime_gap) catch {};
+                    w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
                 } else if (sp.opts.show_date) {
                     var dbuf: [16]u8 = undefined;
-                    w.print("[{s}]", .{utils.formatDate(&dbuf, ts)}) catch {};
-                    w.writeAll(sp.opts.datetime_gap) catch {};
+                    w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
                 } else if (sp.opts.show_time) {
                     var tbuf: [32]u8 = undefined;
                     const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                    w.print("[{s}]", .{t_str}) catch {};
-                    w.writeAll(sp.opts.datetime_gap) catch {};
-                }
-
-                if (sp.opts.prefix.len > 0) {
-                    w.writeAll(sp.opts.prefix) catch {};
-                }
-
-                // Print Icons (without line background color to avoid emoji highlighting)
-                if (sp.opts.icon) |icon| {
-                    if (icon.len > 0) {
-                        if (sp.opts.prefix.len > 0) {
-                            w.writeAll(sp.opts.icon_gap) catch {};
-                        }
-                        if (line_color != .default or line_bg_color != .default) {
-                            sp.colorizer.reset(w) catch {};
-                        }
-                        w.writeAll(icon) catch {};
-                        w.writeAll(sp.opts.icon_gap) catch {};
-                    }
-                }
-                if (sp.msg_icon) |icon| {
-                    if (icon.len > 0) {
-                        if (line_color != .default or line_bg_color != .default) {
-                            sp.colorizer.reset(w) catch {};
-                        }
-                        w.writeAll(icon) catch {};
-                        w.writeAll(sp.opts.icon_gap) catch {};
-                    }
-                }
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
+                    w.print("[{s}] ", .{t_str}) catch {};
                 }
 
                 const frames = sp.opts.style.frames;
@@ -612,7 +582,7 @@ pub const Spinner = struct {
                     grad.at(@as(f64, @floatFromInt(frame % 256)) / 255.0)
                 else if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
                 color_mod.writeColored(w, sp.colorizer, glyph, glyph_color, sp.opts.spinner_bg_color, sp.opts.style.attrs) catch {};
-                w.writeAll(sp.opts.text_gap) catch {};
+                w.writeAll(" ") catch {};
 
                 if (line_color != .default or line_bg_color != .default) {
                     sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
@@ -657,13 +627,14 @@ pub const Spinner = struct {
                     w.print(" {s}", .{suffix_str}) catch {};
                 }
 
-                if (sp.opts.custom_end.len > 0) {
-                    w.writeAll(sp.opts.custom_end) catch {};
-                }
-
                 if (line_color != .default or line_bg_color != .default) {
                     sp.colorizer.reset(w) catch {};
                 }
+
+                // Move to next line after content (matches ProgressBar pattern).
+                // Without this, cursorUp math is off-by-one and the animation
+                // scrolls upward instead of overwriting the same line.
+                w.writeByte('\n') catch {};
 
                 // Below padding lines
                 i = 0;
@@ -785,10 +756,8 @@ test "Spinner custom icons" {
         .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
         .color_enabled = false,
         .file = invalid_file,
-        .icon = "🔧",
         .success_icon = "🎉",
     });
-    try std.testing.expectEqualSlices(u8, "🔧", sp.opts.icon.?);
     try std.testing.expectEqualSlices(u8, "🎉", sp.opts.success_icon.?);
     sp.succeed(io, "Done");
 }

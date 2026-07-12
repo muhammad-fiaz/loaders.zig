@@ -43,7 +43,7 @@ zig build examples
 | [Rate Smoothing](rate-smoothing) | Byte throughput and EMA rate smoothing | `zig build run-rate_smoothing` |
 | [Advanced Options](advanced-options) | Decorators, timestamps, colors, responsive width | `zig build run-advanced_options` |
 | [Custom Template](custom-template) | Dynamic label changes across 5 phases | `zig build run-custom_template` |
-| [Nested Bars](nested-bars) | Outer/inner batch progress with MultiBar | `zig build run-nested_bars` |
+| [Nested Bars](nested-bars) | Outer/inner batch progress with BatchBar | `zig build run-nested_bars` |
 
 ## Spinners
 

@@ -7,7 +7,7 @@ pub fn main(init: std.process.Init) !void {
     // First bar: standard default style
     {
         std.debug.print("--- Standard Progress Bar ---\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Loading",
             .total = 100,
             .show_percent = true,
@@ -25,7 +25,7 @@ pub fn main(init: std.process.Init) !void {
     // Second bar: unicode themed style
     {
         std.debug.print("\n--- Unicode Styled Progress Bar ---\n", .{});
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Unicode",
             .total = 100,
             .style = loaders.BarStyle.shaded,

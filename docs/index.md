@@ -2,7 +2,7 @@
 layout: home
 
 title: loaders.zig — High-Performance Terminal Loading Indicators for Zig
-description: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform, 18+ bar styles, 33 spinner presets.
+description: High-performance, thread-safe progress bars, spinners, and batch progress UIs for Zig. Zero dependencies, cross-platform, 18+ bar styles, 33 spinner presets.
 
 head:
   - - meta
@@ -13,19 +13,19 @@ head:
       content: loaders.zig — High-Performance Terminal Loading Indicators for Zig
   - - meta
     - property: og:description
-      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform.
+      content: High-performance, thread-safe progress bars, spinners, and batch progress UIs for Zig. Zero dependencies, cross-platform.
   - - meta
     - property: og:image
-      content: /loaders.zig/loader-thumbnail.png
+      content: /loaders.zig/logo.png
   - - meta
     - name: twitter:title
       content: loaders.zig — Terminal Loading Indicators for Zig
   - - meta
     - name: twitter:description
-      content: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig. Zero dependencies, cross-platform.
+      content: High-performance, thread-safe progress bars, spinners, and batch progress UIs for Zig. Zero dependencies, cross-platform.
   - - meta
     - name: twitter:image
-      content: /loaders.zig/loader-thumbnail.png
+      content: /loaders.zig/logo.png
   - - meta
     - name: twitter:card
       content: summary_large_image
@@ -33,7 +33,7 @@ head:
 hero:
   name: "loaders.zig"
   text: "Terminal Loading Indicators for Zig"
-  tagline: High-performance, thread-safe progress bars, spinners, and multi-progress UIs for Zig CLI applications. Zero external dependencies. Cross-platform.
+  tagline: High-performance, thread-safe progress bars, spinners, and batch progress UIs for Zig CLI applications. Zero external dependencies. Cross-platform.
   image:
     src: /loader-thumbnail.png
     alt: loaders.zig terminal loading indicators preview
@@ -92,7 +92,7 @@ const loaders = @import("loaders");
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Processing",
         .total = 100,
         .show_percent = true,

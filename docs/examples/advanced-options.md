@@ -29,13 +29,11 @@ pub fn main(init: std.process.Init) !void {
 
     const total_steps = 100;
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .total = total_steps,
         .label = "Processing",
-        .label_color = .bright_cyan,
+        .color = .bright_cyan,
         .show_percent = true,
-        .percent_color = .bright_green,
-        .bracket_color = .bright_black,
         .show_count = true,
         .show_elapsed = true,
         .show_eta = true,
@@ -79,6 +77,6 @@ zig build run-advanced_options
 Key features demonstrated:
 - `custom_start` / `custom_end` — line decorators
 - `show_time` + `timezone_offset_sec` — local time prefix
-- `label_color`, `percent_color`, `bracket_color` — per-element colors
+- `color` — colors the entire progress bar line
 - `message` / `complete_message` — dynamic text before/after completion
 - `width = 0` — auto-resizes to terminal width

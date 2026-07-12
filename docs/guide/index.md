@@ -24,7 +24,7 @@ This section walks through the main user-facing features of `loaders.zig`.
 
 3. **[Spinners](spinner)** — Background-threaded animated spinners with mid-run text updates and finish states (succeed, fail, warn, info).
 
-4. **[Multi Progress](multi-progress)** — Render multiple concurrent progress bars or spinners with coordinated cursor-based rendering.
+4. **[Multi Progress](multi-progress)** — Render multiple concurrent progress bars or spinners with BatchBar and coordinated cursor-based rendering.
 
 5. **[Styling](styling)** — Configure custom brackets, fills, tips, colors, and attributes for bars and spinners.
 

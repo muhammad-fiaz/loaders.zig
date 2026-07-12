@@ -42,7 +42,7 @@ pub fn main(init: std.process.Init) !void {
     const total_bytes: usize = 50 * 1024 * 1024; // 50 MB
     var rng = Lcg.init(42);
 
-    var bar = loaders.Bar.init(io, .{
+    var bar = loaders.ProgressBar.init(io, .{
         .label = "Downloading",
         .total = total_bytes,
         .show_percent = true,

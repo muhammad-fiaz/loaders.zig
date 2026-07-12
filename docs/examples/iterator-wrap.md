@@ -25,7 +25,7 @@ const std = @import("std");
 const loaders = @import("loaders");
 
 /// Iterates through items and updates the progress bar after each step.
-fn withProgress(comptime T: type, items: []const T, bar: *loaders.Bar, io: std.Io) void {
+fn withProgress(comptime T: type, items: []const T, bar: *loaders.ProgressBar, io: std.Io) void {
     for (items) |item| {
         _ = item;
         bar.increment();
@@ -38,7 +38,7 @@ fn withProgress(comptime T: type, items: []const T, bar: *loaders.Bar, io: std.I
 fn forEachWithProgress(
     comptime T: type,
     items: []const T,
-    bar: *loaders.Bar,
+    bar: *loaders.ProgressBar,
     io: std.Io,
     context: anytype,
     comptime cb: fn (context: @TypeOf(context), item: T) void,
@@ -58,7 +58,7 @@ pub fn main(init: std.process.Init) !void {
 
     // 1. Simple iterator
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Iterator",
             .total = items.len,
             .show_percent = true,
@@ -70,7 +70,7 @@ pub fn main(init: std.process.Init) !void {
 
     // 2. Callback iterator
     {
-        var bar = loaders.Bar.init(io, .{
+        var bar = loaders.ProgressBar.init(io, .{
             .label = "Callback",
             .total = items.len,
             .show_percent = true,
