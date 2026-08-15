@@ -24,7 +24,7 @@ pub const Values = struct {
     color: ?[]const u8 = null,
 };
 
-pub const InitError = error{ MissingFormatter };
+pub const InitError = error{MissingFormatter};
 
 pub const RenderError = error{ MissingFormatter, BufferOverflow };
 

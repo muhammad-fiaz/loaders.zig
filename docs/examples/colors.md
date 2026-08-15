@@ -1,6 +1,6 @@
 ---
 title: Color Examples
-description: Color examples — tint.zig RGB, HEX, 256-color, and gradients.
+description: Color examples using tint.zig — RGB, HEX, 256-color, HSL, and gradients.
 ---
 
 # Color Examples

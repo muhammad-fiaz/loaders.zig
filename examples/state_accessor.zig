@@ -28,7 +28,8 @@ pub fn main() !void {
         if (i == 50) {
             const s = bar.state();
             var buf: [256]u8 = undefined;
-            const line = std.fmt.bufPrint(&buf,
+            const line = std.fmt.bufPrint(
+                &buf,
                 "\nmid-run state: progress={d} total={d} percent={d:.1} elapsed_ns={d} status={s}\n",
                 .{ s.progress, s.total, s.percent, s.elapsed_ns, @tagName(s.status) },
             ) catch return;

@@ -2,18 +2,18 @@
 layout: home
 
 title:  High-Performance Terminal Progress Bars & Spinners for Zig
-description: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Fully customizable, cross-platform, zero dependencies.
+description: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
 
 head:
   - - meta
     - name: keywords
-      content: zig, progress bar, spinner, terminal ui, cli, multi progress, batch runner, step sequence, zig library, zig package, loading animation, terminal progress
+      content: zig, progress bar, spinner, terminal ui, cli, multi progress, batch runner, step sequence, zig library, zig package, loading animation, terminal progress, tint.zig, color
   - - meta
     - property: og:title
       content: High-Performance Terminal Progress Bars & Spinners for Zig
   - - meta
     - property: og:description
-      content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Fully customizable, cross-platform, zero dependencies.
+      content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
   - - meta
     - property: og:image
       content: /loaders.zig/logo.png
@@ -22,7 +22,7 @@ head:
       content:  Terminal Progress Bars & Spinners for Zig
   - - meta
     - name: twitter:description
-      content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Fully customizable, cross-platform, zero dependencies.
+      content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
   - - meta
     - name: twitter:image
       content: /loaders.zig/logo.png
@@ -33,7 +33,7 @@ head:
 hero:
   name: "loaders.zig"
   text: "Terminal Progress Bars & Spinners for Zig"
-  tagline: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig CLI applications. Fully customizable, cross-platform, zero dependencies.
+  tagline: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig CLI applications. Uses tint.zig for color support. Fully customizable, cross-platform.
   image:
     src: /loader-thumbnail.png
     alt: loaders.zig terminal progress bars and spinners preview
@@ -66,7 +66,7 @@ features:
     details: Ordered multi-step pipelines, each backed by a spinner or progress bar, with success/failure/skip states.
   - icon: <span class="vp-code">🎨</span>
     title: Color
-    details: Pass any ANSI escape sequence as a plain `?[]const u8` — 4-bit, 256-color, RGB/TrueColor, HEX. Zero built-in color logic, zero dependencies.
+    details: Uses tint.zig for color support — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors. Raw ANSI strings also work.
 ---
 
 ## Quick Install

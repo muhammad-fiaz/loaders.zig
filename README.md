@@ -16,8 +16,8 @@
 
 `loaders.zig` is a production-oriented Zig library for animated spinners, progress bars, and multi-progress terminal UIs. It is designed for low overhead, clean output, and cross-platform terminal behavior on Linux, Windows, and macOS.
 
-> [!NOTE]
-> Color is a plain `?[]const u8` field — pass any ANSI escape sequence (4-bit, 256-color, or RGB/TrueColor). loaders.zig contains zero built-in color logic and zero color dependencies.
+> [!TIP]
+> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — providing RGB, Hex, ANSI 256, HSL, HSV, CMYK, and 140+ CSS named colors. You can also pass raw ANSI escape sequences directly.
 
 ---
 
@@ -152,7 +152,7 @@ mb.finishAll(.{ .newline = true });
 | **Pause/Resume** | Freeze and resume clocks and rendering |
 | **Callbacks** | `on_tick`, `on_finish`, `on_pause`, `on_resume` hooks |
 | **Runtime Swaps** | Change style, frames, template, text, color at runtime |
-| **Color** | Raw ANSI `?[]const u8` — 4-bit, 256-color, RGB/TrueColor, HEX |
+| **Color** | tint.zig integration — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors |
 | **Template Engine** | `{bar}`, `{frame}`, `{percent}`, `{count}`, `{elapsed}`, `{eta}`, `{speed}`, `{color}`, `{reset}` |
 | **Windows UTF-8** | Automatic console code page setup for Unicode characters |
 
@@ -160,27 +160,25 @@ mb.finishAll(.{ .newline = true });
 
 ## Color
 
-Color is a plain `?[]const u8` field — pass any ANSI escape sequence:
+Colors use [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally — pass `color.toFg()` or use convenience functions:
 
 ```zig
-// Raw ANSI 4-bit
+// tint.zig color functions
+.color = loaders.fg(.{ .ansi4 = .green })        // ANSI 4-bit green
+.color = loaders.makeRgb(34, 197, 94).toFg()     // RGB (TrueColor)
+.color = loaders.makeHex(0x22C55E).toFg()        // HEX color
+.color = loaders.makeAnsi256(129).toFg()         // ANSI 256-color
+.color = loaders.fg(.{ .named = .red })          // CSS named color
+
+// Raw ANSI strings still work
 .color = "\x1b[32m"        // green
-
-// Raw ANSI RGB
 .color = "\x1b[38;2;0;255;0m"  // green RGB
-
-// Raw ANSI HEX
-.color = "\x1b[38;2;34;197;94m"  // #22C55E as RGB
-
-// Raw ANSI 256-color
-.color = "\x1b[38;5;129m"   // ANSI 256
 
 // No color
 .color = null
 ```
 
 Colors can be updated at runtime with `bar.setColor(...)` / `sp.setColor(...)`.
-Build ANSI sequences with `std.fmt.bufPrint` when you need computed values (see the `custom_colors_*` examples).
 
 ---
 
@@ -195,7 +193,7 @@ var bar = try loaders.ProgressBar.init(allocator, io, .{
     .style = .{ .filled = "#", .empty = "-" },
     .template = "{bar} {percent}%",
     .text = "Processing",
-    .color = "\x1b[32m",  // green
+    .color = loaders.fg(.{ .ansi4 = .green }),  // green via tint.zig
     .formatters = .{
         .elapsed = formatElapsed,
         .eta = formatEta,
@@ -216,7 +214,7 @@ bar.fail("Network error");
 bar.setText("new text");
 bar.setPrefix(">");
 bar.setSuffix("<");
-bar.setColor("\x1b[31m");
+bar.setColor(loaders.fg(.{ .ansi4 = .red }));
 bar.setStyle(.{ .filled = "=", .empty = " ", .head = ">" });
 try bar.setTemplate("{bar} {elapsed}");
 
@@ -233,7 +231,7 @@ var sp = try loaders.Spinner.init(allocator, io, .{
     .frames = &.{ "|", "/", "-", "\\" },
     .template = "{frame} {text}",
     .text = "Loading",
-    .color = "\x1b[34m",  // blue
+    .color = loaders.fg(.{ .ansi4 = .blue }),  // blue via tint.zig
     .thread_mode = .auto,
 });
 defer sp.deinit();
@@ -247,7 +245,7 @@ sp.stop(.{ .final_text = "Done!", .newline = true });
 
 // Update at runtime
 sp.setText("new text");
-sp.setColor("\x1b[31m");
+sp.setColor(loaders.fg(.{ .ansi4 = .red }));
 sp.setFrames(&.{ ".", "..", "..." });
 try sp.setTemplate("{frame} {text}");
 
