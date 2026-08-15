@@ -1,16 +1,28 @@
 <div align="center">
-<img height="400" alt="loaders.zig" src="https://github.com/user-attachments/assets/042252d5-0594-4984-bece-deb3b232d91f" />
+
+<img src="docs/public/android-chrome-512x512.png" alt="loaders.zig" width="250" />
+
+# loaders.zig
 
 <a href="https://muhammad-fiaz.github.io/loaders.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
 <a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/loaders.zig" alt="GitHub stars"></a>
+<a href="https://github.com/muhammad-fiaz/loaders.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/loaders.zig" alt="GitHub issues"></a>
+<a href="https://github.com/muhammad-fiaz/loaders.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/loaders.zig" alt="GitHub pull requests"></a>
+<a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/last-commit/muhammad-fiaz/loaders.zig" alt="GitHub last commit"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/license/muhammad-fiaz/loaders.zig" alt="License"></a>
 <img src="https://img.shields.io/badge/platforms-linux%20%7C%20windows%20%7C%20macos-blue" alt="Supported Platforms">
+<a href="https://github.com/muhammad-fiaz/loaders.zig/releases/latest"><img src="https://img.shields.io/github/v/release/muhammad-fiaz/loaders.zig?label=Latest%20Release&style=flat-square" alt="Latest Release"></a>
+<a href="https://pay.muhammadfiaz.com"><img src="https://img.shields.io/badge/Sponsor-pay.muhammadfiaz.com-ff69b4?style=flat&logo=heart" alt="Sponsor"></a>
+<a href="https://github.com/sponsors/muhammad-fiaz"><img src="https://img.shields.io/badge/Sponsor-GitHub-pink?style=social&logo=github" alt="GitHub Sponsors"></a>
+<a href="https://hits.sh/muhammad-fiaz/loaders.zig/"><img src="https://hits.sh/muhammad-fiaz/loaders.zig.svg?label=Visitors&extraCount=0&color=green" alt="Repo Visitors"></a>
 
 <p><em>A fast, high-performance terminal progress bar and spinner library for Zig.</em></p>
 
 <b><a href="https://muhammad-fiaz.github.io/loaders.zig/">Documentation</a> |
-<a href="https://github.com/muhammad-fiaz/loaders.zig/blob/main/README.md">Source</a></b>
+<a href="https://muhammad-fiaz.github.io/loaders.zig/api/">API Reference</a> |
+<a href="https://muhammad-fiaz.github.io/loaders.zig/guide/getting-started">Quick Start</a> |
+<a href="CONTRIBUTING.md">Contributing</a></b>
 
 </div>
 
