@@ -1,43 +1,30 @@
 const std = @import("std");
 const loaders = @import("loaders");
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
+pub fn main() !void {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const allocator = std.heap.page_allocator;
 
-    // First bar: standard default style
-    {
-        std.debug.print("--- Standard Progress Bar ---\n", .{});
-        var bar = loaders.ProgressBar.init(io, .{
-            .label = "Loading",
-            .total = 100,
-            .show_percent = true,
-            .show_elapsed = true,
-        });
-        defer bar.done();
+    // Hide cursor during animation
+    loaders.hideCursor(io);
 
-        for (0..100) |_| {
-            bar.increment();
-            bar.render();
-            try io.sleep(std.Io.Duration.fromMilliseconds(25), .awake);
-        }
+    var bar = try loaders.ProgressBar.init(allocator, io, .{
+        .total = 100,
+        .style = .{ .filled = "#", .empty = "-" },
+        .template = "{prefix} {bar} {percent}%",
+        .prefix = "Loading",
+        .color = loaders.fg(.{ .ansi4 = .green }),
+    });
+    defer bar.deinit();
+
+    var i: u64 = 0;
+    while (i <= 100) : (i += 1) {
+        bar.setProgress(i);
+        loaders.sleepMs(io, 30);
     }
+    bar.finish(.{ .newline = true });
 
-    // Second bar: unicode themed style
-    {
-        std.debug.print("\n--- Unicode Styled Progress Bar ---\n", .{});
-        var bar = loaders.ProgressBar.init(io, .{
-            .label = "Unicode",
-            .total = 100,
-            .style = loaders.BarStyle.shaded,
-            .show_percent = true,
-            .show_elapsed = true,
-        });
-        defer bar.done();
-
-        for (0..100) |_| {
-            bar.increment();
-            bar.render();
-            try io.sleep(std.Io.Duration.fromMilliseconds(25), .awake);
-        }
-    }
+    // Show cursor after animation
+    loaders.showCursor(io);
 }

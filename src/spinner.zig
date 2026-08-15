@@ -1,787 +1,321 @@
-//! spinner.zig — Animated spinner with a background render thread.
-//!
-//! Usage:
-//!
-//!   var sp = try Spinner.start(io, .{ .text = "Loading..." });
-//!   errdefer sp.stop(io);
-//!   // ... do work ...
-//!   sp.succeed(io, "Done!");
-
 const std = @import("std");
-const color_mod = @import("color.zig");
+const template_mod = @import("template.zig");
 const style_mod = @import("style.zig");
 const terminal = @import("terminal.zig");
-const utils = @import("utils.zig");
+const progress_bar = @import("progress_bar.zig");
 
-pub const Color = color_mod.Color;
-pub const Colorizer = color_mod.Colorizer;
-pub const SpinnerStyle = style_mod.SpinnerStyle;
-pub const Message = style_mod.Message;
+pub const FontStyle = style_mod.FontStyle;
+pub const Formatters = template_mod.FormatterSet;
+pub const ThreadMode = progress_bar.ThreadMode;
+pub const Status = progress_bar.Status;
+pub const FinishConfig = progress_bar.FinishConfig;
+pub const Callback = progress_bar.Callback;
+pub const InitError = template_mod.InitError;
 
-/// Configuration passed to `Spinner.start`.
-pub const Options = struct {
-    /// Text displayed to the right of the spinner glyph.
-    text: []const u8 = "",
-    /// Visual style (frames + color).
-    style: SpinnerStyle = SpinnerStyle.dots,
-    /// File to render to (default: stderr).
-    file: ?std.Io.File = null,
-    /// Terminal info override. If null, auto-detected.
-    term: ?terminal.TermInfo = null,
-    /// Enable color. If null, auto-detected.
-    color_enabled: ?bool = null,
-    /// Whether to show current date [YYYY-MM-DD].
-    show_date: bool = false,
-    /// Whether to show current time [HH:MM:SS].
-    show_time: bool = false,
-    /// Offset in seconds to adjust timezone from UTC for date/time (e.g. 19800 for UTC+5:30).
-    timezone_offset_sec: i32 = 0,
-    /// Optional custom allocator (falls back to std.heap.page_allocator if null).
-    allocator: ?std.mem.Allocator = null,
-    /// Override the animation interval (ms). If null, uses the style's interval.
-    interval_override_ms: ?u64 = null,
-    /// Suffix text printed after the spinner text.
-    suffix: []const u8 = "",
-    /// Whether to show elapsed time after the text.
-    show_elapsed: bool = false,
-    /// Color override for the spinner text. `.default` = terminal default.
-    text_color: Color = .default,
-    /// Color override for the spinner glyph. `.default` = use style color.
-    spinner_color: Color = .default,
-    /// Color used for the entire spinner line. `.default` = use sub-component colors.
-    color: Color = .default,
-    /// Optional custom success icon.
-    success_icon: ?[]const u8 = null,
-    /// Optional custom failure icon.
-    failure_icon: ?[]const u8 = null,
-    /// Optional custom warning icon.
-    warning_icon: ?[]const u8 = null,
-    /// Optional custom info icon.
-    info_icon: ?[]const u8 = null,
-    /// Array of messages to cycle through during run.
-    messages: ?[]const []const u8 = null,
-    /// Interval in milliseconds to transition messages.
-    message_interval_ms: u32 = 1500,
-    /// Format time as 12-hour AM/PM format (defaults to 24-hour).
-    time_format_12h: bool = false,
-    /// Maximum text width limit (0 = no limit). Truncates text if exceeded.
-    max_text_width: usize = 0,
-    /// Maximum suffix width limit (0 = no limit). Truncates suffix if exceeded.
-    max_suffix_width: usize = 0,
-    /// Background color override for the spinner text. `.default` = no color.
-    text_bg_color: Color = .default,
-    /// Background color override for the spinner glyph. `.default` = no color.
-    spinner_bg_color: Color = .default,
-    /// Background color used for the entire spinner line. `.default` = no color.
-    bg_color: Color = .default,
-    /// Custom elapsed time offset in seconds.
-    start_time_offset_sec: i64 = 0,
-    /// Default message shown once the spinner succeeds or completes.
-    complete_message: []const u8 = "",
-    /// Number of empty padding lines printed above the spinner line.
-    padding_lines_above: usize = 0,
-    /// Number of empty padding lines printed below the spinner line.
-    padding_lines_below: usize = 0,
-    /// Callback when spinner completes/stops.
-    on_complete: ?*const fn (sp: *Spinner) void = null,
-    /// Callback when spinner succeeds (succeed() called).
-    on_success: ?*const fn (sp: *Spinner) void = null,
-    /// Callback when spinner fails (fail() called).
-    on_failure: ?*const fn (sp: *Spinner) void = null,
-    /// Callback when spinner warns (warn() called).
-    on_warn: ?*const fn (sp: *Spinner) void = null,
-    /// Callback when spinner provides info (info() called).
-    on_info: ?*const fn (sp: *Spinner) void = null,
-    /// When true, the spinner line is erased from the terminal after
-    /// stop/succeed/fail/warn/info instead of printing the final state.
-    hide_after_done: bool = false,
+pub const SpinnerConfig = struct {
+    frames: []const []const u8,
+    template: []const u8 = "{frame} {text}",
+    prefix: ?[]const u8 = null,
+    suffix: ?[]const u8 = null,
+    text: ?[]const u8 = null,
+    color: ?[]const u8 = null,
+    text_style: FontStyle = .{},
+    formatters: Formatters = .{},
+    interval_ms: u32 = 80,
+    thread_mode: ThreadMode = .none,
+    show_spinner: bool = true,
+    on_tick: ?Callback = null,
+    on_finish: ?Callback = null,
+    ctx: ?*anyopaque = null,
 };
 
-/// An animated spinner that runs its render loop on a background thread.
-///
-/// Call `start` to launch, then `stop` / `succeed` / `fail` when done.
+pub const SpinnerState = struct {
+    frame_index: u64,
+    frame: []const u8,
+    elapsed_ns: u64,
+    status: Status,
+};
+
 pub const Spinner = struct {
-    opts: Options,
-    colorizer: Colorizer,
-    term: terminal.TermInfo,
-    file: std.Io.File,
     allocator: std.mem.Allocator,
-    started_ns: i96,
+    io: std.Io,
+    config: SpinnerConfig,
+    index: u64,
+    status_state: Status,
+    start_time: std.Io.Timestamp,
+    elapsed_ns: u64,
+    mutex: std.Io.Mutex,
+    thread: ?std.Thread,
+    stop_thread: std.atomic.Value(bool),
+    draw_on_update: bool,
 
-    // Shared state between caller and render thread
-    stop_flag: std.atomic.Value(bool),
-    paused: std.atomic.Value(bool),
-    text: std.atomic.Value([*:0]const u8),
-
-    // The background render thread
-    thread: std.Thread,
-
-    // Static text storage (updated atomically)
-    text_buf: [256:0]u8,
-
-    /// Start the spinner. Spawns a background render thread.
-    /// Must call `stop`, `succeed`, or `fail` to clean up.
-    pub fn start(io: std.Io, opts: Options) !*Spinner {
-        terminal.setupTerminal();
-
-        const gpa = opts.allocator orelse std.heap.page_allocator;
-        const sp = try gpa.create(Spinner);
-        errdefer gpa.destroy(sp);
-
-        const file = opts.file orelse std.Io.File.stderr();
-        const term_info = opts.term orelse terminal.query(file, io);
-        const color_on = opts.color_enabled orelse term_info.ansi_supported;
-
-        var resolved_opts = opts;
-        resolved_opts.file = file;
-
-        const now = std.Io.Clock.awake.now(io);
-
-        sp.* = Spinner{
-            .opts = resolved_opts,
-            .colorizer = Colorizer{
-                .enabled = color_on,
-                .ansi_enabled = term_info.ansi_supported,
-                .cr_enabled = term_info.is_tty,
-            },
-            .term = term_info,
-            .file = file,
-            .allocator = gpa,
-            .started_ns = now.nanoseconds,
-            .stop_flag = std.atomic.Value(bool).init(false),
-            .paused = std.atomic.Value(bool).init(false),
-            .text = undefined,
-            .thread = undefined,
-            .text_buf = @splat(0),
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, config: SpinnerConfig) InitError!Spinner {
+        try template_mod.validate(config.template, config.formatters);
+        return .{
+            .allocator = allocator,
+            .io = io,
+            .config = config,
+            .index = 0,
+            .status_state = .pending,
+            .start_time = .zero,
+            .elapsed_ns = 0,
+            .mutex = .init,
+            .thread = null,
+            .stop_thread = std.atomic.Value(bool).init(false),
+            .draw_on_update = true,
         };
-
-        const initial_message = if (opts.messages) |msgs| (if (msgs.len > 0) msgs[0] else opts.text) else opts.text;
-        sp.updateText(initial_message);
-        sp.text = std.atomic.Value([*:0]const u8).init(sp.text_buf[0..].ptr);
-
-        if (sp.term.is_tty) {
-            sp.thread = try std.Thread.spawn(.{}, renderLoop, .{ sp, io });
-        }
-        // In non-TTY mode, we skip the initial print.
-        // The final state will be printed by printFinal when succeed/fail/warn/info is called.
-
-        return sp;
     }
 
-    /// Update the spinner text (thread-safe).
-    pub fn setText(sp: *Spinner, text: []const u8) void {
-        sp.updateText(text);
+    pub fn deinit(self: *Spinner) void {
+        self.stopRenderThread();
     }
 
-    /// Pause the animation (freezes current frame).
-    pub fn pause(sp: *Spinner) void {
-        sp.paused.store(true, .release);
+    pub fn start(self: *Spinner) !void {
+        self.lock();
+        defer self.unlock();
+        if (self.status_state != .pending) return;
+        self.status_state = .running;
+        self.start_time = std.Io.Timestamp.now(self.io, .awake);
+        self.maybeRedraw();
+        if (self.config.thread_mode == .auto) {
+            self.stop_thread.store(false, .release);
+            self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
+        }
     }
 
-    /// Resume the animation after a pause.
-    pub fn resume_(sp: *Spinner) void {
-        sp.paused.store(false, .release);
+    pub fn tickFrame(self: *Spinner) void {
+        self.lock();
+        defer self.unlock();
+        if (self.status_state != .running) return;
+        self.index += 1;
+        self.updateElapsed();
+        self.maybeRedraw();
+        if (self.config.on_tick) |cb| cb(self.config.ctx);
     }
 
-    /// Stop the spinner and erase it from the terminal.
-    pub fn stop(sp: *Spinner, io: std.Io) void {
-        sp.stop_flag.store(true, .release);
-        if (sp.term.is_tty) {
-            sp.thread.join();
-            sp.eraseLine(io);
-        }
-        if (sp.opts.on_complete) |cb| {
-            cb(sp);
-        }
-        const alloc = sp.allocator;
-        alloc.destroy(sp);
+    pub fn setProgress(self: *Spinner, value: u64) void {
+        self.lock();
+        defer self.unlock();
+        if (self.status_state != .running) return;
+        self.index = value;
+        self.updateElapsed();
+        self.maybeRedraw();
     }
 
-    /// Stop and print a success line (✓ green tick).
-    pub fn succeed(sp: *Spinner, io: std.Io, text: []const u8) void {
-        sp.stop_flag.store(true, .release);
-        if (sp.term.is_tty) {
-            sp.thread.join();
-        }
-        if (sp.opts.hide_after_done) {
-            if (sp.term.is_tty) {
-                sp.eraseLine(io);
-            }
-        } else {
-            const sym = sp.opts.success_icon orelse "✓";
-            const final_text = if (text.len > 0)
-                text
-            else if (sp.opts.complete_message.len > 0)
-                sp.opts.complete_message
-            else
-                std.mem.sliceTo(&sp.text_buf, 0);
-            sp.printFinal(io, final_text, sym, .green);
-        }
-        if (sp.opts.on_success) |cb| {
-            cb(sp);
-        }
-        if (sp.opts.on_complete) |cb| {
-            cb(sp);
-        }
-        const alloc = sp.allocator;
-        alloc.destroy(sp);
+    pub fn getCurrent(self: *Spinner) u64 {
+        self.lock();
+        defer self.unlock();
+        return self.index;
     }
 
-    /// Stop and print a failure line (✗ red cross).
-    pub fn fail(sp: *Spinner, io: std.Io, text: []const u8) void {
-        sp.stop_flag.store(true, .release);
-        if (sp.term.is_tty) {
-            sp.thread.join();
-        }
-        if (sp.opts.hide_after_done) {
-            if (sp.term.is_tty) {
-                sp.eraseLine(io);
-            }
-        } else {
-            const sym = sp.opts.failure_icon orelse "✗";
-            const final_text = if (text.len > 0)
-                text
-            else if (sp.opts.complete_message.len > 0)
-                sp.opts.complete_message
-            else
-                std.mem.sliceTo(&sp.text_buf, 0);
-            sp.printFinal(io, final_text, sym, .red);
-        }
-        if (sp.opts.on_failure) |cb| {
-            cb(sp);
-        }
-        if (sp.opts.on_complete) |cb| {
-            cb(sp);
-        }
-        const alloc = sp.allocator;
-        alloc.destroy(sp);
+    pub fn forceRedraw(self: *Spinner) void {
+        self.lock();
+        defer self.unlock();
+        if (self.draw_on_update) self.locklessRedraw();
     }
 
-    /// Stop and print a warning line (⚠ yellow warning).
-    pub fn warn(sp: *Spinner, io: std.Io, text: []const u8) void {
-        sp.stop_flag.store(true, .release);
-        if (sp.term.is_tty) {
-            sp.thread.join();
+    pub fn pause(self: *Spinner) void {
+        self.lock();
+        defer self.unlock();
+        if (self.status_state == .running) {
+            self.updateElapsed();
+            self.status_state = .paused;
         }
-        if (sp.opts.hide_after_done) {
-            if (sp.term.is_tty) {
-                sp.eraseLine(io);
-            }
-        } else {
-            const sym = sp.opts.warning_icon orelse "⚠";
-            const final_text = if (text.len > 0)
-                text
-            else if (sp.opts.complete_message.len > 0)
-                sp.opts.complete_message
-            else
-                std.mem.sliceTo(&sp.text_buf, 0);
-            sp.printFinal(io, final_text, sym, .yellow);
-        }
-        if (sp.opts.on_warn) |cb| {
-            cb(sp);
-        }
-        if (sp.opts.on_complete) |cb| {
-            cb(sp);
-        }
-        const alloc = sp.allocator;
-        alloc.destroy(sp);
     }
 
-    /// Stop and print an info line (ℹ cyan info).
-    pub fn info(sp: *Spinner, io: std.Io, text: []const u8) void {
-        sp.stop_flag.store(true, .release);
-        if (sp.term.is_tty) {
-            sp.thread.join();
+    pub fn continue_(self: *Spinner) void {
+        self.lock();
+        defer self.unlock();
+        if (self.status_state == .paused) {
+            self.status_state = .running;
+            self.start_time = std.Io.Timestamp.now(self.io, .awake)
+                .subDuration(.{ .nanoseconds = @intCast(self.elapsed_ns) });
+            self.maybeRedraw();
         }
-        if (sp.opts.hide_after_done) {
-            if (sp.term.is_tty) {
-                sp.eraseLine(io);
-            }
-        } else {
-            const sym = sp.opts.info_icon orelse "ℹ";
-            const final_text = if (text.len > 0)
-                text
-            else if (sp.opts.complete_message.len > 0)
-                sp.opts.complete_message
-            else
-                std.mem.sliceTo(&sp.text_buf, 0);
-            sp.printFinal(io, final_text, sym, .cyan);
-        }
-        if (sp.opts.on_info) |cb| {
-            cb(sp);
-        }
-        if (sp.opts.on_complete) |cb| {
-            cb(sp);
-        }
-        const alloc = sp.allocator;
-        alloc.destroy(sp);
     }
 
-    fn printNonTty(sp: *Spinner, io: std.Io, text: []const u8) !void {
-        var buf: [512]u8 = undefined;
-        var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
-        const w = &fw.interface;
-
-        // Apply line background color
-        const line_bg = sp.opts.bg_color;
-        if (line_bg != .default) {
-            sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
-        }
-
-        // Print datetime
-        const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
-        const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
-        if (sp.opts.show_date and sp.opts.show_time) {
-            var dbuf: [16]u8 = undefined;
-            var tbuf: [32]u8 = undefined;
-            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
-        } else if (sp.opts.show_date) {
-            var dbuf: [16]u8 = undefined;
-            w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
-        } else if (sp.opts.show_time) {
-            var tbuf: [32]u8 = undefined;
-            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s}] ", .{t_str}) catch {};
-        }
-
-        // Re-apply line bg after icons
-        if (line_bg != .default) {
-            sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
-        }
-
-        // Print spinner glyph
-        const glyph = sp.opts.style.frames[0];
-        const glyph_color = if (sp.opts.style.gradient) |grad|
-            grad.at(0.0)
-        else if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
-        color_mod.writeColored(w, sp.colorizer, glyph, glyph_color, sp.opts.spinner_bg_color, sp.opts.style.attrs) catch {};
-        try w.writeAll(" ");
-
-        // Print text with text_color/text_bg_color
-        const text_color = sp.opts.text_color;
-        const text_bg = sp.opts.text_bg_color;
-        if (text_color != .default or text_bg != .default) {
-            sp.colorizer.begin(w, text_color, text_bg, &.{}) catch {};
-        }
-        try w.writeAll(text);
-        if (text_color != .default or text_bg != .default) {
-            sp.colorizer.reset(w) catch {};
-            // Restore line bg after text
-            if (line_bg != .default) {
-                sp.colorizer.begin(w, .default, line_bg, &.{}) catch {};
-            }
-        }
-
-        // Print suffix with truncation
-        if (sp.opts.suffix.len > 0) {
-            const suffix_str = if (sp.opts.max_suffix_width > 0)
-                utils.truncateUtf8(&buf, sp.opts.suffix, sp.opts.max_suffix_width)
-            else
-                sp.opts.suffix;
-            try w.print(" {s}", .{suffix_str});
-        }
-
-        // Reset line background
-        if (line_bg != .default) {
-            sp.colorizer.reset(w) catch {};
-        }
-
-        try w.writeByte('\n');
-        try fw.flush();
-    }
-
-    fn updateText(sp: *Spinner, text: []const u8) void {
-        const len = @min(text.len, 255);
-        @memcpy(sp.text_buf[0..len], text[0..len]);
-        sp.text_buf[len] = 0;
-    }
-
-    fn eraseLine(sp: *Spinner, io: std.Io) void {
-        var buf: [64]u8 = undefined;
-        var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
-        const w = &fw.interface;
-        // The cursor sits one line below the content (plus any below-padding)
-        // after the render thread's last frame. Move up to the content line first.
-        sp.colorizer.cursorUp(w, 1 + sp.opts.padding_lines_below) catch {};
-        sp.colorizer.clearLine(w) catch {};
-        fw.flush() catch {};
-    }
-
-    fn printFinal(sp: *Spinner, io: std.Io, text: []const u8, symbol: []const u8, sym_color: Color) void {
-        var buf: [512]u8 = undefined;
-        var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
-        const w = &fw.interface;
-
-        if (sp.term.is_tty) {
-            // The render thread left the cursor one line below the content
-            // (after the \n written after each frame). Move back up past
-            // below-padding lines AND the content line to overwrite it.
-            const lines_down = sp.opts.padding_lines_below + 1;
-            sp.colorizer.cursorUp(w, lines_down) catch {};
-        }
-
-        const line_color = if (sp.opts.color != .default) sp.opts.color else sym_color;
-        const line_bg_color = sp.opts.bg_color;
-
-        if (line_color != .default or line_bg_color != .default) {
-            sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-        }
-        sp.colorizer.clearLine(w) catch {};
-
-        const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
-        const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
-        if (sp.opts.show_date and sp.opts.show_time) {
-            var dbuf: [16]u8 = undefined;
-            var tbuf: [32]u8 = undefined;
-            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
-        } else if (sp.opts.show_date) {
-            var dbuf: [16]u8 = undefined;
-            w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
-        } else if (sp.opts.show_time) {
-            var tbuf: [32]u8 = undefined;
-            const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-            w.print("[{s}] ", .{t_str}) catch {};
-        }
-
-        // Use complete_fg from style if set, otherwise use the state color
-        const actual_sym_color = if (sp.opts.style.complete_fg != .default)
-            sp.opts.style.complete_fg
-        else
-            sym_color;
-        color_mod.writeColored(w, sp.colorizer, symbol, actual_sym_color, sp.opts.spinner_bg_color, &.{.bold}) catch {};
-        w.writeAll(" ") catch {};
-
-        if (line_color != .default or line_bg_color != .default) {
-            sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-        }
-
-        var t_buf: [256]u8 = undefined;
-        const text_str = if (sp.opts.max_text_width > 0)
-            utils.truncateUtf8(&t_buf, text, sp.opts.max_text_width)
-        else
-            text;
-
-        if (sp.opts.text_color != .default or sp.opts.text_bg_color != .default) {
-            sp.colorizer.begin(w, sp.opts.text_color, sp.opts.text_bg_color, &.{}) catch {};
-            w.writeAll(text_str) catch {};
-            sp.colorizer.reset(w) catch {};
-            if (line_color != .default or line_bg_color != .default) {
-                sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-            }
-        } else {
-            w.writeAll(text_str) catch {};
-        }
-
-        if (sp.opts.suffix.len > 0) {
-            var s_buf: [256]u8 = undefined;
-            const suffix_str = if (sp.opts.max_suffix_width > 0)
-                utils.truncateUtf8(&s_buf, sp.opts.suffix, sp.opts.max_suffix_width)
-            else
-                sp.opts.suffix;
-            w.print(" {s}", .{suffix_str}) catch {};
-        }
-
-        if (line_color != .default or line_bg_color != .default) {
-            sp.colorizer.reset(w) catch {};
-        }
-
-        // Below padding lines — write \n first to move past the
-        // final-state line, THEN clearLine on the new (empty) line.
-        // Previous order (clearLine then \n) erased the final state.
-        var i: usize = 0;
-        while (i < sp.opts.padding_lines_below) : (i += 1) {
-            w.writeByte('\n') catch {};
-            if (sp.opts.bg_color != .default) {
-                sp.colorizer.begin(w, .default, sp.opts.bg_color, &.{}) catch {};
-            }
-            sp.colorizer.clearLine(w) catch {};
-            if (sp.opts.bg_color != .default) {
-                sp.colorizer.reset(w) catch {};
-            }
-        }
-
-        if (sp.term.is_tty) {
-            sp.colorizer.cr(w) catch {};
-        }
-        w.writeByte('\n') catch {};
-        fw.flush() catch {};
-    }
-
-    fn renderLoop(sp: *Spinner, io: std.Io) void {
-        var frame: usize = 0;
-        var buf: [512]u8 = undefined;
-        var first_render = true;
-
-        var last_msg_change_time = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms)));
-        var msg_index: usize = 0;
-
-        while (!sp.stop_flag.load(.acquire)) {
-            if (sp.opts.messages) |msgs| {
-                if (msgs.len > 0) {
-                    const now = @as(i64, @intCast(@divTrunc(std.Io.Clock.real.now(io).nanoseconds, std.time.ns_per_ms)));
-                    const elapsed = now - last_msg_change_time;
-                    if (elapsed >= sp.opts.message_interval_ms) {
-                        msg_index = (msg_index + 1) % msgs.len;
-                        sp.setText(msgs[msg_index]);
-                        last_msg_change_time = now;
-                    }
+    pub fn stop(self: *Spinner, config: FinishConfig) void {
+        self.stopRenderThread();
+        self.lock();
+        defer self.unlock();
+        if (self.status_state == .finished or self.status_state == .failed) return;
+        self.status_state = .finished;
+        self.updateElapsed();
+        if (self.config.on_finish) |cb| cb(self.config.ctx);
+        if (self.draw_on_update) {
+            if (config.clear) {
+                terminal.eraseLine(self.io);
+            } else if (config.final_text) |ft| {
+                terminal.eraseLine(self.io);
+                var writer = terminal.stdoutWriter(self.io);
+                writer.writeAll(ft) catch {};
+                if (config.newline) writer.writeAll("\n") catch {};
+            } else {
+                if (config.newline) {
+                    var writer = terminal.stdoutWriter(self.io);
+                    writer.writeAll("\n") catch {};
                 }
             }
-
-            if (!sp.paused.load(.acquire)) {
-                var fw: std.Io.File.Writer = .init(sp.file, io, &buf);
-                const w = &fw.interface;
-
-                if (!first_render) {
-                    sp.colorizer.cursorUp(w, sp.opts.padding_lines_above + 1 + sp.opts.padding_lines_below) catch {};
-                }
-                first_render = false;
-
-                // Above padding lines
-                var i: usize = 0;
-                while (i < sp.opts.padding_lines_above) : (i += 1) {
-                    sp.colorizer.clearLine(w) catch {};
-                    if (sp.opts.bg_color != .default) {
-                        sp.colorizer.begin(w, .default, sp.opts.bg_color, &.{}) catch {};
-                        w.writeByte(' ') catch {};
-                        sp.colorizer.reset(w) catch {};
-                    }
-                    w.writeByte('\n') catch {};
-                }
-
-                sp.colorizer.clearLine(w) catch {};
-
-                const line_color = sp.opts.color;
-                const line_bg_color = sp.opts.bg_color;
-
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-                }
-
-                const ts_ns = std.Io.Clock.real.now(io).nanoseconds;
-                const ts = @as(i64, @intCast(@divTrunc(ts_ns, std.time.ns_per_s))) + sp.opts.timezone_offset_sec;
-                if (sp.opts.show_date and sp.opts.show_time) {
-                    var dbuf: [16]u8 = undefined;
-                    var tbuf: [32]u8 = undefined;
-                    const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                    w.print("[{s} {s}] ", .{ utils.formatDate(&dbuf, ts), t_str }) catch {};
-                } else if (sp.opts.show_date) {
-                    var dbuf: [16]u8 = undefined;
-                    w.print("[{s}] ", .{utils.formatDate(&dbuf, ts)}) catch {};
-                } else if (sp.opts.show_time) {
-                    var tbuf: [32]u8 = undefined;
-                    const t_str = if (sp.opts.time_format_12h) utils.formatTime12h(&tbuf, ts) else utils.formatTime(&tbuf, ts);
-                    w.print("[{s}] ", .{t_str}) catch {};
-                }
-
-                const frames = sp.opts.style.frames;
-                const glyph = frames[frame % frames.len];
-                const glyph_color = if (sp.opts.style.gradient) |grad|
-                    grad.at(@as(f64, @floatFromInt(frame % 256)) / 255.0)
-                else if (sp.opts.spinner_color != .default) sp.opts.spinner_color else sp.opts.style.color;
-                color_mod.writeColored(w, sp.colorizer, glyph, glyph_color, sp.opts.spinner_bg_color, sp.opts.style.attrs) catch {};
-                w.writeAll(" ") catch {};
-
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-                }
-
-                const text_ptr: [*:0]const u8 = sp.text.load(.acquire);
-                const text = std.mem.span(text_ptr);
-                if (text.len > 0) {
-                    var t_buf: [256]u8 = undefined;
-                    const text_str = if (sp.opts.max_text_width > 0)
-                        utils.truncateUtf8(&t_buf, text, sp.opts.max_text_width)
-                    else
-                        text;
-
-                    if (sp.opts.text_color != .default or sp.opts.text_bg_color != .default) {
-                        sp.colorizer.begin(w, sp.opts.text_color, sp.opts.text_bg_color, &.{}) catch {};
-                        w.writeAll(text_str) catch {};
-                        sp.colorizer.reset(w) catch {};
-                        if (line_color != .default or line_bg_color != .default) {
-                            sp.colorizer.begin(w, line_color, line_bg_color, &.{}) catch {};
-                        }
-                    } else {
-                        w.writeAll(text_str) catch {};
-                    }
-                }
-
-                if (sp.opts.show_elapsed) {
-                    const now_ns = std.Io.Clock.awake.now(io).nanoseconds;
-                    const elapsed_ns = now_ns - sp.started_ns;
-                    const base_s = @as(i64, @intCast(@divTrunc(elapsed_ns, std.time.ns_per_s)));
-                    const elapsed_s: u64 = @intCast(@max(0, base_s + sp.opts.start_time_offset_sec));
-                    var ebuf: [16]u8 = undefined;
-                    w.print(" [{s}]", .{utils.formatEta(&ebuf, elapsed_s)}) catch {};
-                }
-
-                if (sp.opts.suffix.len > 0) {
-                    var s_buf: [256]u8 = undefined;
-                    const suffix_str = if (sp.opts.max_suffix_width > 0)
-                        utils.truncateUtf8(&s_buf, sp.opts.suffix, sp.opts.max_suffix_width)
-                    else
-                        sp.opts.suffix;
-                    w.print(" {s}", .{suffix_str}) catch {};
-                }
-
-                if (line_color != .default or line_bg_color != .default) {
-                    sp.colorizer.reset(w) catch {};
-                }
-
-                // Move to next line after content (matches ProgressBar pattern).
-                // Without this, cursorUp math is off-by-one and the animation
-                // scrolls upward instead of overwriting the same line.
-                w.writeByte('\n') catch {};
-
-                // Below padding lines
-                i = 0;
-                while (i < sp.opts.padding_lines_below) : (i += 1) {
-                    sp.colorizer.clearLine(w) catch {};
-                    if (sp.opts.bg_color != .default) {
-                        sp.colorizer.begin(w, .default, sp.opts.bg_color, &.{}) catch {};
-                        w.writeByte(' ') catch {};
-                        sp.colorizer.reset(w) catch {};
-                    }
-                    w.writeByte('\n') catch {};
-                }
-
-                sp.colorizer.cr(w) catch {};
-                fw.flush() catch {};
-
-                frame += 1;
-            }
-
-            const interval_ms = sp.opts.interval_override_ms orelse sp.opts.style.interval_ms;
-            io.sleep(
-                std.Io.Duration.fromMilliseconds(@intCast(interval_ms)),
-                .awake,
-            ) catch break;
         }
+    }
+
+    pub fn fail(self: *Spinner, message: []const u8) void {
+        self.stopRenderThread();
+        self.lock();
+        defer self.unlock();
+        if (self.status_state == .finished or self.status_state == .failed) return;
+        self.status_state = .failed;
+        if (self.config.on_finish) |cb| cb(self.config.ctx);
+        if (self.draw_on_update) {
+            terminal.eraseLine(self.io);
+            var writer = terminal.stdoutWriter(self.io);
+            writer.writeAll("\x1b[31m") catch {};
+            writer.writeAll("FAILED: ") catch {};
+            writer.writeAll(message) catch {};
+            writer.writeAll("\x1b[0m") catch {};
+            writer.writeAll("\n") catch {};
+            writer.flush() catch {};
+        }
+    }
+
+    pub fn setText(self: *Spinner, text: []const u8) void {
+        self.lock();
+        defer self.unlock();
+        self.config.text = text;
+    }
+
+    pub fn setColor(self: *Spinner, color: ?[]const u8) void {
+        self.lock();
+        defer self.unlock();
+        self.config.color = color;
+    }
+
+    pub fn setFrames(self: *Spinner, frames: []const []const u8) void {
+        self.lock();
+        defer self.unlock();
+        self.config.frames = frames;
+    }
+
+    pub fn setTemplate(self: *Spinner, template: []const u8) !void {
+        try template_mod.validate(template, self.config.formatters);
+        self.lock();
+        defer self.unlock();
+        self.config.template = template;
+    }
+
+    pub fn state(self: *Spinner) SpinnerState {
+        self.lock();
+        defer self.unlock();
+        const frame = self.config.frames[self.index % self.config.frames.len];
+        return .{
+            .frame_index = self.index,
+            .frame = frame,
+            .elapsed_ns = self.elapsed_ns,
+            .status = self.status_state,
+        };
+    }
+
+    pub fn getStatus(self: *Spinner) Status {
+        self.lock();
+        defer self.unlock();
+        return self.status_state;
+    }
+
+    pub fn setDrawOnUpdate(self: *Spinner, draw: bool) void {
+        self.draw_on_update = draw;
+    }
+
+    pub fn redrawLine(self: *Spinner) void {
+        self.locklessRedraw();
+    }
+
+    /// Marks the spinner finished without drawing. Used by MultiBar and StepSequence.
+    pub fn finishNow(self: *Spinner) void {
+        self.stopRenderThread();
+        self.lock();
+        defer self.unlock();
+        if (self.status_state == .finished or self.status_state == .failed) return;
+        self.status_state = .finished;
+        self.updateElapsed();
+        if (self.config.on_finish) |cb| cb(self.config.ctx);
+    }
+
+    fn lock(self: *Spinner) void {
+        self.mutex.lockUncancelable(self.io);
+    }
+
+    fn unlock(self: *Spinner) void {
+        self.mutex.unlock(self.io);
+    }
+
+    fn maybeRedraw(self: *Spinner) void {
+        if (self.draw_on_update and self.status_state == .running) {
+            self.locklessRedraw();
+        }
+    }
+
+    fn renderLoop(self: *Spinner) void {
+        while (!self.stop_thread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.interval_ms);
+            self.tickFrame();
+        }
+    }
+
+    fn stopRenderThread(self: *Spinner) void {
+        self.stop_thread.store(true, .release);
+        if (self.thread) |t| {
+            self.thread = null;
+            t.join();
+        }
+    }
+
+    fn updateElapsed(self: *Spinner) void {
+        const now = std.Io.Timestamp.now(self.io, .awake);
+        const diff = now.nanoseconds - self.start_time.nanoseconds;
+        self.elapsed_ns = @intCast(@max(diff, 0));
+    }
+
+    fn locklessRedraw(self: *Spinner) void {
+        var writer = terminal.stdoutWriter(self.io);
+
+        const frame = self.config.frames[self.index % self.config.frames.len];
+
+        var buf: [4096]u8 = undefined;
+        var scratch: [64]u8 = undefined;
+        const values = template_mod.Values{
+            .prefix = self.config.prefix,
+            .suffix = self.config.suffix,
+            .text = self.config.text,
+            .frame = if (self.config.show_spinner) frame else "",
+            .elapsed_ns = self.elapsed_ns,
+            .color = self.config.color,
+        };
+        const rendered = template_mod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
+        // Clear line and write content
+        writer.writeAll("\r\x1b[K") catch {};
+        if (self.config.color) |c| writer.writeAll(c) catch {};
+        if (!self.config.text_style.isEmpty()) {
+            var style_buf: [32]u8 = undefined;
+            writer.writeAll(self.config.text_style.toAnsi(&style_buf)) catch {};
+        }
+        writer.writeAll(rendered) catch {};
+        if (self.config.color != null) writer.writeAll("\x1b[0m") catch {};
+        writer.flush() catch {};
     }
 };
 
-test "SpinnerStyle.dots has frames" {
-    try std.testing.expect(SpinnerStyle.dots.frames.len > 0);
-    try std.testing.expect(SpinnerStyle.dots.interval_ms > 0);
-}
-
-test "Spinner start and stop" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const sp = try Spinner.start(io, .{
-        .text = "Testing...",
-        .style = SpinnerStyle.line,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-    });
-    io.sleep(std.Io.Duration.fromMilliseconds(50), .awake) catch {};
-    sp.stop(io);
-}
-
-test "Spinner pause and resume" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const sp = try Spinner.start(io, .{
-        .text = "Working...",
-        .style = SpinnerStyle.dots,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-    });
-    sp.pause();
-    try std.testing.expect(sp.paused.load(.acquire));
-    sp.resume_();
-    try std.testing.expect(!sp.paused.load(.acquire));
-    io.sleep(std.Io.Duration.fromMilliseconds(30), .awake) catch {};
-    sp.stop(io);
-}
-
-test "Spinner interval_override_ms" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const sp = try Spinner.start(io, .{
-        .text = "Fast...",
-        .style = SpinnerStyle.dots,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-        .interval_override_ms = 500,
-    });
-    try std.testing.expectEqual(@as(?u64, 500), sp.opts.interval_override_ms);
-    io.sleep(std.Io.Duration.fromMilliseconds(30), .awake) catch {};
-    sp.stop(io);
-}
-
-test "Spinner suffix option" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const sp = try Spinner.start(io, .{
-        .text = "Working",
-        .suffix = "...",
-        .style = SpinnerStyle.line,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-    });
-    try std.testing.expectEqualSlices(u8, "...", sp.opts.suffix);
-    io.sleep(std.Io.Duration.fromMilliseconds(20), .awake) catch {};
-    sp.stop(io);
-}
-
-test "Spinner custom icons" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const sp = try Spinner.start(io, .{
-        .text = "Working",
-        .style = SpinnerStyle.line,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-        .success_icon = "🎉",
-    });
-    try std.testing.expectEqualSlices(u8, "🎉", sp.opts.success_icon.?);
-    sp.succeed(io, "Done");
-}
-
-test "Spinner multi-message cycling" {
-    const io = std.Options.debug_io;
-    const invalid_file = std.Io.File{
-        .handle = if (@import("builtin").os.tag == .windows) std.os.windows.INVALID_HANDLE_VALUE else -1,
-        .flags = .{ .nonblocking = false },
-    };
-    const msgs = [_][]const u8{ "Reticulating splines...", "Locating floppy drive...", "Feeding hamsters..." };
-    const sp = try Spinner.start(io, .{
-        .text = "Wait...",
-        .messages = &msgs,
-        .message_interval_ms = 10,
-        .style = SpinnerStyle.line,
-        .term = .{ .is_tty = false, .ansi_supported = false, .cols = 80 },
-        .color_enabled = false,
-        .file = invalid_file,
-    });
-    try std.testing.expectEqualSlices(u8, "Reticulating splines...", std.mem.span(sp.text.load(.acquire)));
-    io.sleep(std.Io.Duration.fromMilliseconds(30), .awake) catch {};
-    // Verify it cycles/changed
-    const current = std.mem.span(sp.text.load(.acquire));
-    try std.testing.expect(current.len > 0);
-    sp.stop(io);
+test "spinner advances frames" {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const config = SpinnerConfig{ .frames = &.{ "|", "/", "-", "\\" } };
+    var sp = try Spinner.init(std.testing.allocator, io, config);
+    defer sp.deinit();
+    sp.setDrawOnUpdate(false);
+    try sp.start();
+    const s0 = sp.state();
+    try std.testing.expectEqualStrings("|", s0.frame);
+    sp.tickFrame();
+    const s1 = sp.state();
+    try std.testing.expectEqualStrings("/", s1.frame);
+    try std.testing.expectEqual(Status.running, sp.getStatus());
 }

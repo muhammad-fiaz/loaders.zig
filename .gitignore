@@ -1,7 +1,35 @@
+# Zig
+.zig-cache/
 .zig-cache/
 zig-out/
+zig-cache/
+*.zig-cache
 
+# VitePress
 docs/node_modules/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/.vitepress/.temp/
+docs/.vitepress/.vite/
+docs/public/robots.txt
+docs/public/sitemap.xml
+
+# Build artifacts
 *.pdf
+*.tar.gz
+*.zip
+
+# Dependencies
+zig-pkg/
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

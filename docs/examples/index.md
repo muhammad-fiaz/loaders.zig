@@ -1,69 +1,94 @@
 ---
-description: Complete collection of runnable examples for loaders.zig. Progress bars, spinners, multi-progress, styling, and advanced techniques with full source code and sample output.
-head:
-  - - meta
-    - name: keywords
-      content: loaders.zig examples, zig progress bar example, zig spinner example, zig loading animation example, zig cli examples
-  - - meta
-    - property: og:title
-      content: Examples — loaders.zig
-  - - meta
-    - property: og:description
-      content: Complete collection of runnable examples for loaders.zig with full source code and sample output.
+title: Examples
+description: All 40 loaders.zig examples — run them with zig build.
 ---
 
 # Examples
 
-Every example is a standalone program in the `examples/` directory. Run any example with:
-
-```bash
-zig build run-<name>
-```
-
-Or build all examples at once:
+All 40 examples live in the `examples/` directory. Build them all with:
 
 ```bash
 zig build examples
 ```
 
----
+Run every example sequentially:
+
+```bash
+zig build run-all-examples
+```
+
+Run a single example:
+
+```bash
+zig build run-<example-name>
+```
 
 ## Progress Bars
 
-| Example | Description | Run |
-|---------|-------------|-----|
-| [Basic Bar](01-basic-bar) | Minimal 50-step progress bar with percentage | `zig build run-01_basic_bar` |
-| [Basic Bar (100)](basic-bar) | Standard and unicode-styled 100-step bars | `zig build run-basic_bar` |
-| [Styled Bar](02-styled-bar) | Side-by-side comparison of 7 bar styles | `zig build run-02_styled_bar` |
-| [Custom Style](custom-style) | Custom `BarStyle` with `=` fill, `>` tip, green color | `zig build run-custom_style` |
-| [Themed Bar](themed-bar) | Gallery of 9 built-in bar themes | `zig build run-themed_bar` |
-| [Gradient Demo](gradient-demo) | Multi-color gradient progress bars and spinners | `zig build run-gradient_demo` |
-| [ETA and Rate](eta-and-rate) | Dynamic ETA, rate, count, and elapsed time | `zig build run-eta_and_rate` |
-| [Download Simulation](download-simulation) | 50 MB download with byte rate and ETA | `zig build run-download_simulation` |
-| [Rate Smoothing](rate-smoothing) | Byte throughput and EMA rate smoothing | `zig build run-rate_smoothing` |
-| [Advanced Options](advanced-options) | Decorators, timestamps, colors, responsive width | `zig build run-advanced_options` |
-| [Custom Template](custom-template) | Dynamic label changes across 5 phases | `zig build run-custom_template` |
-| [Nested Bars](nested-bars) | Outer/inner batch progress with BatchBar | `zig build run-nested_bars` |
+| Example | What it shows |
+|---------|---------------|
+| `basic_bar` | Minimal bar with `{bar} {percent}%`. |
+| `custom_ascii_bar` | ASCII `#`/`-`/`>` style. |
+| `custom_bracket_bar` | Custom brackets and head characters. |
+| `block_bar` | Block-based bar with partial fills. |
+| `indeterminate` | Sliding segment for unknown progress. |
+| `indeterminate_timeout` | Indeterminate bar with timeout auto-stop. |
+| `manual_tick` | Manual `.none` thread mode with `tick()`. |
+| `auto_thread` | `.auto` background-thread rendering. |
+| `external_thread` | Updates from an external thread. |
+| `starting_value` | `current` initial value, decremental direction. |
+| `progress_bar_unicode` | Unicode block characters with color. |
+| `progress_bar_countdown` | Countdown bar with decremental direction. |
+| `progress_bar_countdown_eta` | Countdown with ETA and speed formatters. |
 
 ## Spinners
 
-| Example | Description | Run |
-|---------|-------------|-----|
-| [Spinner](spinner) | Dots, line, and moon spinners with text updates | `zig build run-spinner` |
-| [Multi Spinner](multi-spinner) | 5 concurrent spinners with staggered finish states | `zig build run-multi_spinner` |
+| Example | What it shows |
+|---------|---------------|
+| `basic_spinner` | Minimal spinner with `{frame} {text}`. |
+| `dynamic_spinner_messages` | `setText` / `setColor` mid-run. |
+| `spinner_looping_messages` | Cycling text messages. |
+| `spinner_conditional_messages` | Phase-based text changes. |
+| `infinite_spinner` | Auto-threaded infinite spinner with `stop`. |
+| `spinner_braille` | Braille dot spinner frames. |
 
-## Multi-Progress
+## Multi-Progress & Batch
 
-| Example | Description | Run |
-|---------|-------------|-----|
-| [Multi Progress](multi-progress) | 4 concurrent bars with different styles | `zig build run-multi_progress` |
+| Example | What it shows |
+|---------|---------------|
+| `multi_bar_sequential` | MultiBar sequential mode. |
+| `multi_bar_parallel` | MultiBar parallel mode. |
+| `batch_sequential` | BatchRunner over a slice. |
+| `batch_parallel_downloads` | Parallel workers with per-item + overall bars. |
+| `batch_dynamic_messages` | Workers updating text dynamically. |
 
-## Utilities
+## Step Sequences
 
-| Example | Description | Run |
-|---------|-------------|-----|
-| [Iterator Wrap](iterator-wrap) | Progress bar wrapper for iterators and callbacks | `zig build run-iterator_wrap` |
-| [Animations](animations) | Showcase all 33 spinner and 18 bar presets | `zig build run-animations` |
-| [Color Demo](color-demo) | Tiered ANSI, 256-color, and RGB colors | `zig build run-color_demo` |
-| [Icon Demo](icon-demo) | Custom running prefix and completion icons | `zig build run-icon_demo` |
-| [Multi-Message Progressbar](multi-message-progressbar) | Dynamic loading messages cycling and loop | `zig build run-multi_message_progressbar` |
+| Example | What it shows |
+|---------|---------------|
+| `step_sequence_basic` | Spinner and bar steps, `completeStep` / `failStep`. |
+| `step_runall` | `runAll` runner, skip, summary printing. |
+
+## Colors
+
+| Example | What it shows |
+|---------|---------------|
+| `custom_colors_rgb` | Raw ANSI RGB strings. |
+| `custom_colors_hex` | HEX → RGB escape sequences. |
+| `custom_colors_dynamic_gradient` | Gradient computed per update. |
+
+## Advanced
+
+| Example | What it shows |
+|---------|---------------|
+| `template_with_eta_speed` | `{elapsed}` / `{eta}` / `{speed}` formatters. |
+| `runtime_style_swap` | `setStyle` mid-run — Phase A → Phase B. |
+| `runtime_frame_swap` | `setFrames` mid-run — ASCII → emoji → moon phases. |
+| `pause_resume` | `pause` / `continue_` semantics. |
+| `text_updates` | Dynamic text updates. |
+| `dynamic_messages` | Text + color + style changes by phase. |
+| `infinite_progress_bar` | Auto-threaded infinite bar, `fail` to stop. |
+| `clear_on_finish` | `FinishConfig.clear` and post-run output via `stdoutWriter`. |
+| `fail_and_status` | `fail` + `getStatus` checks. |
+| `callback_hooks` | `on_tick` / `on_finish` / `on_pause` / `on_resume`. |
+| `state_accessor` | Reading `state()` snapshots. |

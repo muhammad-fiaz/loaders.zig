@@ -1,158 +1,144 @@
 ---
-description: Install loaders.zig and build your first progress bar or spinner in minutes. Supports nightly, stable release, and build-from-source installation methods.
-head:
-  - - meta
-    - name: keywords
-      content: loaders.zig install, zig progress bar, zig spinner, zig loading indicator, zig dependency, build.zig.zon
-  - - meta
-    - property: og:title
-      content: Getting Started with loaders.zig
-  - - meta
-    - property: og:description
-      content: Install loaders.zig and build your first progress bar or spinner in minutes.
+title: Getting Started
+description: Install loaders.zig and create your first progress bar or spinner in minutes.
 ---
 
-# Getting Started with loaders.zig
+# Getting Started
 
-This guide walks you through installing `loaders.zig` and writing your first progress indicator.
+## Prerequisites
 
----
+- **Zig 0.16.0** or newer
+- Windows, Linux, or macOS terminal
 
-## 1. Installation
+## Installation
 
-### Option A — Stable Release (Recommended for Production)
-
-Pin to a specific tagged release for reproducible builds:
+### Stable Release (Production)
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.4.tar.gz
 ```
 
-This automatically adds the dependency to your `build.zig.zon`:
-
-```zig
-.dependencies = .{
-    .loaders = .{
-        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz",
-        .hash = "...", // auto-filled by zig fetch --save
-    },
-},
-```
-
-### Option B — Nightly / Beta (Latest Main Branch)
-
-Use the latest unreleased code from `main`. This tracks HEAD and may include breaking changes:
+### Nightly (Latest Main Branch)
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig.git
+zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
 ```
 
-This adds a git dependency to your `build.zig.zon`:
+Then wire the dependency into your `build.zig`:
 
 ```zig
-.dependencies = .{
-    .loaders = .{
-        .url = "git+https://github.com/muhammad-fiaz/loaders.zig.git",
-        .hash = "...", // auto-filled by zig fetch --save
-    },
-},
+const loaders = b.dependency("loaders", .{});
+exe.root_module.addImport("loaders", loaders.module("loaders"));
 ```
 
-> [!TIP]
-> Use `zig fetch --save` (with URL) for the automatic flow. It resolves the hash and writes it into `build.zig.zon` for you.
-
-### Option C — Build from Source
-
-```bash
-git clone https://github.com/muhammad-fiaz/loaders.zig.git
-cd loaders.zig
-zig build
-```
-
----
-
-## 2. Wire Up `build.zig`
-
-After adding the dependency, reference it in your `build.zig`:
-
-```zig
-const loaders_dep = b.dependency("loaders", .{
-    .target = target,
-    .optimize = optimize,
-});
-
-exe.root_module.addImport("loaders", loaders_dep.module("loaders"));
-```
-
-The `addImport` call exposes the `loaders` module to your executable.
-
----
-
-## 3. Your First Progress Bar
-
-Create `main.zig`:
+## Your First Progress Bar
 
 ```zig
 const std = @import("std");
 const loaders = @import("loaders");
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
+pub fn main() !void {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const allocator = std.heap.page_allocator;
 
-    var bar = loaders.ProgressBar.init(io, .{
-        .label = "Loading Assets",
+    var bar = try loaders.ProgressBar.init(allocator, io, .{
         .total = 100,
-        .show_percent = true,
-        .show_elapsed = true,
+        .style = .{ .filled = "#", .empty = "-" },
+        .template = "{bar} {percent}%",
+        .text = "Processing",
     });
-    defer bar.done();
+    defer bar.deinit();
 
-    for (0..100) |i| {
-        bar.setCompleted(i + 1);
-        bar.render();
-        try io.sleep(std.Io.Duration.fromMilliseconds(30), .awake);
+    var i: u64 = 0;
+    while (i <= 100) : (i += 1) {
+        bar.setProgress(i);
+        loaders.sleepMs(io, 30);
     }
+    bar.finish(.{ .newline = true });
 }
 ```
 
-Run it:
-
-```bash
-zig build run-main
-```
-
----
-
-## 4. Your First Spinner
-
-Spinners run on a background thread, making them ideal for non-blocking work:
+## Your First Spinner
 
 ```zig
-const std = @import("std");
-const loaders = @import("loaders");
+var sp = try loaders.Spinner.init(allocator, io, .{
+    .frames = &.{ "|", "/", "-", "\\" },
+    .template = "{frame} {text}",
+    .text = "Loading",
+});
+defer sp.deinit();
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-
-    const sp = try loaders.Spinner.start(io, .{
-        .text = "Syncing local cache...",
-        .style = loaders.SpinnerStyle.dots,
-    });
-
-    // Perform real work here
-    try io.sleep(std.Io.Duration.fromSeconds(2), .awake);
-
-    sp.succeed(io, "Cache synchronized successfully!");
-}
+try sp.start();
+loaders.sleepMs(io, 2000);
+sp.stop(.{ .final_text = "Done!", .newline = true });
 ```
 
----
+## Core Concepts
 
-## 5. Understanding stderr and TTY
+### Thread Modes
 
-By default, `loaders.zig` writes to **stderr**. This keeps progress indicators out of stdout when users redirect output (e.g. `my_tool > result.json`).
+Every widget accepts a `thread_mode`:
 
-If stderr is redirected, piped, or connected to a dumb terminal, `loaders.zig` automatically:
-- Disables ANSI cursor movement codes
-- Falls back to newline-separated logging
-- Respects `NO_COLOR` environment variable
+| Mode | Description |
+|------|-------------|
+| `.none` | **Manual.** You drive rendering by calling `setProgress` / `tick` / `tickFrame`. |
+| `.auto` | **Background thread.** A render thread redraws the widget at `interval_ms` until it finishes. |
+| `.external` | **Caller-driven.** You update from an external thread; the widget renders on each update. |
+
+### Auto-Start
+
+Bars and spinners left in the `.pending` state start automatically on the first update:
+
+```zig
+bar.setProgress(10);   // starts the clock if pending
+bar.tick();            // also auto-starts
+sp.tickFrame();        // also auto-starts
+```
+
+### Finish Config
+
+`finish` / `stop` / `completeStep` accept a `FinishConfig`:
+
+```zig
+pub const FinishConfig = struct {
+    clear: bool = false,          // erase the last rendered line
+    final_text: ?[]const u8 = null, // replace the widget with this text
+    newline: bool = true,         // move to a new line after finishing
+};
+```
+
+### Writing Output After a Widget
+
+After a bar/spinner has finished, use `loaders.stdoutWriter(io)` to write plain lines:
+
+```zig
+const w = loaders.stdoutWriter(io);
+w.writeAll("all done!\n") catch {};
+```
+
+> [!IMPORTANT]
+> `stdoutWriter` returns a **pointer** to the shared stdout writer. Do not copy `*std.Io.Writer` values or `.interface` fields — the internal writer relies on pointer identity (see [Terminal Helpers](/api/terminal)).
+
+### Colors
+
+Colors use tint.zig — pass `color.toFg()` or use the convenience functions:
+
+```zig
+.color = loaders.fg(.{ .ansi4 = .green })           // ANSI 4-bit green
+.color = loaders.makeRgb(34, 197, 94).toFg()        // RGB (TrueColor)
+.color = loaders.makeHex(0x22C55E).toFg()           // HEX color
+.color = loaders.makeAnsi256(129).toFg()            // ANSI 256-color
+.color = loaders.fg(.{ .named = .red })             // CSS named color
+.color = null                                        // no color
+```
+
+Update colors at runtime with `bar.setColor(...)` / `sp.setColor(...)`.
+
+> [!CAUTION]
+> On Windows, Unicode characters (Braille, emoji) require UTF-8 console encoding. loaders.zig enables this automatically.
+
+## Next Steps
+
+- Explore the [examples](/examples/) to see every feature in action.
+- Read the [API reference](/api/) for the full surface.

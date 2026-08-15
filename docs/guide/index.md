@@ -1,37 +1,34 @@
 ---
-description: User guide for loaders.zig. Walk-through articles covering progress bars, spinners, multi-progress, styling, colors, themes, and advanced techniques.
-head:
-  - - meta
-    - name: keywords
-      content: loaders.zig guide, zig loading indicator tutorial, progress bar tutorial, spinner tutorial
-  - - meta
-    - property: og:title
-      content: Guide — loaders.zig
-  - - meta
-    - property: og:description
-      content: User guide for loaders.zig. Walk-through articles covering all features.
+title: Guide
+description: Learn how to use loaders.zig for terminal progress bars and spinners.
 ---
 
-# Guide Overview
+# Guides
 
-This section walks through the main user-facing features of `loaders.zig`.
+Step-by-step guides for using loaders.zig in your Zig applications.
 
-## Articles
+## Getting Started
 
-1. **[Getting Started](getting-started)** — Install the dependency and build your first progress bar and spinner in minutes.
+- [Getting Started](/guide/getting-started) — install the library, create your first progress bar and spinner, and learn the core concepts (thread modes, rendering, writing output).
 
-2. **[Progress Bars](progress-bar)** — Deep dive into bar lifecycle, increment methods, indeterminate mode, auto-sizing, and date/time decorators.
+## Core Concepts
 
-3. **[Spinners](spinner)** — Background-threaded animated spinners with mid-run text updates and finish states (succeed, fail, warn, info).
+- **Thread modes** — `.none` (manual), `.auto` (background thread), `.external` (caller-driven).
+- **Auto-start** — bars and spinners start automatically on first update (`setProgress`, `tick`, `tickFrame`) when left in the `.pending` state.
+- **Templates** — every widget renders through the template engine; see [Templates](/api/templates) for all tokens.
+- **Writing output** — always use `loaders.stdoutWriter(io)` (returns a pointer) to write lines after a widget; see [Terminal Helpers](/api/terminal).
 
-4. **[Multi Progress](multi-progress)** — Render multiple concurrent progress bars or spinners with BatchBar and coordinated cursor-based rendering.
+## Quick Reference
 
-5. **[Styling](styling)** — Configure custom brackets, fills, tips, colors, and attributes for bars and spinners.
-
-6. **[Colors](colors)** — Harness 16-color ANSI, 256-color palette, and 24-bit RGB true color with automatic suppression.
-
-7. **[Themes](themes)** — Browse all built-in visual presets for progress bars and spinners.
-
-8. **[Gradients](gradients)** — Multi-color gradient rendering for progress bars and spinners.
-
-9. **[Advanced](advanced)** — Custom drawing targets, thread safety, high-performance stacking, and TTY detection.
+| Topic | Link |
+|-------|------|
+| Progress Bar | [API](/api/progress-bar) |
+| Spinner | [API](/api/spinner) |
+| Block Bar | [API](/api/block-bar) |
+| Indeterminate | [API](/api/indeterminate) |
+| MultiBar | [API](/api/multi-bar) |
+| BatchRunner | [API](/api/batch-runner) |
+| StepSequence | [API](/api/step-sequence) |
+| Templates & Formatters | [API](/api/templates) |
+| Terminal Helpers | [API](/api/terminal) |
+| All examples | [Examples](/examples/) |
