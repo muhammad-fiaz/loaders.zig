@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/public/logo.png" alt="loaders.zig" width="250" />
+<img src="docs/public/logo.png" alt="loaders.zig"  height="200" />
 
 # loaders.zig
 
