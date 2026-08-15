@@ -98,7 +98,7 @@ export default defineConfig({
       {
         rel: "apple-touch-icon",
         sizes: "180x180",
-        href: "/loaders.zig/apple-touch-icon.png",
+        href: "/loaders.zig/logo.png",
       },
     ],
     [
@@ -107,7 +107,7 @@ export default defineConfig({
         rel: "icon",
         type: "image/png",
         sizes: "192x192",
-        href: "/loaders.zig/android-chrome-192x192.png",
+        href: "/loaders.zig/logo.png",
       },
     ],
     [
@@ -116,7 +116,7 @@ export default defineConfig({
         rel: "icon",
         type: "image/png",
         sizes: "512x512",
-        href: "/loaders.zig/android-chrome-512x512.png",
+        href: "/loaders.zig/logo.png",
       },
     ],
     ["link", { rel: "manifest", href: "/loaders.zig/site.webmanifest" }],

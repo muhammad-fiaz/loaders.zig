@@ -8,12 +8,12 @@
   "theme_color": "#f7a41d",
   "icons": [
     {
-      "src": "/loaders.zig/android-chrome-192x192.png",
+      "src": "/loaders.zig/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/loaders.zig/android-chrome-512x512.png",
+      "src": "/loaders.zig/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }

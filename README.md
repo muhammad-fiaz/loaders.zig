@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/public/android-chrome-512x512.png" alt="loaders.zig" width="250" />
+<img src="docs/public/logo.png" alt="loaders.zig" width="250" />
 
 # loaders.zig
 
@@ -29,7 +29,7 @@
 `loaders.zig` is a production-oriented Zig library for animated spinners, progress bars, and multi-progress terminal UIs. It is designed for low overhead, clean output, and cross-platform terminal behavior on Linux, Windows, and macOS.
 
 > [!TIP]
-> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — providing RGB, Hex, ANSI 256, HSL, HSV, CMYK, and 140+ CSS named colors. You can also pass raw ANSI escape sequences directly.
+> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, and 140+ named colors. You can also pass raw ANSI escape sequences directly.
 
 ---
 
@@ -164,7 +164,7 @@ mb.finishAll(.{ .newline = true });
 | **Pause/Resume** | Freeze and resume clocks and rendering |
 | **Callbacks** | `on_tick`, `on_finish`, `on_pause`, `on_resume` hooks |
 | **Runtime Swaps** | Change style, frames, template, text, color at runtime |
-| **Color** | tint.zig integration — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors |
+| **Color** | tint.zig — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, named colors |
 | **Template Engine** | `{bar}`, `{frame}`, `{percent}`, `{count}`, `{elapsed}`, `{eta}`, `{speed}`, `{color}`, `{reset}` |
 | **Windows UTF-8** | Automatic console code page setup for Unicode characters |
 

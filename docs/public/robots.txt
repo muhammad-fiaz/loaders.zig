@@ -1,0 +1,8 @@
+# robots.txt for loaders.zig documentation
+# https://muhammad-fiaz.github.io/loaders.zig/
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://muhammad-fiaz.github.io/loaders.zig/sitemap.xml
