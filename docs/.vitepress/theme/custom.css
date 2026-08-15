@@ -28,3 +28,31 @@
   );
   --vp-home-hero-image-filter: blur(44px);
 }
+
+/* Breadcrumb styles */
+.vp-breadcrumb {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+
+.vp-breadcrumb a {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+  transition: color 0.25s;
+}
+
+.vp-breadcrumb a:hover {
+  color: var(--vp-c-brand-2);
+  text-decoration: underline;
+}
+
+.vp-breadcrumb .separator {
+  margin: 0 8px;
+  color: var(--vp-c-text-3);
+}
+
+.vp-breadcrumb .current {
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}

@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 import llmstxt from "vitepress-plugin-llms";
+import { generateBreadcrumbsData } from "@nolebase/vitepress-plugin-breadcrumbs/vitepress";
 
 type PageData = {
   title?: string;
@@ -15,7 +16,7 @@ type PageData = {
 const SITE_URL = "https://muhammad-fiaz.github.io/loaders.zig";
 const SITE_NAME = "loaders.zig";
 const SITE_DESCRIPTION =
-  "High-performance terminal loading indicators and progress bars for Zig.";
+  "High-performance terminal loading indicators and progress bars for Zig. Zero built-in styles, fully customizable, zero dependencies.";
 const GA_ID = "G-6BVYCRK57P";
 const GTM_ID = "GTM-P4M9T8ZR";
 const ADSENSE_CLIENT_ID = "ca-pub-2040560600290490";
@@ -36,6 +37,12 @@ export default defineConfig({
 
   vite: {
     plugins: [llmstxt()],
+    optimizeDeps: {
+      exclude: ["@nolebase/vitepress-plugin-breadcrumbs/client"],
+    },
+    ssr: {
+      noExternal: ["@nolebase/vitepress-plugin-breadcrumbs"],
+    },
   },
 
   head: [
@@ -169,55 +176,36 @@ gtag('config', '${GA_ID}');`,
 
     sidebar: [
       {
-        text: "Overview",
-        items: [
-          { text: "Guide Overview", link: "/guide/" },
-          { text: "API Reference", link: "/api/" },
-          { text: "Examples", link: "/examples/" },
-        ],
-      },
-      {
         text: "Guides",
         items: [
           { text: "Getting Started", link: "/guide/getting-started" },
-          { text: "Progress Bars", link: "/guide/progress-bar" },
-          { text: "Spinners", link: "/guide/spinner" },
-          { text: "Multi Progress", link: "/guide/multi-progress" },
-          { text: "Styling", link: "/guide/styling" },
-          { text: "Colors", link: "/guide/colors" },
-          { text: "Themes", link: "/guide/themes" },
-          { text: "Gradients", link: "/guide/gradients" },
-          { text: "Format Templates", link: "/guide/format-templates" },
-          { text: "Batch Progress", link: "/guide/batch-progress" },
-          { text: "Advanced", link: "/guide/advanced" },
+        ],
+      },
+      {
+        text: "API Reference",
+        items: [
+          { text: "API Overview", link: "/api/" },
+          { text: "Progress Bar", link: "/api/progress-bar" },
+          { text: "Spinner", link: "/api/spinner" },
+          { text: "Block Bar", link: "/api/block-bar" },
+          { text: "Indeterminate", link: "/api/indeterminate" },
+          { text: "Multi Bar", link: "/api/multi-bar" },
+          { text: "Batch Runner", link: "/api/batch-runner" },
+          { text: "Step Sequence", link: "/api/step-sequence" },
+          { text: "Templates & Formatters", link: "/api/templates" },
+          { text: "Terminal Helpers", link: "/api/terminal" },
         ],
       },
       {
         text: "Examples",
         items: [
           { text: "Overview", link: "/examples/" },
-          { text: "Basic Bar", link: "/examples/01-basic-bar" },
-          { text: "Basic Bar (100)", link: "/examples/basic-bar" },
-          { text: "Styled Bar", link: "/examples/02-styled-bar" },
-          { text: "Custom Style", link: "/examples/custom-style" },
-          { text: "Themed Bar", link: "/examples/themed-bar" },
-          { text: "Gradient Demo", link: "/examples/gradient-demo" },
-          { text: "ETA and Rate", link: "/examples/eta-and-rate" },
-          { text: "Download Simulation", link: "/examples/download-simulation" },
-          { text: "Advanced Options", link: "/examples/advanced-options" },
-          { text: "Custom Template", link: "/examples/custom-template" },
-          { text: "Nested Bars", link: "/examples/nested-bars" },
-          { text: "Spinner", link: "/examples/spinner" },
-          { text: "Multi Spinner", link: "/examples/multi-spinner" },
-          { text: "Multi Progress", link: "/examples/multi-progress" },
-          { text: "Iterator Wrap", link: "/examples/iterator-wrap" },
-          { text: "Animations", link: "/examples/animations" },
-          { text: "Batch Progress", link: "/examples/batch-progress" },
-          { text: "Custom Format", link: "/examples/custom-format" },
-          { text: "Color Demo", link: "/examples/color-demo" },
-          { text: "Rate Smoothing", link: "/examples/rate-smoothing" },
-          { text: "Icon Demo", link: "/examples/icon-demo" },
-          { text: "Multi-Message Progressbar", link: "/examples/multi-message-progressbar" },
+          { text: "Progress Bars", link: "/examples/bars" },
+          { text: "Spinners", link: "/examples/spinners" },
+          { text: "Multi & Batch", link: "/examples/multi-and-batch" },
+          { text: "Step Sequences", link: "/examples/steps" },
+          { text: "Colors", link: "/examples/colors" },
+          { text: "Advanced", link: "/examples/advanced" },
         ],
       },
     ],
@@ -263,9 +251,11 @@ gtag('config', '${GA_ID}');`,
     darkModeSwitchLabel: "Appearance",
   },
 
-  transformPageData(pageData: PageData) {
+  transformPageData(pageData: PageData, context: any) {
+    generateBreadcrumbsData(pageData, context);
+
     const pageTitle = pageData.title || SITE_NAME;
-    const pageDescription = pageData.description || SITE_DESCRIPTION;
+    const pageDescription = pageData.frontmatter.description || SITE_DESCRIPTION;
     const canonicalUrl = `${SITE_URL}/${pageData.relativePath
       .replace(/((^|\/)index)?\.md$/, "$2")
       .replace(/\.md$/, "")}`;
@@ -300,9 +290,13 @@ gtag('config', '${GA_ID}');`,
     if (isHome) {
       graph.push({
         "@type": "WebSite",
+        "@id": `${SITE_URL}#website`,
         name: SITE_NAME,
         url: SITE_URL,
         description: SITE_DESCRIPTION,
+        publisher: {
+          "@id": `${SITE_URL}#organization`,
+        },
         author: {
           "@type": "Person",
           name: "Muhammad Fiaz",
@@ -313,6 +307,7 @@ gtag('config', '${GA_ID}');`,
 
     const authorSchema = {
       "@type": "Person",
+      "@id": `${SITE_URL}#author`,
       name: "Muhammad Fiaz",
       url: "https://muhammadfiaz.com",
       sameAs: [
@@ -324,19 +319,16 @@ gtag('config', '${GA_ID}');`,
 
     const primarySchema: Record<string, unknown> = {
       "@type": isHome ? "SoftwareApplication" : "TechArticle",
+      "@id": `${canonicalUrl}#article`,
       name: isHome ? SITE_NAME : pageTitle,
       description: pageDescription,
       url: canonicalUrl,
       image: `${SITE_URL}/loader-thumbnail.png`,
-      author: authorSchema,
+      author: {
+        "@id": `${SITE_URL}#author`,
+      },
       publisher: {
-        "@type": "Organization",
-        name: SITE_NAME,
-        url: SITE_URL,
-        logo: {
-          "@type": "ImageObject",
-          url: `${SITE_URL}/logo.png`,
-        },
+        "@id": `${SITE_URL}#organization`,
       },
     };
 
@@ -374,6 +366,22 @@ gtag('config', '${GA_ID}');`,
 
     graph.push(primarySchema);
 
+    graph.push({
+      "@type": "Organization",
+      "@id": `${SITE_URL}#organization`,
+      name: "Muhammad Fiaz",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/logo.png`,
+      },
+      sameAs: [
+        "https://github.com/muhammad-fiaz",
+        "https://www.linkedin.com/in/muhammad-fiaz-",
+        "https://x.com/muhammadfiaz_",
+      ],
+    });
+
     const breadcrumbs: Record<string, unknown>[] = [
       {
         "@type": "ListItem",
@@ -405,6 +413,7 @@ gtag('config', '${GA_ID}');`,
 
     graph.push({
       "@type": "BreadcrumbList",
+      "@id": `${canonicalUrl}#breadcrumb`,
       itemListElement: breadcrumbs,
     });
 

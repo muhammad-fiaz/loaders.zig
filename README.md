@@ -1,123 +1,32 @@
 <div align="center">
-<img  height="400" alt="loader zig" src="https://github.com/user-attachments/assets/042252d5-0594-4984-bece-deb3b232d91f" />
+<img height="400" alt="loaders.zig" src="https://github.com/user-attachments/assets/042252d5-0594-4984-bece-deb3b232d91f" />
 
 <a href="https://muhammad-fiaz.github.io/loaders.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
-<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.17.0-orange.svg?logo=zig" alt="Zig Version"></a>
+<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/loaders.zig" alt="GitHub stars"></a>
-<a href="https://github.com/muhammad-fiaz/loaders.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/loaders.zig" alt="GitHub issues"></a>
-<a href="https://github.com/muhammad-fiaz/loaders.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/loaders.zig" alt="GitHub pull requests"></a>
-<a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/last-commit/muhammad-fiaz/loaders.zig" alt="GitHub last commit"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/license/muhammad-fiaz/loaders.zig" alt="License"></a>
-<a href="https://github.com/muhammad-fiaz/loaders.zig/actions/workflows/ci.yml"><img src="https://github.com/muhammad-fiaz/loaders.zig/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <img src="https://img.shields.io/badge/platforms-linux%20%7C%20windows%20%7C%20macos-blue" alt="Supported Platforms">
-<a href="https://github.com/muhammad-fiaz/loaders.zig/actions/workflows/release.yml"><img src="https://github.com/muhammad-fiaz/loaders.zig/actions/workflows/release.yml/badge.svg" alt="Release"></a>
-<a href="https://github.com/muhammad-fiaz/loaders.zig/releases/latest"><img src="https://img.shields.io/github/v/release/muhammad-fiaz/loaders.zig?label=Latest%20Release&style=flat-square" alt="Latest Release"></a>
-<a href="https://pay.muhammadfiaz.com"><img src="https://img.shields.io/badge/Sponsor-pay.muhammadfiaz.com-ff69b4?style=flat&logo=heart" alt="Sponsor"></a>
-<a href="https://github.com/sponsors/muhammad-fiaz"><img src="https://img.shields.io/badge/Sponsor-%F0%9F%92%96-pink?style=social&logo=github" alt="GitHub Sponsors"></a>
 
-<p><em>A fast, high-performance terminal loading indicator and progress bar library for Zig.</em></p>
+<p><em>A fast, high-performance terminal progress bar and spinner library for Zig.</em></p>
 
 <b><a href="https://muhammad-fiaz.github.io/loaders.zig/">Documentation</a> |
-<a href="https://muhammad-fiaz.github.io/loaders.zig/api/">API Reference</a> |
-<a href="https://muhammad-fiaz.github.io/loaders.zig/guide/getting-started">Quick Start</a> |
 <a href="https://github.com/muhammad-fiaz/loaders.zig/blob/main/README.md">Source</a></b>
 
 </div>
 
 `loaders.zig` is a production-oriented Zig library for animated spinners, progress bars, and multi-progress terminal UIs. It is designed for low overhead, clean output, and cross-platform terminal behavior on Linux, Windows, and macOS.
 
-> [!NOTE]
-> This project is still evolving, but the current API is built to be practical for real CLI tools and long-running terminal workflows.
-
-**⭐ If you find `loaders.zig` useful, consider starring the repository.**
+> [!TIP]
+> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — providing RGB, Hex, ANSI 256, HSL, HSV, CMYK, and 140+ CSS named colors. You can also pass raw ANSI escape sequences directly.
 
 ---
-
-<details>
-<summary><strong>Table of Contents</strong> (click to expand)</summary>
-
-- [Prerequisites](#prerequisites)
-- [Supported Platforms](#supported-platforms)
-- [Features](#features)
-- [Installation](#installation)
-  - [Option A: Stable Release](#option-a--stable-release-recommended-for-production)
-  - [Option B: Nightly / Beta](#option-b--nightly--beta-latest-main-branch)
-  - [Option C: Build from Source](#option-c--build-from-source)
-- [Quick Start](#quick-start)
-- [Usage Examples](#usage-examples)
-- [Configuration](#configuration)
-- [Documentation](#documentation)
-- [Building](#building)
-- [Contributing](#contributing)
-- [License](#license)
-- [Links](#links)
-
-</details>
-
----
-
-<details>
-<summary><strong>Features</strong> (click to expand)</summary>
-
-| Feature | Description | Documentation |
-|---------|-------------|---------------|
-| **Simple & Fluent API** | Add progress indicators in just a few lines. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/getting-started) |
-| **Progress Bars** | Animated single-bar progress with percentage, ETA, and rate display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/progress-bar) |
-| **Spinners** | Background-threaded terminal spinners for non-blocking work. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/spinner) |
-| **Multi Progress** | Render multiple concurrent bars or spinners together via BatchBar. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/multi-progress) |
-| **Batch Progress** | Track multiple named tasks with per-task state (pending/running/done/failed). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/batch-progress) |
-| **Format Templates** | Custom layout strings using `{label}`, `{bar}`, `{percent}`, `{eta}`, `{rate}` tokens. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/format-templates) |
-| **Rate Smoothing** | EMA-based rate/ETA smoothing for stable throughput display. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
-| **Styling** | Configure brackets, fills, colors, and suffixes. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/styling) |
-| **Themes** | 20+ built-in visual presets for bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/themes) |
-| **Gradients** | Rainbow, fire, ocean, and custom gradient rendering on bars and spinners. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/gradients) |
-| **ANSI Colors** | 16-color ANSI, 256-color, 24-bit RGB, and hex string (`fromHex("#FF8800")`). | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/colors) |
-| **Cross-Platform TTY Handling** | Detects terminal capabilities on Windows and POSIX systems. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
-| **No-Color Friendly** | Respects `NO_COLOR` and redirected output. | [Guide](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced) |
-| **Stack-Friendly** | Zero heap allocation in core API. | [API](https://muhammad-fiaz.github.io/loaders.zig/api/) |
-
-</details>
-
----
-
-<details>
-<summary><strong>Prerequisites & Supported Platforms</strong> (click to expand)</summary>
-
-<br>
 
 ## Prerequisites
 
-Before using `loaders.zig`, ensure you have:
-
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| **Zig** | 0.17.0 | Install from [ziglang.org](https://ziglang.org/download/) |
-| **Operating System** | Windows, Linux, macOS | Cross-platform support |
-| **Terminal** | Any modern terminal | For color and cursor control |
-
----
-
-## Supported Platforms
-
-| Platform | Status |
-|----------|--------|
-| **Windows** | Full support |
-| **Linux** | Full support |
-| **macOS** | Full support |
-
----
-
-### Color Support
-
-| Terminal | Support |
-|----------|---------|
-| **Windows Terminal** | Native ANSI |
-| **PowerShell / CMD** | Supported with terminal capabilities |
-| **iTerm2 / Terminal.app** | Native |
-| **GNOME Terminal / Konsole** | Native |
-| **VS Code Terminal** | Native |
-
-</details>
+| Requirement | Version |
+|-------------|---------|
+| **Zig** | 0.16.0 |
+| **OS** | Windows, Linux, macOS |
 
 ---
 
@@ -125,44 +34,15 @@ Before using `loaders.zig`, ensure you have:
 
 ### Option A — Stable Release (Recommended for Production)
 
-Pin to a specific tagged release for reproducible builds:
-
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz
-```
-
-This automatically adds the dependency to your `build.zig.zon`:
-
-```zig
-.dependencies = .{
-    .loaders = .{
-        .url = "https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.3.tar.gz",
-        .hash = "...", // auto-filled by zig fetch --save
-    },
-},
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.4.tar.gz
 ```
 
 ### Option B — Nightly / Beta (Latest Main Branch)
 
-Use the latest unreleased code from `main`. This tracks HEAD and may include breaking changes:
-
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig.git
+zig fetch --save git+https://github.com/muhammad-fiaz/loaders.zig.git
 ```
-
-This adds a git dependency to your `build.zig.zon`:
-
-```zig
-.dependencies = .{
-    .loaders = .{
-        .url = "git+https://github.com/muhammad-fiaz/loaders.zig.git",
-        .hash = "...", // auto-filled by zig fetch --save
-    },
-},
-```
-
-> [!TIP]
-> Use `zig fetch --save` (with URL) for the automatic flow. It resolves the hash and writes it into `build.zig.zon` for you.
 
 ### Option C — Build from Source
 
@@ -171,6 +51,17 @@ git clone https://github.com/muhammad-fiaz/loaders.zig.git
 cd loaders.zig
 zig build
 ```
+
+> [!IMPORTANT]
+> After installing, wire the dependency into your `build.zig`:
+
+```zig
+const loaders = b.dependency("loaders", .{});
+exe.root_module.addImport("loaders", loaders.module("loaders"));
+```
+
+> [!TIP]
+> Use `zig fetch --save` for the automatic flow. It resolves the hash and writes it into `build.zig.zon` for you.
 
 ---
 
@@ -182,167 +73,372 @@ zig build
 const std = @import("std");
 const loaders = @import("loaders");
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-    var bar = loaders.Bar.init(io, .{
-        .label = "Processing",
-        .total = 100,
-        .show_percent = true,
-        .show_elapsed = true,
-    });
-    defer bar.done();
+pub fn main() !void {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const allocator = std.heap.page_allocator;
 
-    for (0..100) |i| {
-        bar.setCompleted(i + 1);
-        bar.render();
-        try io.sleep(std.Io.Duration.fromMilliseconds(30), .awake);
+    var bar = try loaders.ProgressBar.init(allocator, io, .{
+        .total = 100,
+        .style = .{ .filled = "#", .empty = "-" },
+        .template = "{bar} {percent}%",
+        .text = "Processing",
+    });
+    defer bar.deinit();
+
+    var i: u64 = 0;
+    while (i <= 100) : (i += 1) {
+        bar.setProgress(i);
+        loaders.sleepMs(io, 30);
     }
+    bar.finish(.{ .newline = true });
 }
 ```
 
 ### Spinner
 
 ```zig
-const std = @import("std");
-const loaders = @import("loaders");
+var sp = try loaders.Spinner.init(allocator, io, .{
+    .frames = &.{ "|", "/", "-", "\\" },
+    .template = "{frame} {text}",
+    .text = "Loading",
+});
+defer sp.deinit();
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-    const sp = try loaders.Spinner.start(io, .{
-        .text = "Syncing local database...",
-        .style = loaders.SpinnerStyle.dots,
-    });
-    errdefer sp.stop(io);
-
-    try io.sleep(std.Io.Duration.fromSeconds(2), .awake);
-    sp.succeed(io, "Database synchronized successfully!");
-}
+try sp.start();
+loaders.sleepMs(io, 2000);
+sp.stop(.{ .final_text = "Done!", .newline = true });
 ```
 
-### Multi Progress
+> [!CAUTION]
+> On Windows, Unicode characters (Braille, emoji) require UTF-8 console encoding. loaders.zig automatically enables UTF-8 mode on Windows.
+
+### Multi-Progress
 
 ```zig
-const std = @import("std");
-const loaders = @import("loaders");
+var mb = try loaders.MultiBar.init(allocator, io, .{});
+defer mb.deinit();
 
-pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-    var bb = loaders.BatchBar.init(io, .{
-        .tasks = &.{
-            .{ .name = "Asset A", .total = 100, .color = .cyan },
-            .{ .name = "Asset B", .total = 100, .color = .green },
-        },
-    });
+_ = try mb.addBar(.{
+    .total = 100,
+    .style = .{ .filled = "#", .empty = "-" },
+    .template = "Task A: {bar} {percent}%",
+});
+_ = try mb.addBar(.{
+    .total = 100,
+    .style = .{ .filled = "=", .empty = " " },
+    .template = "Task B: {bar} {percent}%",
+});
 
-    for (0..100) |i| {
-        bb.setTaskCompleted(0, i + 1);
-        bb.setTaskCompleted(1, i + 1);
-        bb.render();
-        try io.sleep(std.Io.Duration.fromMilliseconds(20), .awake);
+try mb.run();
+// ... update bars ...
+mb.finishAll(.{ .newline = true });
+```
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Custom Bar Styles** | Override fill, empty, head, and bracket characters |
+| **Custom Spinner Frames** | Provide any frame sequence (Braille, emoji, ASCII, etc.) |
+| **ETA & Speed** | Real-time estimated time remaining and throughput via formatters |
+| **Dynamic Messages** | Update text and color dynamically based on task phase or state |
+| **Multi-Progress** | Sequential and parallel multi-bar rendering |
+| **Batch Runner** | Process items with per-item and overall progress bars |
+| **Step Sequences** | Ordered multi-step pipelines with spinner or bar per step |
+| **Thread Modes** | `.none` (manual), `.auto` (background thread), `.external` (caller-driven) |
+| **Pause/Resume** | Freeze and resume clocks and rendering |
+| **Callbacks** | `on_tick`, `on_finish`, `on_pause`, `on_resume` hooks |
+| **Runtime Swaps** | Change style, frames, template, text, color at runtime |
+| **Color** | tint.zig integration — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors |
+| **Template Engine** | `{bar}`, `{frame}`, `{percent}`, `{count}`, `{elapsed}`, `{eta}`, `{speed}`, `{color}`, `{reset}` |
+| **Windows UTF-8** | Automatic console code page setup for Unicode characters |
+
+---
+
+## Color
+
+Colors use [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally — pass `color.toFg()` or use convenience functions:
+
+```zig
+// tint.zig color functions
+.color = loaders.fg(.{ .ansi4 = .green })        // ANSI 4-bit green
+.color = loaders.makeRgb(34, 197, 94).toFg()     // RGB (TrueColor)
+.color = loaders.makeHex(0x22C55E).toFg()        // HEX color
+.color = loaders.makeAnsi256(129).toFg()         // ANSI 256-color
+.color = loaders.fg(.{ .named = .red })          // CSS named color
+
+// Raw ANSI strings still work
+.color = "\x1b[32m"        // green
+.color = "\x1b[38;2;0;255;0m"  // green RGB
+
+// No color
+.color = null
+```
+
+Colors can be updated at runtime with `bar.setColor(...)` / `sp.setColor(...)`.
+
+---
+
+## API Reference
+
+### ProgressBar
+
+```zig
+// Create
+var bar = try loaders.ProgressBar.init(allocator, io, .{
+    .total = 100,
+    .style = .{ .filled = "#", .empty = "-" },
+    .template = "{bar} {percent}%",
+    .text = "Processing",
+    .color = loaders.fg(.{ .ansi4 = .green }),  // green via tint.zig
+    .formatters = .{
+        .elapsed = formatElapsed,
+        .eta = formatEta,
+        .speed = formatSpeed,
+    },
+});
+defer bar.deinit();
+
+// Control
+bar.setProgress(50);            // Set absolute value
+bar.pause();                    // Pause clock
+bar.continue_();                // Resume from pause
+bar.forceRedraw();              // Force immediate render
+bar.finish(.{ .newline = true });
+bar.fail("Network error");
+
+// Update at runtime
+bar.setText("new text");
+bar.setPrefix(">");
+bar.setSuffix("<");
+bar.setColor(loaders.fg(.{ .ansi4 = .red }));
+bar.setStyle(.{ .filled = "=", .empty = " ", .head = ">" });
+try bar.setTemplate("{bar} {elapsed}");
+
+// State
+const s = bar.state();          // ProgressState
+bar.getStatus();                // .pending | .running | .paused | .finished | .failed
+```
+
+### Spinner
+
+```zig
+// Create
+var sp = try loaders.Spinner.init(allocator, io, .{
+    .frames = &.{ "|", "/", "-", "\\" },
+    .template = "{frame} {text}",
+    .text = "Loading",
+    .color = loaders.fg(.{ .ansi4 = .blue }),  // blue via tint.zig
+    .thread_mode = .auto,
+});
+defer sp.deinit();
+
+// Control
+try sp.start();
+sp.tickFrame();                 // Advance one frame
+sp.setProgress(5);              // Set absolute frame index
+sp.getCurrent();                // Get current frame index
+sp.stop(.{ .final_text = "Done!", .newline = true });
+
+// Update at runtime
+sp.setText("new text");
+sp.setColor(loaders.fg(.{ .ansi4 = .red }));
+sp.setFrames(&.{ ".", "..", "..." });
+try sp.setTemplate("{frame} {text}");
+
+// State
+const s = sp.state();           // SpinnerState
+sp.getStatus();                 // .pending | .running | .finished | .failed
+```
+
+### MultiBar
+
+```zig
+var mb = try loaders.MultiBar.init(allocator, io, .{
+    .mode = .sequential,        // .sequential | .parallel
+});
+defer mb.deinit();
+
+_ = try mb.addBar(.{ ... });
+_ = try mb.addSpinner(.{ ... });
+try mb.run();
+mb.finishAll(.{ .newline = true });
+```
+
+### BatchRunner
+
+```zig
+var batch = try loaders.BatchRunner.init(allocator, io, .{
+    .mode = .sequential,
+    .show_overall_bar = true,
+    .overall_bar_config = .{
+        .total = 5,
+        .style = .{ .filled = "#", .empty = "-" },
+        .template = "Overall: {bar} {count}",
+    },
+});
+defer batch.deinit();
+
+const items = [_]u32{ 1, 2, 3, 4, 5 };
+try batch.run(u32, &items, processItem);
+```
+
+#### Parallel mode with worker-driven progress
+
+In parallel mode, use `itemBar()` to drive per-item progress from the worker:
+
+```zig
+const WorkerCtx = struct {
+    batch: *loaders.BatchRunner,
+};
+
+fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
+    const c: *WorkerCtx = @ptrCast(@alignCast(ctx orelse return));
+    const bar = c.batch.itemBar() orelse return;
+    var downloaded: u64 = 0;
+    while (downloaded < item.size) : (downloaded += 1) {
+        bar.setProgress(downloaded);
+        loaders.sleepMs(g_threaded.io(), 2);
     }
-
-    bb.done();
+    bar.setProgress(item.size);
 }
 ```
 
----
-
-## Usage Examples
-
-- [Getting Started](https://muhammad-fiaz.github.io/loaders.zig/guide/getting-started)
-- [Progress Bars](https://muhammad-fiaz.github.io/loaders.zig/guide/progress-bar)
-- [Spinners](https://muhammad-fiaz.github.io/loaders.zig/guide/spinner)
-- [Multi Progress](https://muhammad-fiaz.github.io/loaders.zig/guide/multi-progress)
-- [Styling](https://muhammad-fiaz.github.io/loaders.zig/guide/styling)
-- [Colors](https://muhammad-fiaz.github.io/loaders.zig/guide/colors)
-- [Themes](https://muhammad-fiaz.github.io/loaders.zig/guide/themes)
-- [Advanced](https://muhammad-fiaz.github.io/loaders.zig/guide/advanced)
-
----
-
-## Configuration
-
-The core options are available through `ProgressBar.Options` and `Spinner.Options` in the API reference.
-
-- `label` and `text` for user-facing messages
-- `total`, `show_percent`, `show_elapsed`, `show_eta`, and `show_rate` for progress details
-- `style`, `color_enabled`, and custom bracket/fill fields for output control
-- `file` and `term` for stream selection and terminal capability detection
-- `success_icon`, `failure_icon`, `warning_icon`, and `info_icon` for custom status symbols
-- `disable_new_line` to prevent spamming logs in non-TTY environments
-- `messages` for auto-cycling status messages during animation
-- `on_progress` and `on_complete` callbacks to fire custom functions on progress updates and bar completions
-- `time_format_12h` option to render date/time prefixes in a 12-hour AM/PM format (defaults to 24-hour)
-- `max_label_width`, `max_message_width`, `max_suffix_width` (for bars), `max_text_width` (for spinners), and `max_name_width` (for batch tasks) to enforce visual terminal column width truncation constraints
-- `padding_lines_above` and `padding_lines_below` to insert blank padding lines above and below progress indicators, automatically positioning the cursor for clean, ghosting-free in-place redrawing
-- `initial_completed` to start a progress bar with a prefilled progress value
-- `start_time_offset_sec` to shift elapsed time and ETA calculations (e.g. for resuming tasks)
-- `color` and `bg_color` for whole-line foreground and background coloring
-- `fill_color` and `empty_color` to override bar fill/empty segment colors
-- `fill_gradient` and `empty_gradient` for gradient rendering on bar segments
-- `complete_color` for the bar color when 100% complete
-- `template` for custom format strings using `{label}`, `{bar}`, `{percent}`, `{eta}`, `{rate}`, `{count}`, `{time}`, `{date}`, `{message}`, `{spinner}`, `{icon}` tokens
-
-### I/O Progress Tracking
-
-`loaders.zig` provides stream wrappers that automatically update progress as data is read or written:
-
-- **Duck-typed Wrappers**: Wrap any custom stream using `progressReader(bar, stream)` and `progressWriter(bar, stream)`.
-- **Standard Io Wrappers**: Wrap concrete standard library `std.Io.Reader` and `std.Io.Writer` interfaces using `progressIoReader(bar, reader)` and `progressIoWriter(bar, writer)`.
+### StepSequence
 
 ```zig
-var downloader = MyDownloader.init();
-var bar = loaders.Bar.init(io, .{ .total = total_size });
-defer bar.done();
+var seq = try loaders.StepSequence.init(allocator, io, .{});
+defer seq.deinit();
 
-var p_reader = loaders.progressReader(&bar, &downloader);
-var buf: [4096]u8 = undefined;
-while (true) {
-    const n = try p_reader.read(&buf);
-    if (n == 0) break;
-    bar.render();
-}
+_ = try seq.addStep(.{ .name = "Install", .kind = .{ .spinner = .{
+    .frames = &.{ ".", "..", "..." },
+    .template = "{frame} Installing...",
+} } });
+
+try seq.startStep(0);
+// ... do work ...
+seq.completeStep(0, .{});
 ```
-
-### Custom Threading & Async Support
-
-`loaders.zig` is designed to be compatible with custom thread pools and async event loops (such as when overriding `std_options` in Zig). The library and tests leverage the standard library's `std.Options.debug_io` interface. If you configure a custom thread pool or override single-threaded IO (by defining `std_options_debug_io` or `std_options_debug_threaded_io` in your application root), the library's background render threads and progress indicators will utilize it natively.
-
-See the full API at [API Reference](https://muhammad-fiaz.github.io/loaders.zig/api/).
 
 ---
 
-## Documentation
+## Template Tokens
 
-### Online Documentation
+| Token | Description |
+|-------|-------------|
+| `{bar}` | Rendered bar track (filled + empty characters) |
+| `{frame}` | Current spinner animation frame |
+| `{percent}` | Progress percentage (e.g. `50.0`) |
+| `{count}` | Current/total count (e.g. `50/100`) |
+| `{elapsed}` | Elapsed time (requires `formatters.elapsed`) |
+| `{eta}` | Estimated time remaining (requires `formatters.eta`) |
+| `{speed}` | Throughput rate (requires `formatters.speed`) |
+| `{prefix}` | Optional prefix text |
+| `{suffix}` | Optional suffix text |
+| `{text}` | Optional display text |
+| `{color}` | Raw ANSI color escape sequence |
+| `{reset}` | ANSI reset sequence (`\x1b[0m`) |
 
-Full documentation is available at: https://muhammad-fiaz.github.io/loaders.zig/
+> [!WARNING]
+> If `{elapsed}`, `{eta}`, or `{speed}` are in the template but no formatter is provided, `init()` returns `error.MissingFormatter`.
 
-### Generating Local Documentation
+---
+
+## Formatter Functions
+
+For `{elapsed}`, `{eta}`, and `{speed}` tokens, provide formatter functions:
+
+```zig
+fn formatElapsed(ns: u64, buf: []u8) []const u8 {
+    return loaders.formatNs(buf, ns);    // "MM:SS" or "HH:MM:SS"
+}
+
+fn formatEta(ns: u64, buf: []u8) []const u8 {
+    return loaders.formatNs(buf, ns);
+}
+
+fn formatSpeed(per_sec: f64, buf: []u8) []const u8 {
+    return loaders.formatRate(buf, per_sec);  // "123.4/s"
+}
+
+var bar = try loaders.ProgressBar.init(allocator, io, .{
+    .total = 200,
+    .style = .{ .filled = "=", .empty = " ", .head = ">" },
+    .template = "{bar} {percent}% | Elapsed: {elapsed} ETA: {eta} | {speed}",
+    .width = 30,
+    .formatters = .{
+        .elapsed = formatElapsed,
+        .eta = formatEta,
+        .speed = formatSpeed,
+    },
+});
+```
+
+---
+
+## Examples
+
+All 40 examples live in `examples/`:
 
 ```bash
-cd docs
-bun install
-bun run build
-```
+zig build examples          # Build all examples
+zig build run-all-examples  # Run all examples sequentially
 
-The output is written to `docs/.vitepress/dist/`.
+# Run individual examples
+zig build run-basic_bar
+zig build run-basic_spinner
+zig build run-custom_ascii_bar
+zig build run-custom_bracket_bar
+zig build run-block_bar
+zig build run-indeterminate
+zig build run-template_with_eta_speed
+zig build run-runtime_style_swap
+zig build run-runtime_frame_swap
+zig build run-manual_tick
+zig build run-external_thread
+zig build run-auto_thread
+zig build run-multi_bar_sequential
+zig build run-multi_bar_parallel
+zig build run-batch_sequential
+zig build run-batch_parallel_downloads
+zig build run-batch_dynamic_messages
+zig build run-step_sequence_basic
+zig build run-step_runall
+zig build run-custom_colors_rgb
+zig build run-custom_colors_hex
+zig build run-custom_colors_dynamic_gradient
+zig build run-pause_resume
+zig build run-text_updates
+zig build run-dynamic_messages
+zig build run-dynamic_spinner_messages
+zig build run-spinner_looping_messages
+zig build run-spinner_conditional_messages
+zig build run-infinite_spinner
+zig build run-infinite_progress_bar
+zig build run-clear_on_finish
+zig build run-fail_and_status
+zig build run-callback_hooks
+zig build run-state_accessor
+zig build run-starting_value
+zig build run-indeterminate_timeout
+zig build run-progress_bar_unicode
+zig build run-progress_bar_countdown
+zig build run-spinner_braille
+zig build run-progress_bar_countdown_eta
+```
 
 ---
 
 ## Building
 
 ```bash
-zig build test
-zig build examples
-zig fmt --check build.zig src/ examples/
+zig build test          # Run unit tests
+zig build examples      # Build all examples
+zig build docs          # Generate library documentation
 ```
-
----
-
-## Contributing
-
-Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for details on how to get started, run tests, and submit pull requests.
 
 ---
 
@@ -354,8 +450,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- **Documentation**: https://muhammad-fiaz.github.io/loaders.zig/
-- **API Reference**: https://muhammad-fiaz.github.io/loaders.zig/api/
-- **Guide**: https://muhammad-fiaz.github.io/loaders.zig/guide/
 - **Repository**: https://github.com/muhammad-fiaz/loaders.zig
-- **Issues**: https://github.com/muhammad-fiaz/loaders.zig/issues
+- **Documentation**: https://muhammad-fiaz.github.io/loaders.zig/
