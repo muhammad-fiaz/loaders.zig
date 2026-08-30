@@ -74,7 +74,7 @@ features:
 **Stable release** (production):
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.4.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.5.tar.gz
 ```
 
 **Nightly** (latest main):
