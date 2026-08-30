@@ -1,5 +1,7 @@
 const std = @import("std");
 
+pub const tint = @import("tint");
+
 pub const terminal = @import("terminal.zig");
 pub const template = @import("template.zig");
 pub const style = @import("style.zig");
@@ -12,17 +14,27 @@ pub const batch = @import("batch.zig");
 pub const step = @import("step.zig");
 
 pub const FontStyle = style.FontStyle;
+
+// tint.zig color types
 pub const Color = style.Color;
 pub const RgbColor = style.RgbColor;
 pub const HexColor = style.HexColor;
 pub const Ansi256Color = style.Ansi256Color;
 pub const HslColor = style.HslColor;
+pub const HsvColor = style.HsvColor;
+pub const CmykColor = style.CmykColor;
+pub const XyzColor = style.XyzColor;
+pub const LabColor = style.LabColor;
+
+// tint.zig style types
 pub const Style = style.Style;
 pub const Named = style.Named;
 pub const colorPresets = style.presets;
 
+// tint.zig color constructors
 pub const fg = style.fg;
 pub const bg = style.bg;
+pub const underline = style.underline_color;
 pub const fgRgb = style.fgRgb;
 pub const bgRgb = style.bgRgb;
 pub const fgHex = style.fgHex;
@@ -33,7 +45,16 @@ pub const makeRgb = style.rgb;
 pub const makeHex = style.hex;
 pub const makeAnsi256 = style.ansi256;
 pub const makeHsl = style.hsl;
+pub const makeHsv = style.hsv;
+pub const makeCmyk = style.cmyk;
+pub const makeKelvin = style.kelvin;
 pub const makeNamed = style.named_color;
+
+// tint.zig reset sequences
+pub const reset = style.reset;
+pub const resetFg = style.reset_fg;
+pub const resetBg = style.reset_bg;
+pub const resetAll = style.reset_all;
 
 pub const ProgressBar = progress_bar.ProgressBar;
 pub const ProgressBarConfig = progress_bar.ProgressBarConfig;
