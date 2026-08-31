@@ -53,7 +53,8 @@ fn getSizeWindows(io: std.Io) TerminalSize {
 
 fn getSizeUnix() TerminalSize {
     var wsz: std.posix.winsize = undefined;
-    const rc = std.posix.system.ioctl(std.io.getStdOut().handle, std.posix.T.IOCGWINSZ, &wsz);
+    const file = std.Io.File.stdout();
+    const rc = std.posix.system.ioctl(file.handle, std.posix.T.IOCGWINSZ, &wsz);
     if (rc < 0) {
         return .{ .rows = 24, .cols = 80 };
     }

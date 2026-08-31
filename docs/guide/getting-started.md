@@ -15,7 +15,7 @@ description: Install loaders.zig and create your first progress bar or spinner i
 ### Stable Release (Production)
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.5.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.6.tar.gz
 ```
 
 ### Nightly (Latest Main Branch)

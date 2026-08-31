@@ -47,7 +47,7 @@
 ### Option A — Stable Release (Recommended for Production)
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.5.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.6.tar.gz
 ```
 
 ### Option B — Nightly / Beta (Latest Main Branch)
