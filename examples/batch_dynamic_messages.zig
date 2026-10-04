@@ -16,11 +16,11 @@ fn worker(item: WorkItem, ctx: ?*anyopaque) void {
             1 => "hashing",
             else => "writing",
         });
-        loaders.sleepMs(g_threaded.io(), 5);
+        loaders.sleepMs(gThreaded.io(), 5);
     }
 }
 
-var g_threaded: std.Io.Threaded = .init_single_threaded;
+var gThreaded: std.Io.Threaded = .init_single_threaded;
 pub fn main() !void {
     var threaded: std.Io.Threaded = .init_single_threaded;
     const io = threaded.io();
@@ -36,14 +36,14 @@ pub fn main() !void {
 
     var batch = try loaders.BatchRunner.init(allocator, io, .{
         .mode = .sequential,
-        .show_overall_bar = true,
-        .overall_bar_config = .{
+        .showOverallBar = true,
+        .overallBarConfig = .{
             .total = 4,
             .style = .{ .filled = "#", .empty = "-" },
             .template = "Overall: {bar} {count} | {text}",
             .text = "starting",
         },
-        .per_item_bar_config = .{
+        .perItemBarConfig = .{
             .total = 1,
             .style = .{ .filled = "=", .empty = " " },
             .template = "  {prefix}: {bar} {percent}%",

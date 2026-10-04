@@ -22,6 +22,6 @@ pub fn main() !void {
         if (i == 40) sp.setFrames(&.{ "🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘" });
         sp.tickFrame();
     }
-    sp.stop(.{ .final_text = "Frames swapped!", .newline = true });
+    sp.stop(.{ .finalText = "Frames swapped!", .newline = true });
     loaders.showCursor(io);
 }

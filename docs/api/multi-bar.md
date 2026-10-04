@@ -16,8 +16,8 @@ const mb = try loaders.MultiBar.init(allocator, io, config);
 ```zig
 pub const MultiBarConfig = struct {
     mode: Mode = .parallel,   // .parallel | .sequential
-    interval_ms: u32 = 30,
-    hide_bar_when_complete: bool = false,  // hide finished/failed trackers
+    intervalMs: u32 = 30,
+    hideBarWhenComplete: bool = false,  // hide finished/failed trackers
 };
 ```
 

@@ -1,9 +1,9 @@
 const std = @import("std");
 const loaders = @import("loaders");
 
-fn runStep(context: ?*anyopaque, step_name: []const u8) void {
+fn runStep(context: ?*anyopaque, stepName: []const u8) void {
     _ = context;
-    _ = step_name;
+    _ = stepName;
     var g: std.Io.Threaded = .init_single_threaded;
     const io = g.io();
     var i: u32 = 0;

@@ -14,13 +14,13 @@ pub fn main() !void {
         .style = .{
             .filled = ".",
             .head = ">",
-            .left_bracket = "[",
-            .right_bracket = "]",
+            .leftBracket = "[",
+            .rightBracket = "]",
         },
         .template = "{prefix} {bar}",
         .prefix = "Working",
         .color = loaders.fg(.{ .ansi4 = .magenta }),
-        .interval_ms = 40,
+        .intervalMs = 40,
     });
     defer bar.deinit();
 
@@ -30,7 +30,7 @@ pub fn main() !void {
         loaders.sleepMs(io, 40);
         bar.tickFrame();
     }
-    bar.stop(.{ .final_text = "Complete!", .newline = true });
+    bar.stop(.{ .finalText = "Complete!", .newline = true });
 
     // Show cursor after animation
     loaders.showCursor(io);

@@ -1,11 +1,11 @@
 const std = @import("std");
-const progress_bar = @import("progress_bar.zig");
-const spinner_mod = @import("spinner.zig");
+const progressBar = @import("progress_bar.zig");
+const spinnerMod = @import("spinner.zig");
 const terminal = @import("terminal.zig");
 
-pub const ProgressBar = progress_bar.ProgressBar;
-pub const Spinner = spinner_mod.Spinner;
-pub const FinishConfig = progress_bar.FinishConfig;
+pub const ProgressBar = progressBar.ProgressBar;
+pub const Spinner = spinnerMod.Spinner;
+pub const FinishConfig = progressBar.FinishConfig;
 
 pub const Mode = enum {
     sequential,
@@ -14,8 +14,8 @@ pub const Mode = enum {
 
 pub const MultiBarConfig = struct {
     mode: Mode = .parallel,
-    interval_ms: u32 = 30,
-    hide_bar_when_complete: bool = false,
+    intervalMs: u32 = 30,
+    hideBarWhenComplete: bool = false,
 };
 
 pub const Tracker = union(enum) {
@@ -30,7 +30,7 @@ pub const MultiBar = struct {
     trackers: std.ArrayListUnmanaged(Tracker),
     mutex: std.Io.Mutex,
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
+    stopThread: std.atomic.Value(bool),
     started: bool,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: MultiBarConfig) !MultiBar {
@@ -41,7 +41,7 @@ pub const MultiBar = struct {
             .trackers = .empty,
             .mutex = .init,
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
+            .stopThread = std.atomic.Value(bool).init(false),
             .started = false,
         };
     }
@@ -63,25 +63,25 @@ pub const MultiBar = struct {
         self.trackers.deinit(self.allocator);
     }
 
-    pub fn addBar(self: *MultiBar, config: progress_bar.ProgressBarConfig) !usize {
-        const bar_ptr = try self.allocator.create(ProgressBar);
-        errdefer self.allocator.destroy(bar_ptr);
-        bar_ptr.* = try ProgressBar.init(self.allocator, self.io, config);
-        bar_ptr.setDrawOnUpdate(false);
+    pub fn addBar(self: *MultiBar, config: progressBar.ProgressBarConfig) !usize {
+        const barPtr = try self.allocator.create(ProgressBar);
+        errdefer self.allocator.destroy(barPtr);
+        barPtr.* = try ProgressBar.init(self.allocator, self.io, config);
+        barPtr.setDrawOnUpdate(false);
         self.lock();
         defer self.unlock();
-        try self.trackers.append(self.allocator, .{ .bar = bar_ptr });
+        try self.trackers.append(self.allocator, .{ .bar = barPtr });
         return self.trackers.items.len - 1;
     }
 
-    pub fn addSpinner(self: *MultiBar, config: spinner_mod.SpinnerConfig) !usize {
-        const sp_ptr = try self.allocator.create(Spinner);
-        errdefer self.allocator.destroy(sp_ptr);
-        sp_ptr.* = try Spinner.init(self.allocator, self.io, config);
-        sp_ptr.setDrawOnUpdate(false);
+    pub fn addSpinner(self: *MultiBar, config: spinnerMod.SpinnerConfig) !usize {
+        const spPtr = try self.allocator.create(Spinner);
+        errdefer self.allocator.destroy(spPtr);
+        spPtr.* = try Spinner.init(self.allocator, self.io, config);
+        spPtr.setDrawOnUpdate(false);
         self.lock();
         defer self.unlock();
-        try self.trackers.append(self.allocator, .{ .spinner = sp_ptr });
+        try self.trackers.append(self.allocator, .{ .spinner = spPtr });
         return self.trackers.items.len - 1;
     }
 
@@ -117,7 +117,7 @@ pub const MultiBar = struct {
             }
         }
         if (self.thread == null) {
-            self.stop_thread.store(false, .release);
+            self.stopThread.store(false, .release);
             self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
         }
     }
@@ -138,7 +138,7 @@ pub const MultiBar = struct {
                 terminal.moveUp(self.io, n);
                 for (self.trackers.items) |tracker| {
                     const finished = self.isTrackerFinished(tracker);
-                    if (finished and self.config.hide_bar_when_complete) {
+                    if (finished and self.config.hideBarWhenComplete) {
                         terminal.eraseLine(self.io);
                         var w = terminal.stdoutWriter(self.io);
                         w.writeAll("\n") catch {};
@@ -154,7 +154,7 @@ pub const MultiBar = struct {
             }
         }
         var writer = terminal.stdoutWriter(self.io);
-        if (config.final_text) |ft| {
+        if (config.finalText) |ft| {
             writer.writeAll(ft) catch {};
         }
         if (config.newline and self.trackers.items.len > 0) {
@@ -174,16 +174,16 @@ pub const MultiBar = struct {
     fn renderLoop(self: *MultiBar) void {
         switch (self.config.mode) {
             .parallel => {
-                while (!self.stop_thread.load(.acquire)) {
-                    terminal.sleepMs(self.io, self.config.interval_ms);
+                while (!self.stopThread.load(.acquire)) {
+                    terminal.sleepMs(self.io, self.config.intervalMs);
                     self.redrawAll();
                 }
             },
             .sequential => {
                 var i: usize = 0;
                 while (i < self.trackers.items.len) {
-                    if (self.stop_thread.load(.acquire)) return;
-                    terminal.sleepMs(self.io, self.config.interval_ms);
+                    if (self.stopThread.load(.acquire)) return;
+                    terminal.sleepMs(self.io, self.config.intervalMs);
                     if (!self.isFinished(i)) {
                         self.redrawOne(i);
                     } else {
@@ -203,7 +203,7 @@ pub const MultiBar = struct {
         if (self.started) terminal.moveUp(self.io, self.visibleCount());
         for (self.trackers.items) |tracker| {
             const finished = self.isTrackerFinished(tracker);
-            if (finished and self.config.hide_bar_when_complete) {
+            if (finished and self.config.hideBarWhenComplete) {
                 terminal.eraseLine(self.io);
                 var writer = terminal.stdoutWriter(self.io);
                 writer.writeAll("\n") catch {};
@@ -222,7 +222,7 @@ pub const MultiBar = struct {
     }
 
     fn visibleCount(self: *MultiBar) u16 {
-        if (!self.config.hide_bar_when_complete) return @intCast(self.trackers.items.len);
+        if (!self.config.hideBarWhenComplete) return @intCast(self.trackers.items.len);
         var vis: u16 = 0;
         for (self.trackers.items) |tracker| {
             if (!self.isTrackerFinished(tracker)) vis += 1;
@@ -276,7 +276,7 @@ pub const MultiBar = struct {
     }
 
     fn stopRenderThread(self: *MultiBar) void {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             t.join();

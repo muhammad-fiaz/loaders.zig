@@ -7,12 +7,26 @@ description: Install loaders.zig and create your first progress bar or spinner i
 
 ## Prerequisites
 
-- **Zig 0.16.0** or newer
+- **Zig 0.17.0** or newer
 - Windows, Linux, or macOS terminal
+
+> [!NOTE]
+> Compatibility policy:
+>
+> ```text
+> For Zig 0.16.0, use progress v0.0.6.
+> For Zig 0.17.0+, use progress v0.0.7.
+> ```
 
 ## Installation
 
-### Stable Release (Production)
+### Stable Release (Production, Zig 0.17.0+)
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.7.tar.gz
+```
+
+### Zig 0.16.0 (Last Compatible Release)
 
 ```bash
 zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.6.tar.gz
@@ -71,19 +85,19 @@ defer sp.deinit();
 
 try sp.start();
 loaders.sleepMs(io, 2000);
-sp.stop(.{ .final_text = "Done!", .newline = true });
+sp.stop(.{ .finalText = "Done!", .newline = true });
 ```
 
 ## Core Concepts
 
 ### Thread Modes
 
-Every widget accepts a `thread_mode`:
+Every widget accepts a `threadMode`:
 
 | Mode | Description |
 |------|-------------|
 | `.none` | **Manual.** You drive rendering by calling `setProgress` / `tick` / `tickFrame`. |
-| `.auto` | **Background thread.** A render thread redraws the widget at `interval_ms` until it finishes. |
+| `.auto` | **Background thread.** A render thread redraws the widget at `intervalMs` until it finishes. |
 | `.external` | **Caller-driven.** You update from an external thread; the widget renders on each update. |
 
 ### Auto-Start
@@ -103,7 +117,7 @@ sp.tickFrame();        // also auto-starts
 ```zig
 pub const FinishConfig = struct {
     clear: bool = false,          // erase the last rendered line
-    final_text: ?[]const u8 = null, // replace the widget with this text
+    finalText: ?[]const u8 = null, // replace the widget with this text
     newline: bool = true,         // move to a new line after finishing
 };
 ```
@@ -122,14 +136,14 @@ w.writeAll("all done!\n") catch {};
 
 ### Colors
 
-Colors use tint.zig — pass `color.toFg()` or use the convenience functions:
+Colors use tint.zig — pass `color.fg()` sequences or use the convenience functions:
 
 ```zig
 .color = loaders.fg(.{ .ansi4 = .green })           // ANSI 4-bit green
-.color = loaders.makeRgb(34, 197, 94).toFg()        // RGB (TrueColor)
-.color = loaders.makeHex(0x22C55E).toFg()           // HEX color
-.color = loaders.makeAnsi256(129).toFg()            // ANSI 256-color
-.color = loaders.fg(.{ .named = .red })             // CSS named color
+.color = loaders.makeRgb(34, 197, 94).fg()          // RGB (TrueColor)
+.color = loaders.makeHex(0x22C55E).fg()             // HEX color
+.color = loaders.makeAnsi256(129).fg()              // ANSI 256-color
+.color = loaders.tint.color.red.fg()                // CSS named color via tint.zig
 .color = null                                        // no color
 ```
 

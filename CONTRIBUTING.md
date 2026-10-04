@@ -47,7 +47,7 @@ Be respectful and constructive. We're here to build something useful together.
 
 | Requirement | Version |
 |-------------|---------|
-| **Zig** | 0.16.0 |
+| **Zig** | 0.17.0 |
 | **OS** | Linux, macOS, or Windows |
 
 ### Build and Test

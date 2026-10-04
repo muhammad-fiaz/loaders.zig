@@ -12,8 +12,8 @@ pub fn main() !void {
         .style = .{ .filled = "█", .empty = "░" },
         .template = "{prefix} {bar} {percent}%",
         .prefix = "Auto",
-        .thread_mode = .auto,
-        .interval_ms = 16,
+        .threadMode = .auto,
+        .intervalMs = 16,
     });
     defer bar.deinit();
 

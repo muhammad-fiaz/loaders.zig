@@ -13,26 +13,26 @@ pub fn main() !void {
         .style = .{
             .filled = ".",
             .head = "<==>",
-            .left_bracket = "[",
-            .right_bracket = "]",
+            .leftBracket = "[",
+            .rightBracket = "]",
         },
         .template = "{prefix} {bar}",
         .prefix = "Checking for Updates",
         .color = loaders.fg(.{ .ansi4 = .yellow }),
-        .interval_ms = 100,
+        .intervalMs = 100,
     });
     defer bar.deinit();
 
     try bar.start();
 
     // Simulate a 5-second timeout
-    const timeout_ms: u32 = 5000;
+    const timeoutMs: u32 = 5000;
     var elapsed: u32 = 0;
-    while (elapsed < timeout_ms) : (elapsed += 100) {
+    while (elapsed < timeoutMs) : (elapsed += 100) {
         loaders.sleepMs(io, 100);
         bar.tickFrame();
     }
 
-    bar.stop(.{ .final_text = "System is up to date!", .newline = true });
+    bar.stop(.{ .finalText = "System is up to date!", .newline = true });
     loaders.showCursor(io);
 }

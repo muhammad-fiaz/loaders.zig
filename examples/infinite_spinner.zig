@@ -11,7 +11,7 @@ pub fn main() !void {
         .frames = &.{ "🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘" },
         .template = "{frame} {text}",
         .text = "waiting forever (stopping after 5s for the example)",
-        .interval_ms = 100,
+        .intervalMs = 100,
     });
     defer sp.deinit();
 
@@ -20,6 +20,6 @@ pub fn main() !void {
     while (i < 50) : (i += 1) {
         loaders.sleepMs(io, 100);
     }
-    sp.stop(.{ .final_text = "Stopped.", .newline = true });
+    sp.stop(.{ .finalText = "Stopped.", .newline = true });
     loaders.showCursor(io);
 }

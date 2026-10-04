@@ -16,11 +16,11 @@ const batch = try loaders.BatchRunner.init(allocator, io, config);
 ```zig
 pub const BatchConfig = struct {
     mode: Mode = .sequential,           // .sequential | .parallel
-    show_overall_bar: bool = true,
-    overall_bar_config: ?ProgressBarConfig = null,  // total is forced to items.len
-    per_item_bar_config: ?ProgressBarConfig = null,
-    max_workers: u32 = 4,
-    interval_ms: u32 = 30,
+    showOverallBar: bool = true,
+    overallBarConfig: ?ProgressBarConfig = null,  // total is forced to items.len
+    perItemBarConfig: ?ProgressBarConfig = null,
+    maxWorkers: u32 = 4,
+    intervalMs: u32 = 30,
     ctx: ?*anyopaque = null,
 };
 ```
@@ -32,8 +32,8 @@ pub const BatchConfig = struct {
 | `init(allocator, io, config) !BatchRunner` | Create. |
 | `deinit()` | Clean up bars and threads. |
 | `run(comptime Item: type, items: []const Item, worker) !void` | Process all items. |
-| `itemBar() ?*ProgressBar` | Get the per-item bar (for worker-driven progress). |
-| `overallBar() ?*ProgressBar` | Get the overall bar. |
+| `getItemBar() ?*ProgressBar` | Get the per-item bar (for worker-driven progress). |
+| `getOverallBar() ?*ProgressBar` | Get the overall bar. |
 
 ### Worker signature
 
@@ -54,7 +54,7 @@ fn processItem(item: u32, ctx: ?*anyopaque) void {
 ```
 
 > [!TIP]
-> `overall_bar_config.total` is ignored — the overall bar always tracks `items.len`.
+> `overallBarConfig.total` is ignored — the overall bar always tracks `items.len`.
 
 ## Sequential Mode
 
@@ -65,8 +65,8 @@ In sequential mode, the runner automatically manages the per-item bar:
 ```zig
 var batch = try loaders.BatchRunner.init(allocator, io, .{
     .mode = .sequential,
-    .show_overall_bar = true,
-    .overall_bar_config = .{
+    .showOverallBar = true,
+    .overallBarConfig = .{
         .style = .{ .filled = "#", .empty = "-" },
         .template = "Overall: {bar} {count}",
     },
@@ -79,19 +79,19 @@ try batch.run(u32, &items, processItem);
 
 ## Parallel Mode
 
-In parallel mode, multiple workers run simultaneously. The runner resets the per-item bar to 0% when dispatching a new item, but **does not** set it to 100% — the worker is responsible for driving progress incrementally via `itemBar()`.
+In parallel mode, multiple workers run simultaneously. The runner resets the per-item bar to 0% when dispatching a new item, but **does not** set it to 100% — the worker is responsible for driving progress incrementally via `getItemBar()`.
 
 ```zig
 var batch = try loaders.BatchRunner.init(allocator, io, .{
     .mode = .parallel,
-    .max_workers = 4,
-    .show_overall_bar = true,
-    .overall_bar_config = .{
+    .maxWorkers = 4,
+    .showOverallBar = true,
+    .overallBarConfig = .{
         .total = 8,
         .style = .{ .filled = "=", .empty = " " },
         .template = "Downloading: {bar} {count}",
     },
-    .per_item_bar_config = .{
+    .perItemBarConfig = .{
         .total = 200,
         .style = .{ .filled = "#", .empty = "-" },
         .template = "  Current item: {bar} {percent}%",
@@ -113,7 +113,7 @@ const WorkerCtx = struct {
 
 fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
     const c: *WorkerCtx = @ptrCast(@alignCast(ctx orelse return));
-    const bar = c.batch.itemBar() orelse return;
+    const bar = c.batch.getItemBar() orelse return;
     const total = item.size;
     var downloaded: u64 = 0;
     while (downloaded < total) : (downloaded += 1) {

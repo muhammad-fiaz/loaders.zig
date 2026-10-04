@@ -23,7 +23,7 @@ pub fn main() !void {
 
     // Show success
     sp.stop(.{
-        .final_text = "Authenticated!",
+        .finalText = "Authenticated!",
         .newline = true,
     });
     loaders.showCursor(io);

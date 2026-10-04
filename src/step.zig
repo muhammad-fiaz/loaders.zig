@@ -1,6 +1,7 @@
 const std = @import("std");
-const progress_bar = @import("progress_bar.zig");
-const spinner_mod = @import("spinner.zig");
+const tint = @import("tint");
+const progressBar = @import("progress_bar.zig");
+const spinnerMod = @import("spinner.zig");
 const terminal = @import("terminal.zig");
 
 pub const StepStatus = enum {
@@ -12,8 +13,8 @@ pub const StepStatus = enum {
 };
 
 pub const StepKind = union(enum) {
-    spinner: spinner_mod.SpinnerConfig,
-    bar: progress_bar.ProgressBarConfig,
+    spinner: spinnerMod.SpinnerConfig,
+    bar: progressBar.ProgressBarConfig,
 };
 
 pub const StepConfig = struct {
@@ -22,8 +23,8 @@ pub const StepConfig = struct {
 };
 
 pub const Widget = union(enum) {
-    spinner: *spinner_mod.Spinner,
-    bar: *progress_bar.ProgressBar,
+    spinner: *spinnerMod.Spinner,
+    bar: *progressBar.ProgressBar,
 };
 
 pub const Step = struct {
@@ -34,7 +35,7 @@ pub const Step = struct {
 };
 
 pub const StepSequenceConfig = struct {
-    interval_ms: u32 = 60,
+    intervalMs: u32 = 60,
 };
 
 pub const StepSequence = struct {
@@ -42,10 +43,10 @@ pub const StepSequence = struct {
     io: std.Io,
     config: StepSequenceConfig,
     steps: std.ArrayListUnmanaged(Step),
-    current_step: ?usize,
+    currentStep: ?usize,
     mutex: std.Io.Mutex,
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
+    stopThread: std.atomic.Value(bool),
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: StepSequenceConfig) !StepSequence {
         return .{
@@ -53,10 +54,10 @@ pub const StepSequence = struct {
             .io = io,
             .config = config,
             .steps = .empty,
-            .current_step = null,
+            .currentStep = null,
             .mutex = .init,
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
+            .stopThread = std.atomic.Value(bool).init(false),
         };
     }
 
@@ -80,19 +81,19 @@ pub const StepSequence = struct {
     pub fn addStep(self: *StepSequence, config: StepConfig) !usize {
         var widget: Widget = undefined;
         switch (config.kind) {
-            .spinner => |sp_config| {
-                const sp_ptr = try self.allocator.create(spinner_mod.Spinner);
-                errdefer self.allocator.destroy(sp_ptr);
-                sp_ptr.* = try spinner_mod.Spinner.init(self.allocator, self.io, sp_config);
-                sp_ptr.setDrawOnUpdate(false);
-                widget = .{ .spinner = sp_ptr };
+            .spinner => |spConfig| {
+                const spPtr = try self.allocator.create(spinnerMod.Spinner);
+                errdefer self.allocator.destroy(spPtr);
+                spPtr.* = try spinnerMod.Spinner.init(self.allocator, self.io, spConfig);
+                spPtr.setDrawOnUpdate(false);
+                widget = .{ .spinner = spPtr };
             },
-            .bar => |bar_config| {
-                const bar_ptr = try self.allocator.create(progress_bar.ProgressBar);
-                errdefer self.allocator.destroy(bar_ptr);
-                bar_ptr.* = try progress_bar.ProgressBar.init(self.allocator, self.io, bar_config);
-                bar_ptr.setDrawOnUpdate(false);
-                widget = .{ .bar = bar_ptr };
+            .bar => |barConfig| {
+                const barPtr = try self.allocator.create(progressBar.ProgressBar);
+                errdefer self.allocator.destroy(barPtr);
+                barPtr.* = try progressBar.ProgressBar.init(self.allocator, self.io, barConfig);
+                barPtr.setDrawOnUpdate(false);
+                widget = .{ .bar = barPtr };
             },
         }
         try self.steps.append(self.allocator, .{
@@ -109,7 +110,7 @@ pub const StepSequence = struct {
         const step = &self.steps.items[index];
         if (step.status != .pending) return;
         step.status = .running;
-        self.current_step = index;
+        self.currentStep = index;
         switch (step.widget) {
             .spinner => |sp| sp.start() catch {},
             .bar => |bar| bar.start() catch {},
@@ -117,10 +118,10 @@ pub const StepSequence = struct {
         self.spawnRenderThread();
     }
 
-    pub fn completeStep(self: *StepSequence, index: usize, config: progress_bar.FinishConfig) void {
+    pub fn completeStep(self: *StepSequence, index: usize, config: progressBar.FinishConfig) void {
         self.lock();
-        var to_join: ?std.Thread = null;
-        defer if (to_join) |t| t.join();
+        var toJoin: ?std.Thread = null;
+        defer if (toJoin) |t| t.join();
         defer self.unlock();
         const step = &self.steps.items[index];
         if (step.status != .running) return;
@@ -129,15 +130,19 @@ pub const StepSequence = struct {
             .spinner => |sp| sp.finishNow(),
             .bar => |bar| bar.finishNow(),
         }
-        if (self.current_step == index) {
-            self.current_step = null;
-            to_join = self.beginStopRenderThread();
+        if (self.currentStep == index) {
+            self.currentStep = null;
+            toJoin = self.beginStopRenderThread();
         }
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[32m\u{2713}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.green.fg().slice()) catch {};
+        writer.writeAll("✓") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
-        if (config.final_text) |ft| {
+        if (config.finalText) |ft| {
             writer.writeAll("  ") catch {};
             writer.writeAll(ft) catch {};
         }
@@ -147,19 +152,23 @@ pub const StepSequence = struct {
 
     pub fn failStep(self: *StepSequence, index: usize, message: ?[]const u8) void {
         self.lock();
-        var to_join: ?std.Thread = null;
-        defer if (to_join) |t| t.join();
+        var toJoin: ?std.Thread = null;
+        defer if (toJoin) |t| t.join();
         defer self.unlock();
         const step = &self.steps.items[index];
         if (step.status != .running) return;
         step.status = .failed;
-        if (self.current_step == index) {
-            self.current_step = null;
-            to_join = self.beginStopRenderThread();
+        if (self.currentStep == index) {
+            self.currentStep = null;
+            toJoin = self.beginStopRenderThread();
         }
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[31m\u{2717}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.red.fg().slice()) catch {};
+        writer.writeAll("✗") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
         if (message) |m| {
             writer.writeAll("  ") catch {};
@@ -176,8 +185,12 @@ pub const StepSequence = struct {
         if (step.status != .pending) return;
         step.status = .skipped;
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[33m\u{25CB}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.yellow.fg().slice()) catch {};
+        writer.writeAll("○") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
         writer.writeAll("\n") catch {};
         writer.flush() catch {};
@@ -200,14 +213,14 @@ pub const StepSequence = struct {
         return self.steps.items[index].status;
     }
 
-    pub fn barOf(self: *StepSequence, index: usize) *progress_bar.ProgressBar {
+    pub fn barOf(self: *StepSequence, index: usize) *progressBar.ProgressBar {
         return switch (self.steps.items[index].widget) {
             .bar => |bar| bar,
             .spinner => unreachable,
         };
     }
 
-    pub fn spinnerOf(self: *StepSequence, index: usize) *spinner_mod.Spinner {
+    pub fn spinnerOf(self: *StepSequence, index: usize) *spinnerMod.Spinner {
         return switch (self.steps.items[index].widget) {
             .bar => unreachable,
             .spinner => |sp| sp,
@@ -215,17 +228,27 @@ pub const StepSequence = struct {
     }
 
     pub fn printSummary(self: *StepSequence) void {
-        var writer = terminal.stdoutWriter(self.io);
+        const writer = terminal.stdoutWriter(self.io);
         writer.writeAll("\n") catch {};
         for (self.steps.items) |step| {
-            const icon: []const u8 = switch (step.status) {
-                .completed => "\x1b[32m\u{2713}\x1b[0m",
-                .failed => "\x1b[31m\u{2717}\x1b[0m",
-                .skipped => "\x1b[33m\u{25CB}\x1b[0m",
-                .running => "\x1b[36m\u{25CF}\x1b[0m",
-                .pending => "\x1b[90m\u{25CB}\x1b[0m",
+            const seq = switch (step.status) {
+                .completed => tint.color.ansi4.green.fg(),
+                .failed => tint.color.ansi4.red.fg(),
+                .skipped => tint.color.ansi4.yellow.fg(),
+                .running => tint.color.ansi4.cyan.fg(),
+                .pending => tint.color.ansi4.brightBlack.fg(),
             };
-            writer.print("  {s} {s}\n", .{ icon, step.name }) catch {};
+            const glyph: []const u8 = switch (step.status) {
+                .completed => "✓",
+                .failed => "✗",
+                .skipped, .pending => "○",
+                .running => "●",
+            };
+            writer.writeAll("  ") catch {};
+            writer.writeAll(seq.slice()) catch {};
+            writer.writeAll(glyph) catch {};
+            writer.writeAll(tint.ansi.reset.all) catch {};
+            writer.print(" {s}\n", .{step.name}) catch {};
         }
     }
 
@@ -238,10 +261,10 @@ pub const StepSequence = struct {
     }
 
     fn renderLoop(self: *StepSequence) void {
-        while (!self.stop_thread.load(.acquire)) {
-            terminal.sleepMs(self.io, self.config.interval_ms);
+        while (!self.stopThread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.intervalMs);
             self.lock();
-            if (self.current_step) |i| {
+            if (self.currentStep) |i| {
                 const step = &self.steps.items[i];
                 if (step.status == .running) {
                     switch (step.widget) {
@@ -259,13 +282,13 @@ pub const StepSequence = struct {
 
     fn spawnRenderThread(self: *StepSequence) void {
         if (self.thread == null) {
-            self.stop_thread.store(false, .release);
+            self.stopThread.store(false, .release);
             self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
         }
     }
 
     fn beginStopRenderThread(self: *StepSequence) ?std.Thread {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             return t;

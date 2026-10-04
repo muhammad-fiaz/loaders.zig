@@ -29,6 +29,6 @@ pub fn main() !void {
         loaders.sleepMs(io, 30);
         sp.tickFrame();
     }
-    sp.stop(.{ .final_text = "Looped!", .newline = true });
+    sp.stop(.{ .finalText = "Looped!", .newline = true });
     loaders.showCursor(io);
 }

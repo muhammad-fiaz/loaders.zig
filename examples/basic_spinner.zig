@@ -23,7 +23,7 @@ pub fn main() !void {
         loaders.sleepMs(io, 40);
         sp.tickFrame();
     }
-    sp.stop(.{ .final_text = "Done!", .newline = true });
+    sp.stop(.{ .finalText = "Done!", .newline = true });
 
     // Show cursor after animation
     loaders.showCursor(io);

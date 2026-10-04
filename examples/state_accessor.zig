@@ -30,8 +30,8 @@ pub fn main() !void {
             var buf: [256]u8 = undefined;
             const line = std.fmt.bufPrint(
                 &buf,
-                "\nmid-run state: progress={d} total={d} percent={d:.1} elapsed_ns={d} status={s}\n",
-                .{ s.progress, s.total, s.percent, s.elapsed_ns, @tagName(s.status) },
+                "\nmid-run state: progress={d} total={d} percent={d:.1} elapsedNs={d} status={s}\n",
+                .{ s.progress, s.total, s.percent, s.elapsedNs, @tagName(s.status) },
             ) catch return;
             const w = loaders.stdoutWriter(io);
             w.writeAll(line) catch {};

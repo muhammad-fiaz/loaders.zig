@@ -6,7 +6,7 @@ const DownloadItem = struct {
     size: u64,
 };
 
-var g_threaded: std.Io.Threaded = .init_single_threaded;
+var gThreaded: std.Io.Threaded = .init_single_threaded;
 
 const WorkerCtx = struct {
     batch: *loaders.BatchRunner,
@@ -14,12 +14,12 @@ const WorkerCtx = struct {
 
 fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
     const c: *WorkerCtx = @ptrCast(@alignCast(ctx orelse return));
-    const bar = c.batch.itemBar() orelse return;
+    const bar = c.batch.getItemBar() orelse return;
     const total = item.size;
     var downloaded: u64 = 0;
     while (downloaded < total) : (downloaded += 1) {
         bar.setProgress(downloaded);
-        loaders.sleepMs(g_threaded.io(), 2);
+        loaders.sleepMs(gThreaded.io(), 2);
     }
     bar.setProgress(total);
 }
@@ -43,14 +43,14 @@ pub fn main() !void {
 
     var batch = try loaders.BatchRunner.init(allocator, io, .{
         .mode = .parallel,
-        .max_workers = 4,
-        .show_overall_bar = true,
-        .overall_bar_config = .{
+        .maxWorkers = 4,
+        .showOverallBar = true,
+        .overallBarConfig = .{
             .total = 8,
             .style = .{ .filled = "=", .empty = " " },
             .template = "Downloading: {bar} {count}",
         },
-        .per_item_bar_config = .{
+        .perItemBarConfig = .{
             .total = 200,
             .style = .{ .filled = "#", .empty = "-" },
             .template = "  Current item: {bar} {percent}%",

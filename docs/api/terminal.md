@@ -62,14 +62,14 @@ pub const FontStyle = struct {
     strikethrough: bool = false,
     concealed: bool = false,
 
-    pub fn toAnsi(self: FontStyle, buf: []u8) []const u8;
+    pub fn toAnsi(self: FontStyle) Sequence;
 };
 ```
 
-Apply text styles via the `text_style` config field:
+Apply text styles via the `textStyle` config field:
 
 ```zig
-.text_style = .{ .bold = true, .underline = true },
+.textStyle = .{ .bold = true, .underline = true },
 ```
 
 ## Example

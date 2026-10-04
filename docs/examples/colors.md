@@ -5,7 +5,7 @@ description: Color examples using tint.zig — RGB, HEX, 256-color, HSL, and gra
 
 # Color Examples
 
-loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) for color support. Colors are `Color` objects that generate ANSI escape sequences.
+loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) for color support. Colors are `Color` values that render to owned `Sequence` escape sequences (Zig 0.17.0 API).
 
 ## custom_colors_rgb
 
@@ -17,7 +17,7 @@ zig build run-custom_colors_rgb
 
 ```zig
 const orange = loaders.makeRgb(255, 165, 0);
-.bar.setColor(orange.toFg());
+.bar.setColor(orange.fg());
 ```
 
 ## custom_colors_hex
@@ -30,7 +30,7 @@ zig build run-custom_colors_hex
 
 ```zig
 const green = loaders.makeHex(0x22C55E); // #22C55E
-.bar.setColor(green.toFg());
+.bar.setColor(green.fg());
 ```
 
 ## custom_colors_dynamic_gradient
@@ -50,7 +50,7 @@ const colors = [_]loaders.Color{
     loaders.makeRgb(0, 0, 255),    // blue
     loaders.makeRgb(128, 0, 255),  // purple
 };
-bar.setColor(colors[idx].toFg());
+bar.setColor(colors[idx].fg());
 ```
 
 ## Color Types
@@ -61,14 +61,19 @@ bar.setColor(colors[idx].toFg());
 | `loaders.makeHex(0xRRGGBB)` | Hex color from integer. |
 | `loaders.makeAnsi256(index)` | 256-color palette. |
 | `loaders.makeHsl(h, s, l)` | HSL color. |
-| `loaders.makeNamed("red")` | CSS named color. |
+| `loaders.makeHsv(h, s, v)` | HSV color. |
+| `loaders.makeCmyk(c, m, y, k)` | CMYK color. |
+| `loaders.makeKelvin(t)` | Color temperature in Kelvin. |
+| `loaders.makeNamed("red")` | CSS named color via `tint.color.parse`. |
 
-## Getting ANSI Strings
+## Getting ANSI Sequences
 
 | Method | Description |
 |--------|-------------|
-| `color.toFg()` | Foreground escape string (`\x1b[38;2;R;G;Bm`). |
-| `color.toBg()` | Background escape string (`\x1b[48;2;R;G;Bm`). |
+| `color.fg()` | Foreground `Sequence` (`\x1b[38;2;R;G;Bm`). Use `.slice()` for `[]const u8`. |
+| `color.bg()` | Background `Sequence` (`\x1b[48;2;R;G;Bm`). Use `.slice()` for `[]const u8`. |
+| `loaders.fg(color)` | Same as `color.fg()`. |
+| `loaders.bg(color)` | Same as `color.bg()`. |
 
 > [!TIP]
-> You can still use raw ANSI strings: `.color = "\x1b[32m"` for green 4-bit.
+> Named colors live in `loaders.tint.color` (for example `loaders.tint.color.red`) and `loaders.makeNamed("red")` parses CSS names at runtime.

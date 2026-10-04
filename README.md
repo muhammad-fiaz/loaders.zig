@@ -5,7 +5,7 @@
 # loaders.zig
 
 <a href="https://muhammad-fiaz.github.io/loaders.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
-<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
+<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.17.0-orange.svg?logo=zig" alt="Zig Version"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/loaders.zig" alt="GitHub stars"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/loaders.zig" alt="GitHub issues"></a>
 <a href="https://github.com/muhammad-fiaz/loaders.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/loaders.zig" alt="GitHub pull requests"></a>
@@ -29,7 +29,7 @@
 `loaders.zig` is a production-oriented Zig library for animated spinners, progress bars, and multi-progress terminal UIs. It is designed for low overhead, clean output, and cross-platform terminal behavior on Linux, Windows, and macOS.
 
 > [!TIP]
-> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, and 140+ named colors. You can also pass raw ANSI escape sequences directly.
+> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, and 140+ named colors as owned `Sequence` values.
 
 ---
 
@@ -37,7 +37,7 @@
 
 | Requirement | Version |
 |-------------|---------|
-| **Zig** | 0.16.0 |
+| **Zig** | 0.17.0 |
 | **OS** | Windows, Linux, macOS |
 
 ---
@@ -46,8 +46,23 @@
 
 ### Option A — Stable Release (Recommended for Production)
 
+For Zig 0.17.0+ (current release):
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.7.tar.gz
+```
+
+For Zig 0.16.0 (last compatible release):
+
 ```bash
 zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.6.tar.gz
+```
+
+Compatibility policy:
+
+```text
+For Zig 0.16.0, use progress v0.0.6.
+For Zig 0.17.0+, use progress v0.0.7.
 ```
 
 ### Option B — Nightly / Beta (Latest Main Branch)
@@ -119,7 +134,7 @@ defer sp.deinit();
 
 try sp.start();
 loaders.sleepMs(io, 2000);
-sp.stop(.{ .final_text = "Done!", .newline = true });
+sp.stop(.{ .finalText = "Done!", .newline = true });
 ```
 
 > [!CAUTION]
@@ -162,7 +177,7 @@ mb.finishAll(.{ .newline = true });
 | **Step Sequences** | Ordered multi-step pipelines with spinner or bar per step |
 | **Thread Modes** | `.none` (manual), `.auto` (background thread), `.external` (caller-driven) |
 | **Pause/Resume** | Freeze and resume clocks and rendering |
-| **Callbacks** | `on_tick`, `on_finish`, `on_pause`, `on_resume` hooks |
+| **Callbacks** | `onTick`, `onFinish`, `onPause`, `onUnpause` hooks |
 | **Runtime Swaps** | Change style, frames, template, text, color at runtime |
 | **Color** | tint.zig — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, named colors |
 | **Template Engine** | `{bar}`, `{frame}`, `{percent}`, `{count}`, `{elapsed}`, `{eta}`, `{speed}`, `{color}`, `{reset}` |
@@ -172,19 +187,15 @@ mb.finishAll(.{ .newline = true });
 
 ## Color
 
-Colors use [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally — pass `color.toFg()` or use convenience functions:
+Colors use [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally — pass `color.fg()` sequences or use convenience functions:
 
 ```zig
-// tint.zig color functions
+// tint.zig color functions (Zig 0.17.0 Sequence API)
 .color = loaders.fg(.{ .ansi4 = .green })        // ANSI 4-bit green
-.color = loaders.makeRgb(34, 197, 94).toFg()     // RGB (TrueColor)
-.color = loaders.makeHex(0x22C55E).toFg()        // HEX color
-.color = loaders.makeAnsi256(129).toFg()         // ANSI 256-color
-.color = loaders.fg(.{ .named = .red })          // CSS named color
-
-// Raw ANSI strings still work
-.color = "\x1b[32m"        // green
-.color = "\x1b[38;2;0;255;0m"  // green RGB
+.color = loaders.makeRgb(34, 197, 94).fg()       // RGB (TrueColor)
+.color = loaders.makeHex(0x22C55E).fg()          // HEX color
+.color = loaders.makeAnsi256(129).fg()           // ANSI 256-color
+.color = loaders.tint.color.red.fg()             // CSS named color via tint.zig
 
 // No color
 .color = null
@@ -217,7 +228,7 @@ defer bar.deinit();
 // Control
 bar.setProgress(50);            // Set absolute value
 bar.pause();                    // Pause clock
-bar.continue_();                // Resume from pause
+bar.unpause();                // Resume from pause
 bar.forceRedraw();              // Force immediate render
 bar.finish(.{ .newline = true });
 bar.fail("Network error");
@@ -244,7 +255,7 @@ var sp = try loaders.Spinner.init(allocator, io, .{
     .template = "{frame} {text}",
     .text = "Loading",
     .color = loaders.fg(.{ .ansi4 = .blue }),  // blue via tint.zig
-    .thread_mode = .auto,
+    .threadMode = .auto,
 });
 defer sp.deinit();
 
@@ -253,7 +264,7 @@ try sp.start();
 sp.tickFrame();                 // Advance one frame
 sp.setProgress(5);              // Set absolute frame index
 sp.getCurrent();                // Get current frame index
-sp.stop(.{ .final_text = "Done!", .newline = true });
+sp.stop(.{ .finalText = "Done!", .newline = true });
 
 // Update at runtime
 sp.setText("new text");
@@ -300,7 +311,7 @@ try batch.run(u32, &items, processItem);
 
 #### Parallel mode with worker-driven progress
 
-In parallel mode, use `itemBar()` to drive per-item progress from the worker:
+In parallel mode, use `getItemBar()` to drive per-item progress from the worker:
 
 ```zig
 const WorkerCtx = struct {
@@ -309,7 +320,7 @@ const WorkerCtx = struct {
 
 fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
     const c: *WorkerCtx = @ptrCast(@alignCast(ctx orelse return));
-    const bar = c.batch.itemBar() orelse return;
+    const bar = c.batch.getItemBar() orelse return;
     var downloaded: u64 = 0;
     while (downloaded < item.size) : (downloaded += 1) {
         bar.setProgress(downloaded);
@@ -351,7 +362,7 @@ seq.completeStep(0, .{});
 | `{prefix}` | Optional prefix text |
 | `{suffix}` | Optional suffix text |
 | `{text}` | Optional display text |
-| `{color}` | Raw ANSI color escape sequence |
+| `{color}` | tint.zig `Sequence` color escape sequence |
 | `{reset}` | ANSI reset sequence (`\x1b[0m`) |
 
 > [!WARNING]
@@ -372,8 +383,8 @@ fn formatEta(ns: u64, buf: []u8) []const u8 {
     return loaders.formatNs(buf, ns);
 }
 
-fn formatSpeed(per_sec: f64, buf: []u8) []const u8 {
-    return loaders.formatRate(buf, per_sec);  // "123.4/s"
+fn formatSpeed(perSec: f64, buf: []u8) []const u8 {
+    return loaders.formatRate(buf, perSec);  // "123.4/s"
 }
 
 var bar = try loaders.ProgressBar.init(allocator, io, .{

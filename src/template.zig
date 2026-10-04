@@ -1,7 +1,8 @@
 const std = @import("std");
+const tint = @import("tint");
 
 pub const ElapsedFormatter = *const fn (ns: u64, buf: []u8) []const u8;
-pub const SpeedFormatter = *const fn (per_sec: f64, buf: []u8) []const u8;
+pub const SpeedFormatter = *const fn (perSec: f64, buf: []u8) []const u8;
 
 pub const FormatterSet = struct {
     elapsed: ?ElapsedFormatter = null,
@@ -18,10 +19,10 @@ pub const Values = struct {
     percent: ?f64 = null,
     count: ?u64 = null,
     total: ?u64 = null,
-    elapsed_ns: ?u64 = null,
-    eta_ns: ?u64 = null,
+    elapsedNs: ?u64 = null,
+    etaNs: ?u64 = null,
     speed: ?f64 = null,
-    color: ?[]const u8 = null,
+    color: ?tint.ansi.Sequence = null,
 };
 
 pub const InitError = error{MissingFormatter};
@@ -107,11 +108,11 @@ pub fn render(
         } else if (std.mem.eql(u8, name, "count")) {
             try acc.print("{d}/{d}", .{ values.count orelse return error.MissingFormatter, values.total orelse 0 });
         } else if (std.mem.eql(u8, name, "elapsed")) {
-            const ns = values.elapsed_ns orelse return error.MissingFormatter;
+            const ns = values.elapsedNs orelse return error.MissingFormatter;
             const fmt = formatters.elapsed orelse return error.MissingFormatter;
             try acc.write(fmt(ns, scratch));
         } else if (std.mem.eql(u8, name, "eta")) {
-            const ns = values.eta_ns orelse return error.MissingFormatter;
+            const ns = values.etaNs orelse return error.MissingFormatter;
             const fmt = formatters.eta orelse return error.MissingFormatter;
             try acc.write(fmt(ns, scratch));
         } else if (std.mem.eql(u8, name, "speed")) {
@@ -125,9 +126,10 @@ pub fn render(
         } else if (std.mem.eql(u8, name, "text")) {
             try acc.write(values.text orelse return error.MissingFormatter);
         } else if (std.mem.eql(u8, name, "color")) {
-            try acc.write(values.color orelse return error.MissingFormatter);
+            const seq = values.color orelse return error.MissingFormatter;
+            try acc.write(seq.slice());
         } else if (std.mem.eql(u8, name, "reset")) {
-            try acc.write("\x1b[0m");
+            try acc.write(tint.ansi.reset.all);
         } else {
             try acc.write(template[i .. i + 1 + end + 1]);
         }
@@ -138,18 +140,18 @@ pub fn render(
 }
 
 pub fn formatNs(buf: []u8, ns: u64) []const u8 {
-    const total_s = ns / std.time.ns_per_s;
-    const h = total_s / 3600;
-    const m = (total_s % 3600) / 60;
-    const s = total_s % 60;
+    const totalS = ns / std.time.ns_per_s;
+    const h = totalS / 3600;
+    const m = (totalS % 3600) / 60;
+    const s = totalS % 60;
     if (h > 0) {
         return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}", .{ h, m, s }) catch "";
     }
     return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ m, s }) catch "";
 }
 
-pub fn formatRate(buf: []u8, per_sec: f64) []const u8 {
-    return std.fmt.bufPrint(buf, "{d:.1}/s", .{per_sec}) catch "";
+pub fn formatRate(buf: []u8, perSec: f64) []const u8 {
+    return std.fmt.bufPrint(buf, "{d:.1}/s", .{perSec}) catch "";
 }
 
 fn elapsedFmt(ns: u64, buf: []u8) []const u8 {
@@ -179,7 +181,7 @@ test "render count token" {
 }
 
 test "render elapsed via formatter" {
-    const values = Values{ .elapsed_ns = 90 * std.time.ns_per_s };
+    const values = Values{ .elapsedNs = 90 * std.time.ns_per_s };
     var buf: [512]u8 = undefined;
     var scratch: [64]u8 = undefined;
     const out = try render(&buf, &scratch, "{elapsed}", values, .{ .elapsed = elapsedFmt });

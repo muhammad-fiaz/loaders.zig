@@ -1,7 +1,7 @@
 ---
 layout: home
 
-title:  High-Performance Terminal Progress Bars & Spinners for Zig
+title: Terminal Progress Bars & Spinners for Zig
 description: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
 
 head:
@@ -66,15 +66,26 @@ features:
     details: Ordered multi-step pipelines, each backed by a spinner or progress bar, with success/failure/skip states.
   - icon: <span class="vp-code">🎨</span>
     title: Color
-    details: Uses tint.zig for color support — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors. Raw ANSI strings also work.
+    details: Uses tint.zig for color support — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors as owned Sequences.
 ---
 
 ## Quick Install
 
-**Stable release** (production):
+**Stable release** (production, Zig 0.17.0+):
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.7.tar.gz
+```
+
+**Zig 0.16.0** (last compatible release):
 
 ```bash
 zig fetch --save https://github.com/muhammad-fiaz/loaders.zig/archive/refs/tags/0.0.6.tar.gz
+```
+
+```text
+For Zig 0.16.0, use progress v0.0.6.
+For Zig 0.17.0+, use progress v0.0.7.
 ```
 
 **Nightly** (latest main):
@@ -99,7 +110,7 @@ pub fn main() !void {
         .style = .{ .filled = "#", .empty = "-" },
         .template = "{bar} {percent}%",
         .text = "Processing",
-        .color = loaders.makeHex(0x22C55E).toFg(),
+        .color = loaders.makeHex(0x22C55E).fg(),
     });
     defer bar.deinit();
 

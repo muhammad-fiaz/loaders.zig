@@ -10,11 +10,11 @@ fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
     _ = ctx;
     var i: u64 = 0;
     while (i < item.size / 10) : (i += 1) {
-        loaders.sleepMs(g_threaded.io(), 1);
+        loaders.sleepMs(gThreaded.io(), 1);
     }
 }
 
-var g_threaded: std.Io.Threaded = .init_single_threaded;
+var gThreaded: std.Io.Threaded = .init_single_threaded;
 pub fn main() !void {
     var threaded: std.Io.Threaded = .init_single_threaded;
     const io = threaded.io();
@@ -31,8 +31,8 @@ pub fn main() !void {
 
     var batch = try loaders.BatchRunner.init(allocator, io, .{
         .mode = .sequential,
-        .show_overall_bar = true,
-        .overall_bar_config = .{
+        .showOverallBar = true,
+        .overallBarConfig = .{
             .total = 5,
             .style = .{ .filled = "#", .empty = "-" },
             .template = "Overall: {bar} {count}",

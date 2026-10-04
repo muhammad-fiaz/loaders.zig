@@ -17,23 +17,23 @@ const bar = try loaders.BlockProgressBar.init(allocator, io, config);
 pub const BlockBarConfig = struct {
     total: u64,                         // required
     current: u64 = 0,
-    min_progress: u64 = 0,
+    minProgress: u64 = 0,
     width: u32 = 40,
     style: BlockBarStyle = .{},
     template: []const u8 = "{bar} {percent}%",
     prefix: ?[]const u8 = null,
     suffix: ?[]const u8 = null,
     text: ?[]const u8 = null,
-    color: ?[]const u8 = null,
-    text_style: FontStyle = .{},
+    color: ?Sequence = null,
+    textStyle: FontStyle = .{},
     formatters: FormatterSet = .{},
-    thread_mode: ThreadMode = .none,
-    interval_ms: u32 = 16,
+    threadMode: ThreadMode = .none,
+    intervalMs: u32 = 16,
     direction: Direction = .incremental,
-    on_tick: ?Callback = null,
-    on_finish: ?Callback = null,
-    on_pause: ?Callback = null,
-    on_resume: ?Callback = null,
+    onTick: ?Callback = null,
+    onFinish: ?Callback = null,
+    onPause: ?Callback = null,
+    onUnpause: ?Callback = null,
     ctx: ?*anyopaque = null,
 };
 ```
@@ -44,8 +44,8 @@ pub const BlockBarConfig = struct {
 pub const BlockBarStyle = struct {
     filled: []const u8 = "█",
     empty: []const u8 = " ",
-    left_bracket: []const u8 = "",
-    right_bracket: []const u8 = "",
+    leftBracket: []const u8 = "",
+    rightBracket: []const u8 = "",
 };
 ```
 
@@ -55,7 +55,7 @@ Partial fills are always the block-partial set `▏▎▍▌▋▊▉`.
 
 Same as [ProgressBar](/api/progress-bar) minus `setStyle`:
 
-`init`, `deinit`, `start`, `tick`, `setProgress`, `pause`, `continue_`, `forceRedraw`, `finish(FinishConfig)`, `fail(message)`, `setText`, `setPrefix`, `setSuffix`, `setColor`, `setTemplate`, `state() BlockState`, `getStatus`, `getCurrent`.
+`init`, `deinit`, `start`, `tick`, `setProgress`, `pause`, `unpause`, `forceRedraw`, `finish(FinishConfig)`, `fail(message)`, `setText`, `setPrefix`, `setSuffix`, `setColor`, `setTemplate`, `state() BlockState`, `getStatus`, `getCurrent`.
 
 ## Example
 

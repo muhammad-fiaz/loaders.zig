@@ -39,7 +39,7 @@ zig build run-runtime_frame_swap
 
 ## pause_resume
 
-`pause` / `continue_` freezing the clock:
+`pause` / `unpause` freezing the clock:
 
 ```bash
 zig build run-pause_resume
@@ -94,7 +94,7 @@ zig build run-fail_and_status
 
 ## callback_hooks
 
-`on_tick` / `on_finish` / `on_pause` / `on_resume` hooks with `ctx`:
+`onTick` / `onFinish` / `onPause` / `onUnpause` hooks with `ctx`:
 
 ```bash
 zig build run-callback_hooks
@@ -104,8 +104,8 @@ zig build run-callback_hooks
 var counts = Counters{};
 var bar = try loaders.ProgressBar.init(allocator, io, .{
     .total = 100,
-    .on_tick = onTick,
-    .on_finish = onFinish,
+    .onTick = onTick,
+    .onFinish = onFinish,
     .ctx = &counts,
 });
 ```

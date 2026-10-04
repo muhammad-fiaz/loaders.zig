@@ -5,7 +5,7 @@ env:
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.16.0
+          version: 0.17.0
 
       - name: Run Zig tests
         run: zig build test --summary all
@@ -39,6 +39,24 @@ jobs:
 
       - name: Build examples
         run: zig build examples
+
+      - name: Cross-compile (64-bit Linux)
+        run: zig build -Dtarget=x86_64-linux
+
+      - name: Cross-compile (64-bit Windows)
+        run: zig build -Dtarget=x86_64-windows
+
+      - name: Cross-compile (64-bit macOS)
+        run: zig build -Dtarget=aarch64-macos
+
+      - name: Cross-compile (32-bit x86 Linux)
+        run: zig build -Dtarget=x86-linux
+
+      - name: Cross-compile (32-bit x86 Windows)
+        run: zig build -Dtarget=x86-windows
+
+      - name: Cross-compile (ARM64 Linux)
+        run: zig build -Dtarget=aarch64-linux
 
       - name: Zig format check
         run: zig fmt --check build.zig src/ examples/

@@ -32,7 +32,7 @@ zig build run-batch_sequential
 ```zig
 var batch = try loaders.BatchRunner.init(allocator, io, .{
     .mode = .sequential,
-    .show_overall_bar = true,
+    .showOverallBar = true,
 });
 defer batch.deinit();
 
@@ -42,7 +42,7 @@ try batch.run(u32, &items, processItem);
 
 ## batch_parallel_downloads
 
-Parallel workers (`max_workers`) with per-item + overall bars. The worker drives per-item progress incrementally via `itemBar()`:
+Parallel workers (`maxWorkers`) with per-item + overall bars. The worker drives per-item progress incrementally via `getItemBar()`:
 
 ```bash
 zig build run-batch_parallel_downloads
@@ -55,7 +55,7 @@ const WorkerCtx = struct {
 
 fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
     const c: *WorkerCtx = @ptrCast(@alignCast(ctx orelse return));
-    const bar = c.batch.itemBar() orelse return;
+    const bar = c.batch.getItemBar() orelse return;
     const total = item.size;
     var downloaded: u64 = 0;
     while (downloaded < total) : (downloaded += 1) {
@@ -68,14 +68,14 @@ fn downloadWorker(item: DownloadItem, ctx: ?*anyopaque) void {
 // In main():
 var batch = try loaders.BatchRunner.init(allocator, io, .{
     .mode = .parallel,
-    .max_workers = 4,
-    .show_overall_bar = true,
-    .overall_bar_config = .{
+    .maxWorkers = 4,
+    .showOverallBar = true,
+    .overallBarConfig = .{
         .total = 8,
         .style = .{ .filled = "=", .empty = " " },
         .template = "Downloading: {bar} {count}",
     },
-    .per_item_bar_config = .{
+    .perItemBarConfig = .{
         .total = 200,
         .style = .{ .filled = "#", .empty = "-" },
         .template = "  Current item: {bar} {percent}%",
@@ -89,7 +89,7 @@ try batch.run(DownloadItem, &items, downloadWorker);
 ```
 
 > [!NOTE]
-> In parallel mode, the runner resets the per-item bar to 0% when dispatching a new item, but does **not** set it to 100% — the worker is responsible for driving progress via `batch.itemBar()`.
+> In parallel mode, the runner resets the per-item bar to 0% when dispatching a new item, but does **not** set it to 100% — the worker is responsible for driving progress via `batch.getItemBar()`.
 
 ## batch_dynamic_messages
 

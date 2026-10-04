@@ -50,4 +50,4 @@ body:
     attributes:
       label: Environment
       description: Include Zig version, OS, and terminal if relevant.
-      placeholder: Zig 0.16.0 on Windows 11
+      placeholder: Zig 0.17.0 on Windows 11

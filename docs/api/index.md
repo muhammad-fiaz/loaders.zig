@@ -23,13 +23,13 @@ All public types are re-exported from the root module: `@import("loaders")`.
 | `Status` | `.pending` \| `.running` \| `.paused` \| `.finished` \| `.failed`. |
 | `ThreadMode` | `.none` \| `.auto` \| `.external`. |
 | `Direction` | `.incremental` \| `.decremental`. |
-| `FinishConfig` | `{ clear, final_text, newline }`. |
+| `FinishConfig` | `{ clear, finalText, newline }`. |
 | `FormatterSet`, `TemplateValues` | Template formatters and values (see [Templates](/api/templates)). |
 | `FontStyle` | Bold, dim, italic, underline, blink, reverse, strikethrough, concealed. |
 | `TerminalSize` | `{ rows, cols }`. |
-| `Color` | tint.zig Color union (ANSI 4-bit, 256, RGB, Hex). |
-| `Style` | tint.zig Style with fg, bg, underline_color, bold, italic, etc. |
-| `Named` | CSS named colors (red, green, blue, etc.). |
+| `Color` | tint.zig Color union (ANSI 4-bit, 256, RGB, Hex, HSL, HSV). |
+| `Style` | tint.zig Style with foreground, background, underline color, bold, italic, etc. |
+| `Sequence` | tint.zig owned ANSI escape sequence (`.slice()` gives `[]const u8`). |
 
 ## Functions
 
@@ -37,7 +37,7 @@ All public types are re-exported from the root module: `@import("loaders")`.
 |----------|-------------|
 | `loaders.sleepMs(io, ms)` | Sleep the current thread. |
 | `loaders.formatNs(buf, ns)` | Format nanoseconds as `MM:SS` / `HH:MM:SS`. |
-| `loaders.formatRate(buf, per_sec)` | Format a rate as `123.4/s`. |
+| `loaders.formatRate(buf, perSec)` | Format a rate as `123.4/s`. |
 | `loaders.renderTemplate(...)` | Render a template with `TemplateValues`. |
 | `loaders.validateTemplate(template, formatters)` | Validate a template; returns `error.MissingFormatter`. |
 | `loaders.stdoutWriter(io)` | Get the shared stdout writer (**returns a pointer**). |
@@ -54,13 +54,16 @@ All public types are re-exported from the root module: `@import("loaders")`.
 | `loaders.makeHex(0xRRGGBB)` | Create color from hex integer. |
 | `loaders.makeAnsi256(index)` | Create 256-color palette color. |
 | `loaders.makeHsl(h, s, l)` | Create HSL color. |
-| `loaders.makeNamed("red")` | Create CSS named color. |
-| `loaders.fg(color)` | Get foreground ANSI escape string. |
-| `loaders.bg(color)` | Get background ANSI escape string. |
-| `loaders.fgRgb(r, g, b)` | Get RGB foreground ANSI string. |
-| `loaders.bgRgb(r, g, b)` | Get RGB background ANSI string. |
-| `loaders.fgHex(0xRRGGBB)` | Get hex foreground ANSI string. |
-| `loaders.fg256(index)` | Get 256-color foreground ANSI string. |
+| `loaders.makeHsv(h, s, v)` | Create HSV color. |
+| `loaders.makeCmyk(c, m, y, k)` | Create CMYK color. |
+| `loaders.makeKelvin(t)` | Create color from temperature in Kelvin. |
+| `loaders.makeNamed("red")` | Create CSS named color via `tint.color.parse`. |
+| `loaders.fg(color)` | Get foreground `Sequence` (use `.slice()` for `[]const u8`). |
+| `loaders.bg(color)` | Get background `Sequence` (use `.slice()` for `[]const u8`). |
+| `loaders.fgRgb(r, g, b)` | Get RGB foreground `Sequence`. |
+| `loaders.bgRgb(r, g, b)` | Get RGB background `Sequence`. |
+| `loaders.fgHex(0xRRGGBB)` | Get hex foreground `Sequence`. |
+| `loaders.fg256(index)` | Get 256-color foreground `Sequence`. |
 
 ## Common Method Names
 
@@ -72,13 +75,13 @@ All four widget types share the same method conventions:
 | start | `start() !void` | `start() !void` | `start() !void` | `start() !void` |
 | update | `tick()` / `setProgress(v)` | `tickFrame()` | `tick()` / `setProgress(v)` | `tickFrame()` |
 | pause | `pause()` | `pause()` | `pause()` | `pause()` |
-| resume | `continue_()` | `continue_()` | `continue_()` | `continue_()` |
+| unpause | `unpause()` | `unpause()` | `unpause()` | `unpause()` |
 | finish | `finish(FinishConfig)` | `stop(FinishConfig)` | `finish(FinishConfig)` | `stop(FinishConfig)` |
 | fail | `fail(message)` | `fail(message)` | `fail(message)` | `fail(message)` |
 | state | `state() ProgressState` | `state() SpinnerState` | `state() BlockState` | `state() IndeterminateState` |
 | status | `getStatus()` | `getStatus()` | `getStatus()` | `getStatus()` |
 | runtime text | `setText(s)` | `setText(s)` | `setText(s)` | `setText(s)` |
-| runtime color | `setColor(?[]const u8)` | `setColor(?[]const u8)` | `setColor(?[]const u8)` | `setColor(?[]const u8)` |
+| runtime color | `setColor(?Sequence)` | `setColor(?Sequence)` | `setColor(?Sequence)` | `setColor(?Sequence)` |
 | runtime template | `setTemplate(s) !void` | `setTemplate(s) !void` | `setTemplate(s) !void` | `setTemplate(s) !void` |
 
 ## Next

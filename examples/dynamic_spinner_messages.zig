@@ -25,6 +25,6 @@ pub fn main() !void {
         loaders.sleepMs(io, 40);
         sp.tickFrame();
     }
-    sp.stop(.{ .final_text = "Messages cycled!", .newline = true });
+    sp.stop(.{ .finalText = "Messages cycled!", .newline = true });
     loaders.showCursor(io);
 }

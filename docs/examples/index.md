@@ -73,8 +73,8 @@ zig build run-<example-name>
 
 | Example | What it shows |
 |---------|---------------|
-| `custom_colors_rgb` | Raw ANSI RGB strings. |
-| `custom_colors_hex` | HEX → RGB escape sequences. |
+| `custom_colors_rgb` | RGB colors via `loaders.makeRgb(r, g, b).fg()`. |
+| `custom_colors_hex` | HEX colors via `loaders.makeHex(0xRRGGBB).fg()`. |
 | `custom_colors_dynamic_gradient` | Gradient computed per update. |
 
 ## Advanced
@@ -84,11 +84,11 @@ zig build run-<example-name>
 | `template_with_eta_speed` | `{elapsed}` / `{eta}` / `{speed}` formatters. |
 | `runtime_style_swap` | `setStyle` mid-run — Phase A → Phase B. |
 | `runtime_frame_swap` | `setFrames` mid-run — ASCII → emoji → moon phases. |
-| `pause_resume` | `pause` / `continue_` semantics. |
+| `pause_resume` | `pause` / `unpause` semantics. |
 | `text_updates` | Dynamic text updates. |
 | `dynamic_messages` | Text + color + style changes by phase. |
 | `infinite_progress_bar` | Auto-threaded infinite bar, `fail` to stop. |
 | `clear_on_finish` | `FinishConfig.clear` and post-run output via `stdoutWriter`. |
 | `fail_and_status` | `fail` + `getStatus` checks. |
-| `callback_hooks` | `on_tick` / `on_finish` / `on_pause` / `on_resume`. |
+| `callback_hooks` | `onTick` / `onFinish` / `onPause` / `onUnpause`. |
 | `state_accessor` | Reading `state()` snapshots. |
