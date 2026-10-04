@@ -207,6 +207,14 @@ pub const Spinner = struct {
     pub fn state(self: *Spinner) SpinnerState {
         self.lock();
         defer self.unlock();
+        if (self.config.frames.len == 0) {
+            return .{
+                .frameIndex = self.index,
+                .frame = "",
+                .elapsedNs = self.elapsedNs,
+                .status = self.statusState,
+            };
+        }
         const frame = self.config.frames[self.index % self.config.frames.len];
         return .{
             .frameIndex = self.index,
@@ -227,6 +235,8 @@ pub const Spinner = struct {
     }
 
     pub fn redrawLine(self: *Spinner) void {
+        self.lock();
+        defer self.unlock();
         self.locklessRedraw();
     }
 
@@ -279,6 +289,7 @@ pub const Spinner = struct {
     fn locklessRedraw(self: *Spinner) void {
         const writer = terminal.stdoutWriter(self.io);
 
+        if (self.config.frames.len == 0) return;
         const frame = self.config.frames[self.index % self.config.frames.len];
 
         var buf: [4096]u8 = undefined;
@@ -317,5 +328,20 @@ test "spinner advances frames" {
     sp.tickFrame();
     const s1 = sp.state();
     try std.testing.expectEqualStrings("/", s1.frame);
+    try std.testing.expectEqual(Status.running, sp.getStatus());
+}
+
+test "spinner handles empty frames without crashing" {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const config = SpinnerConfig{ .frames = &.{} };
+    var sp = try Spinner.init(std.testing.allocator, io, config);
+    defer sp.deinit();
+    sp.setDrawOnUpdate(false);
+    try sp.start();
+    const s = sp.state();
+    try std.testing.expectEqualStrings("", s.frame);
+    sp.tickFrame();
+    sp.forceRedraw();
     try std.testing.expectEqual(Status.running, sp.getStatus());
 }

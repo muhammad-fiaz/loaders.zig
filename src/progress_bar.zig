@@ -272,6 +272,8 @@ pub const ProgressBar = struct {
     }
 
     pub fn redrawLine(self: *ProgressBar) void {
+        self.lock();
+        defer self.unlock();
         self.locklessRedraw();
     }
 

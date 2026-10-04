@@ -85,9 +85,10 @@ pub fn moveUp(io: std.Io, lines: u16) void {
         var setPos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
         _ = setPos.operate(io, file) catch return;
     } else {
-        for (0..lines) |_| {
-            writeAnsi(io, "\x1bM");
-        }
+        var buf: [16]u8 = undefined;
+        const n: u16 = @intCast(lines);
+        const s = std.fmt.bufPrint(&buf, "\x1b[{d}A", .{n}) catch return;
+        writeAnsi(io, s);
     }
 }
 
@@ -169,6 +170,8 @@ var gStdoutInitialized = std.atomic.Value(bool).init(false);
 
 /// Returns a writer attached to standard output using streaming mode
 /// (required for terminals which are unseekable).
+/// The writer is shared: all widgets must use the same `io` value.
+/// Do not copy the returned pointer's target; use the pointer directly.
 pub fn stdoutWriter(io: std.Io) *std.Io.Writer {
     ensureInitialized(io);
     if (!gStdoutInitialized.load(.acquire)) {

@@ -48,6 +48,10 @@ pub const BatchRunner = struct {
         };
     }
 
+    /// Returns the shared per-item bar for worker-driven progress.
+    /// In parallel mode all workers share this single bar: updates are
+    /// memory-safe (each bar has its own mutex) but workers overwrite each
+    /// other's progress logically. Drive it incrementally from the worker.
     pub fn getItemBar(self: *BatchRunner) ?*ProgressBar {
         return self.itemBar;
     }

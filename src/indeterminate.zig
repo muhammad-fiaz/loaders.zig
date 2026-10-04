@@ -99,6 +99,7 @@ pub const Indeterminate = struct {
         self.lock();
         defer self.unlock();
         if (self.statusState != .running) return;
+        if (self.config.width == 0) return;
         if (self.direction == .forward) {
             self.position += 1;
             if (self.position >= self.config.width - 1) {
@@ -322,3 +323,15 @@ pub const Indeterminate = struct {
         writer.flush() catch {};
     }
 };
+
+test "indeterminate handles zero width without crashing" {
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    var ind = try Indeterminate.init(std.testing.allocator, io, .{ .width = 0 });
+    defer ind.deinit();
+    ind.setDrawOnUpdate(false);
+    try ind.start();
+    ind.tickFrame();
+    ind.forceRedraw();
+    try std.testing.expectEqual(Status.running, ind.getStatus());
+}
