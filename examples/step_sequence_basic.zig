@@ -24,7 +24,7 @@ pub fn main() !void {
             .template = "{frame} Building...",
         } },
     });
-    const test_step = try seq.addStep(.{
+    const testStep = try seq.addStep(.{
         .name = "Run tests",
         .kind = .{ .bar = .{
             .total = 100,
@@ -52,16 +52,16 @@ pub fn main() !void {
     while (i < 30) : (i += 1) {
         loaders.sleepMs(io, 60);
     }
-    seq.completeStep(build, .{ .final_text = "3.2s" });
+    seq.completeStep(build, .{ .finalText = "3.2s" });
 
-    try seq.startStep(test_step);
-    const bar = seq.barOf(test_step);
+    try seq.startStep(testStep);
+    const bar = seq.barOf(testStep);
     i = 0;
     while (i <= 100) : (i += 10) {
         bar.setProgress(i);
         loaders.sleepMs(io, 40);
     }
-    seq.completeStep(test_step, .{});
+    seq.completeStep(testStep, .{});
 
     try seq.startStep(deploy);
     i = 0;

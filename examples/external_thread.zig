@@ -16,11 +16,11 @@ pub fn main() !void {
     defer bar.deinit();
 
     const thread = std.Thread.spawn(.{}, struct {
-        fn run(b: *loaders.ProgressBar, io_ref: std.Io) void {
+        fn run(b: *loaders.ProgressBar, ioRef: std.Io) void {
             var j: u64 = 0;
             while (j <= 100) : (j += 1) {
                 b.setProgress(j);
-                loaders.sleepMs(io_ref, 30);
+                loaders.sleepMs(ioRef, 30);
             }
         }
     }.run, .{ &bar, io }) catch return;

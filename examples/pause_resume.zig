@@ -24,7 +24,7 @@ pub fn main() !void {
     }
     bar.pause();
     loaders.sleepMs(io, 1000);
-    bar.continue_();
+    bar.unpause();
     while (i <= 100) : (i += 1) {
         bar.setProgress(i);
         loaders.sleepMs(io, 20);

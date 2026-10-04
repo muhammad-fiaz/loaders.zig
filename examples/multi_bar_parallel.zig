@@ -12,31 +12,31 @@ pub fn main() !void {
     });
     defer mb.deinit();
 
-    const idx_a = try mb.addBar(.{
+    const idxA = try mb.addBar(.{
         .total = 100,
         .style = .{ .filled = "#", .empty = "-" },
         .template = "Task A: {bar} {percent}%",
     });
-    const idx_b = try mb.addBar(.{
+    const idxB = try mb.addBar(.{
         .total = 100,
         .style = .{ .filled = "=", .empty = " " },
         .template = "Task B: {bar} {percent}%",
     });
-    const idx_sp = try mb.addSpinner(.{
+    const idxSp = try mb.addSpinner(.{
         .frames = &.{ "|", "/", "-", "\\" },
         .template = "{frame} Task C running",
     });
 
     try mb.run();
 
-    const bar_a = mb.getBar(idx_a);
-    const bar_b = mb.getBar(idx_b);
-    const sp = mb.getSpinner(idx_sp);
+    const barA = mb.getBar(idxA);
+    const barB = mb.getBar(idxB);
+    const sp = mb.getSpinner(idxSp);
 
     var i: u64 = 0;
     while (i <= 100) : (i += 1) {
-        bar_a.setProgress(i);
-        bar_b.setProgress(i);
+        barA.setProgress(i);
+        barB.setProgress(i);
         loaders.sleepMs(io, 20);
         sp.tickFrame();
     }

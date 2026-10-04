@@ -9,8 +9,8 @@ fn formatEta(ns: u64, buf: []u8) []const u8 {
     return loaders.formatNs(buf, ns);
 }
 
-fn formatSpeed(per_sec: f64, buf: []u8) []const u8 {
-    return loaders.formatRate(buf, per_sec);
+fn formatSpeed(perSec: f64, buf: []u8) []const u8 {
+    return loaders.formatRate(buf, perSec);
 }
 
 pub fn main() !void {
@@ -27,8 +27,8 @@ pub fn main() !void {
             .filled = "=",
             .empty = " ",
             .head = ">",
-            .left_bracket = "[",
-            .right_bracket = "]",
+            .leftBracket = "[",
+            .rightBracket = "]",
         },
         .template = "{bar} {percent}% | Elapsed: {elapsed} ETA: {eta} | {speed}",
         .color = loaders.fg(.{ .ansi4 = .green }),

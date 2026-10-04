@@ -14,7 +14,7 @@ pub fn main() !void {
         .style = .{ .filled = "#", .empty = "-" },
         .template = "{prefix} {bar} {percent}%",
         .prefix = "RGB",
-        .color = orange.toFg(),
+        .color = orange.fg(),
     });
     defer bar.deinit();
 

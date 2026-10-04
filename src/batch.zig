@@ -1,8 +1,8 @@
 const std = @import("std");
-const progress_bar = @import("progress_bar.zig");
+const progressBar = @import("progress_bar.zig");
 const terminal = @import("terminal.zig");
 
-pub const ProgressBar = progress_bar.ProgressBar;
+pub const ProgressBar = progressBar.ProgressBar;
 
 pub const Mode = enum {
     sequential,
@@ -11,11 +11,11 @@ pub const Mode = enum {
 
 pub const BatchConfig = struct {
     mode: Mode = .sequential,
-    show_overall_bar: bool = true,
-    overall_bar_config: ?progress_bar.ProgressBarConfig = null,
-    per_item_bar_config: ?progress_bar.ProgressBarConfig = null,
-    max_workers: u32 = 4,
-    interval_ms: u32 = 30,
+    showOverallBar: bool = true,
+    overallBarConfig: ?progressBar.ProgressBarConfig = null,
+    perItemBarConfig: ?progressBar.ProgressBarConfig = null,
+    maxWorkers: u32 = 4,
+    intervalMs: u32 = 30,
     ctx: ?*anyopaque = null,
 };
 
@@ -23,13 +23,13 @@ pub const BatchRunner = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
     config: BatchConfig,
-    overall_bar: ?*ProgressBar,
-    item_bar: ?*ProgressBar,
+    overallBar: ?*ProgressBar,
+    itemBar: ?*ProgressBar,
     mutex: std.Io.Mutex,
-    next_index: std.atomic.Value(usize),
+    nextIndex: std.atomic.Value(usize),
     completed: std.atomic.Value(u64),
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
+    stopThread: std.atomic.Value(bool),
     started: bool,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: BatchConfig) !BatchRunner {
@@ -37,97 +37,97 @@ pub const BatchRunner = struct {
             .allocator = allocator,
             .io = io,
             .config = config,
-            .overall_bar = null,
-            .item_bar = null,
+            .overallBar = null,
+            .itemBar = null,
             .mutex = .init,
-            .next_index = std.atomic.Value(usize).init(0),
+            .nextIndex = std.atomic.Value(usize).init(0),
             .completed = std.atomic.Value(u64).init(0),
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
+            .stopThread = std.atomic.Value(bool).init(false),
             .started = false,
         };
     }
 
-    pub fn itemBar(self: *BatchRunner) ?*ProgressBar {
-        return self.item_bar;
+    pub fn getItemBar(self: *BatchRunner) ?*ProgressBar {
+        return self.itemBar;
     }
 
-    pub fn overallBar(self: *BatchRunner) ?*ProgressBar {
-        return self.overall_bar;
+    pub fn getOverallBar(self: *BatchRunner) ?*ProgressBar {
+        return self.overallBar;
     }
 
     pub fn deinit(self: *BatchRunner) void {
         self.stopRenderThread();
-        if (self.overall_bar) |bar| {
+        if (self.overallBar) |bar| {
             bar.deinit();
             self.allocator.destroy(bar);
         }
-        if (self.item_bar) |bar| {
+        if (self.itemBar) |bar| {
             bar.deinit();
             self.allocator.destroy(bar);
         }
     }
 
     pub fn run(self: *BatchRunner, comptime Item: type, items: []const Item, worker: *const fn (Item, ?*anyopaque) void) !void {
-        if (self.config.show_overall_bar and self.overall_bar == null) {
-            const default_cfg: progress_bar.ProgressBarConfig = .{ .total = items.len };
-            var cfg = self.config.overall_bar_config orelse default_cfg;
+        if (self.config.showOverallBar and self.overallBar == null) {
+            const defaultCfg: progressBar.ProgressBarConfig = .{ .total = items.len };
+            var cfg = self.config.overallBarConfig orelse defaultCfg;
             cfg.total = items.len;
-            const bar_ptr = try self.allocator.create(ProgressBar);
-            errdefer self.allocator.destroy(bar_ptr);
-            bar_ptr.* = try ProgressBar.init(self.allocator, self.io, cfg);
-            bar_ptr.setDrawOnUpdate(false);
-            self.overall_bar = bar_ptr;
+            const barPtr = try self.allocator.create(ProgressBar);
+            errdefer self.allocator.destroy(barPtr);
+            barPtr.* = try ProgressBar.init(self.allocator, self.io, cfg);
+            barPtr.setDrawOnUpdate(false);
+            self.overallBar = barPtr;
         }
-        if (self.config.per_item_bar_config) |cfg| {
-            if (self.item_bar == null) {
+        if (self.config.perItemBarConfig) |cfg| {
+            if (self.itemBar == null) {
                 var c = cfg;
                 c.total = 1;
-                const bar_ptr = try self.allocator.create(ProgressBar);
-                errdefer self.allocator.destroy(bar_ptr);
-                bar_ptr.* = try ProgressBar.init(self.allocator, self.io, c);
-                bar_ptr.setDrawOnUpdate(false);
-                self.item_bar = bar_ptr;
+                const barPtr = try self.allocator.create(ProgressBar);
+                errdefer self.allocator.destroy(barPtr);
+                barPtr.* = try ProgressBar.init(self.allocator, self.io, c);
+                barPtr.setDrawOnUpdate(false);
+                self.itemBar = barPtr;
             }
         }
 
-        if (self.overall_bar) |bar| bar.start() catch {};
-        if (self.item_bar) |bar| bar.start() catch {};
+        if (self.overallBar) |bar| bar.start() catch {};
+        if (self.itemBar) |bar| bar.start() catch {};
 
-        self.stop_thread.store(false, .release);
+        self.stopThread.store(false, .release);
         self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
 
-        self.next_index.store(0, .release);
+        self.nextIndex.store(0, .release);
         self.completed.store(0, .release);
 
         switch (self.config.mode) {
             .sequential => {
                 for (items) |item| {
-                    if (self.item_bar) |bar| bar.setProgress(0);
+                    if (self.itemBar) |bar| bar.setProgress(0);
                     worker(item, self.config.ctx);
                     _ = self.completed.fetchAdd(1, .acq_rel);
-                    if (self.item_bar) |bar| bar.setProgress(1);
+                    if (self.itemBar) |bar| bar.setProgress(1);
                     self.updateBars();
                 }
             },
             .parallel => {
-                const n_workers: usize = @intCast(@min(
-                    self.config.max_workers,
+                const nWorkers: usize = @intCast(@min(
+                    self.config.maxWorkers,
                     @max(@as(u32, 1), @as(u32, @intCast(items.len))),
                 ));
                 const Loop = struct {
                     fn run(r: *BatchRunner, wi: []const Item, w: *const fn (Item, ?*anyopaque) void) void {
                         while (true) {
-                            const idx = r.next_index.fetchAdd(1, .acq_rel);
+                            const idx = r.nextIndex.fetchAdd(1, .acq_rel);
                             if (idx >= wi.len) return;
-                            if (r.item_bar) |bar| bar.setProgress(0);
+                            if (r.itemBar) |bar| bar.setProgress(0);
                             w(wi[idx], r.config.ctx);
                             _ = r.completed.fetchAdd(1, .acq_rel);
                             r.updateBars();
                         }
                     }
                 };
-                var threads = try self.allocator.alloc(std.Thread, n_workers);
+                var threads = try self.allocator.alloc(std.Thread, nWorkers);
                 defer self.allocator.free(threads);
                 var spawned: usize = 0;
                 errdefer {
@@ -144,18 +144,18 @@ pub const BatchRunner = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.overall_bar) |bar| bar.finishNow();
-        if (self.item_bar) |bar| bar.finishNow();
+        if (self.overallBar) |bar| bar.finishNow();
+        if (self.itemBar) |bar| bar.finishNow();
         if (self.started) {
-            const n: u16 = if (self.overall_bar != null and self.item_bar != null) 2 else 1;
+            const n: u16 = if (self.overallBar != null and self.itemBar != null) 2 else 1;
             terminal.moveUp(self.io, n);
         }
-        if (self.overall_bar) |bar| {
+        if (self.overallBar) |bar| {
             bar.redrawLine();
             var writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\n") catch {};
         }
-        if (self.item_bar) |bar| {
+        if (self.itemBar) |bar| {
             bar.redrawLine();
             var writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\n") catch {};
@@ -176,12 +176,12 @@ pub const BatchRunner = struct {
         self.lock();
         defer self.unlock();
         const done = self.completed.load(.acquire);
-        if (self.overall_bar) |bar| bar.setProgress(done);
+        if (self.overallBar) |bar| bar.setProgress(done);
     }
 
     fn renderLoop(self: *BatchRunner) void {
-        while (!self.stop_thread.load(.acquire)) {
-            terminal.sleepMs(self.io, self.config.interval_ms);
+        while (!self.stopThread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.intervalMs);
             self.redrawAll();
         }
     }
@@ -189,15 +189,15 @@ pub const BatchRunner = struct {
     fn redrawAll(self: *BatchRunner) void {
         self.lock();
         defer self.unlock();
-        if (self.overall_bar == null and self.item_bar == null) return;
-        const n: u16 = if (self.overall_bar != null and self.item_bar != null) 2 else 1;
+        if (self.overallBar == null and self.itemBar == null) return;
+        const n: u16 = if (self.overallBar != null and self.itemBar != null) 2 else 1;
         if (self.started) terminal.moveUp(self.io, n);
-        if (self.overall_bar) |bar| {
+        if (self.overallBar) |bar| {
             bar.redrawLine();
             var writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\n") catch {};
         }
-        if (self.item_bar) |bar| {
+        if (self.itemBar) |bar| {
             bar.redrawLine();
             var writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\n") catch {};
@@ -208,7 +208,7 @@ pub const BatchRunner = struct {
     }
 
     fn stopRenderThread(self: *BatchRunner) void {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             t.join();

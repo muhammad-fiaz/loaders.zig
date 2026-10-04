@@ -1,11 +1,12 @@
 const std = @import("std");
-const template_mod = @import("template.zig");
-const style_mod = @import("style.zig");
+const tint = @import("tint");
+const templateMod = @import("template.zig");
+const styleMod = @import("style.zig");
 const terminal = @import("terminal.zig");
 
-pub const FontStyle = style_mod.FontStyle;
-pub const Formatters = template_mod.FormatterSet;
-pub const InitError = template_mod.InitError;
+pub const FontStyle = styleMod.FontStyle;
+pub const Formatters = templateMod.FormatterSet;
+pub const InitError = templateMod.InitError;
 
 pub const ThreadMode = enum {
     /// Manual rendering — the caller drives updates.
@@ -31,7 +32,7 @@ pub const Direction = enum {
 
 pub const FinishConfig = struct {
     clear: bool = false,
-    final_text: ?[]const u8 = null,
+    finalText: ?[]const u8 = null,
     newline: bool = true,
 };
 
@@ -39,9 +40,9 @@ pub const CustomBarStyle = struct {
     filled: []const u8 = "#",
     empty: []const u8 = "-",
     head: []const u8 = ">",
-    left_bracket: []const u8 = "[",
-    right_bracket: []const u8 = "]",
-    partial_fill: ?[]const []const u8 = null,
+    leftBracket: []const u8 = "[",
+    rightBracket: []const u8 = "]",
+    partialFill: ?[]const []const u8 = null,
 };
 
 pub const Callback = *const fn (ctx: ?*anyopaque) void;
@@ -49,23 +50,23 @@ pub const Callback = *const fn (ctx: ?*anyopaque) void;
 pub const ProgressBarConfig = struct {
     total: u64,
     current: u64 = 0,
-    min_progress: u64 = 0,
+    minProgress: u64 = 0,
     width: u32 = 40,
     style: CustomBarStyle = .{},
     template: []const u8 = "{bar} {percent}%",
     prefix: ?[]const u8 = null,
     suffix: ?[]const u8 = null,
     text: ?[]const u8 = null,
-    color: ?[]const u8 = null,
-    text_style: FontStyle = .{},
+    color: ?tint.ansi.Sequence = null,
+    textStyle: FontStyle = .{},
     formatters: Formatters = .{},
-    thread_mode: ThreadMode = .none,
-    interval_ms: u32 = 16,
+    threadMode: ThreadMode = .none,
+    intervalMs: u32 = 16,
     direction: Direction = .incremental,
-    on_tick: ?Callback = null,
-    on_finish: ?Callback = null,
-    on_pause: ?Callback = null,
-    on_resume: ?Callback = null,
+    onTick: ?Callback = null,
+    onFinish: ?Callback = null,
+    onPause: ?Callback = null,
+    onUnpause: ?Callback = null,
     ctx: ?*anyopaque = null,
 };
 
@@ -73,8 +74,8 @@ pub const ProgressState = struct {
     progress: u64,
     total: u64,
     percent: f64,
-    elapsed_ns: u64,
-    eta_ns: u64,
+    elapsedNs: u64,
+    etaNs: u64,
     speed: f64,
     status: Status,
 };
@@ -84,28 +85,28 @@ pub const ProgressBar = struct {
     io: std.Io,
     config: ProgressBarConfig,
     progress: u64,
-    status_state: Status,
-    start_time: std.Io.Timestamp,
-    elapsed_ns: u64,
+    statusState: Status,
+    startTime: std.Io.Timestamp,
+    elapsedNs: u64,
     mutex: std.Io.Mutex,
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
-    draw_on_update: bool,
+    stopThread: std.atomic.Value(bool),
+    drawOnUpdate: bool,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: ProgressBarConfig) InitError!ProgressBar {
-        try template_mod.validate(config.template, config.formatters);
+        try templateMod.validate(config.template, config.formatters);
         return .{
             .allocator = allocator,
             .io = io,
             .config = config,
             .progress = config.current,
-            .status_state = .pending,
-            .start_time = .zero,
-            .elapsed_ns = 0,
+            .statusState = .pending,
+            .startTime = .zero,
+            .elapsedNs = 0,
             .mutex = .init,
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
-            .draw_on_update = true,
+            .stopThread = std.atomic.Value(bool).init(false),
+            .drawOnUpdate = true,
         };
     }
 
@@ -116,7 +117,7 @@ pub const ProgressBar = struct {
     pub fn start(self: *ProgressBar) !void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .pending) {
+        if (self.statusState == .pending) {
             self.startLocked();
             self.maybeRedraw();
         }
@@ -125,58 +126,58 @@ pub const ProgressBar = struct {
     pub fn tick(self: *ProgressBar) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .pending) self.startLocked();
-        if (self.status_state != .running) return;
+        if (self.statusState == .pending) self.startLocked();
+        if (self.statusState != .running) return;
         if (self.progress < self.config.total) self.progress += 1;
         self.updateElapsed();
         self.maybeRedraw();
-        if (self.config.on_tick) |cb| cb(self.config.ctx);
+        if (self.config.onTick) |cb| cb(self.config.ctx);
     }
 
     pub fn setProgress(self: *ProgressBar, value: u64) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .pending) self.startLocked();
-        if (self.status_state != .running) return;
+        if (self.statusState == .pending) self.startLocked();
+        if (self.statusState != .running) return;
         self.progress = @min(value, self.config.total);
         self.updateElapsed();
         self.maybeRedraw();
-        if (self.config.on_tick) |cb| cb(self.config.ctx);
+        if (self.config.onTick) |cb| cb(self.config.ctx);
     }
 
     pub fn pause(self: *ProgressBar) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .running) {
+        if (self.statusState == .running) {
             self.updateElapsed();
-            self.status_state = .paused;
-            if (self.config.on_pause) |cb| cb(self.config.ctx);
+            self.statusState = .paused;
+            if (self.config.onPause) |cb| cb(self.config.ctx);
         }
     }
 
-    pub fn continue_(self: *ProgressBar) void {
+    pub fn unpause(self: *ProgressBar) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .paused) {
-            self.status_state = .running;
-            self.start_time = std.Io.Timestamp.now(self.io, .awake)
-                .subDuration(.{ .nanoseconds = @intCast(self.elapsed_ns) });
+        if (self.statusState == .paused) {
+            self.statusState = .running;
+            self.startTime = std.Io.Timestamp.now(self.io, .awake)
+                .subDuration(.{ .nanoseconds = @intCast(self.elapsedNs) });
             self.maybeRedraw();
-            if (self.config.on_resume) |cb| cb(self.config.ctx);
+            if (self.config.onUnpause) |cb| cb(self.config.ctx);
         }
     }
 
     pub fn forceRedraw(self: *ProgressBar) void {
         self.lock();
         defer self.unlock();
-        if (self.draw_on_update) self.locklessRedraw();
+        if (self.drawOnUpdate) self.locklessRedraw();
     }
 
     pub fn finish(self: *ProgressBar, config: FinishConfig) void {
         self.finishNow();
         self.lock();
         defer self.unlock();
-        if (self.draw_on_update) {
+        if (self.drawOnUpdate) {
             self.locklessRedraw();
             self.finishLine(config);
         }
@@ -186,12 +187,12 @@ pub const ProgressBar = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .failed;
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
-        if (self.draw_on_update) {
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .failed;
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
+        if (self.drawOnUpdate) {
             terminal.eraseLine(self.io);
-            var writer = terminal.stdoutWriter(self.io);
+            const writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\x1b[31m") catch {};
             writer.writeAll("FAILED: ") catch {};
             writer.writeAll(message) catch {};
@@ -220,7 +221,7 @@ pub const ProgressBar = struct {
         self.config.suffix = suffix;
     }
 
-    pub fn setColor(self: *ProgressBar, color: ?[]const u8) void {
+    pub fn setColor(self: *ProgressBar, color: ?tint.ansi.Sequence) void {
         self.lock();
         defer self.unlock();
         self.config.color = color;
@@ -233,7 +234,7 @@ pub const ProgressBar = struct {
     }
 
     pub fn setTemplate(self: *ProgressBar, template: []const u8) !void {
-        try template_mod.validate(template, self.config.formatters);
+        try templateMod.validate(template, self.config.formatters);
         self.lock();
         defer self.unlock();
         self.config.template = template;
@@ -247,17 +248,17 @@ pub const ProgressBar = struct {
             .progress = self.progress,
             .total = self.config.total,
             .percent = self.percentage(),
-            .elapsed_ns = self.elapsed_ns,
-            .eta_ns = self.etaNs(),
+            .elapsedNs = self.elapsedNs,
+            .etaNs = self.etaNs(),
             .speed = self.speedPerSec(),
-            .status = self.status_state,
+            .status = self.statusState,
         };
     }
 
     pub fn getStatus(self: *ProgressBar) Status {
         self.lock();
         defer self.unlock();
-        return self.status_state;
+        return self.statusState;
     }
 
     pub fn getCurrent(self: *ProgressBar) u64 {
@@ -267,7 +268,7 @@ pub const ProgressBar = struct {
     }
 
     pub fn setDrawOnUpdate(self: *ProgressBar, draw: bool) void {
-        self.draw_on_update = draw;
+        self.drawOnUpdate = draw;
     }
 
     pub fn redrawLine(self: *ProgressBar) void {
@@ -279,11 +280,11 @@ pub const ProgressBar = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .finished;
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .finished;
         self.progress = self.config.total;
         self.updateElapsed();
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
     }
 
     fn lock(self: *ProgressBar) void {
@@ -295,32 +296,32 @@ pub const ProgressBar = struct {
     }
 
     fn maybeRedraw(self: *ProgressBar) void {
-        if (self.draw_on_update and (self.status_state == .running or self.status_state == .paused)) {
+        if (self.drawOnUpdate and (self.statusState == .running or self.statusState == .paused)) {
             self.locklessRedraw();
         }
     }
 
     fn startLocked(self: *ProgressBar) void {
-        self.status_state = .running;
-        self.start_time = std.Io.Timestamp.now(self.io, .awake);
-        if (self.config.thread_mode == .auto) {
-            self.stop_thread.store(false, .release);
+        self.statusState = .running;
+        self.startTime = std.Io.Timestamp.now(self.io, .awake);
+        if (self.config.threadMode == .auto) {
+            self.stopThread.store(false, .release);
             self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
         }
     }
 
     fn renderLoop(self: *ProgressBar) void {
-        while (!self.stop_thread.load(.acquire)) {
-            terminal.sleepMs(self.io, self.config.interval_ms);
+        while (!self.stopThread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.intervalMs);
             self.lock();
-            const running = self.status_state == .running;
+            const running = self.statusState == .running;
             self.unlock();
             if (running) self.forceRedraw();
         }
     }
 
     fn stopRenderThread(self: *ProgressBar) void {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             t.join();
@@ -329,8 +330,8 @@ pub const ProgressBar = struct {
 
     fn updateElapsed(self: *ProgressBar) void {
         const now = std.Io.Timestamp.now(self.io, .awake);
-        const diff = now.nanoseconds - self.start_time.nanoseconds;
-        self.elapsed_ns = @intCast(@max(diff, 0));
+        const diff = now.nanoseconds - self.startTime.nanoseconds;
+        self.elapsedNs = @intCast(@max(diff, 0));
     }
 
     fn effective(self: *ProgressBar) u64 {
@@ -345,21 +346,21 @@ pub const ProgressBar = struct {
     fn etaNs(self: *ProgressBar) u64 {
         const eff = self.effective();
         if (eff > 0 and eff < self.config.total) {
-            return (self.elapsed_ns * (self.config.total - eff)) / eff;
+            return (self.elapsedNs * (self.config.total - eff)) / eff;
         }
         return 0;
     }
 
     fn speedPerSec(self: *ProgressBar) f64 {
-        if (self.elapsed_ns == 0) return 0;
-        return @as(f64, @floatFromInt(self.effective())) / (@as(f64, @floatFromInt(self.elapsed_ns)) / 1e9);
+        if (self.elapsedNs == 0) return 0;
+        return @as(f64, @floatFromInt(self.effective())) / (@as(f64, @floatFromInt(self.elapsedNs)) / 1e9);
     }
 
     fn finishLine(self: *ProgressBar, config: FinishConfig) void {
-        var writer = terminal.stdoutWriter(self.io);
+        const writer = terminal.stdoutWriter(self.io);
         if (config.clear) {
             terminal.eraseLine(self.io);
-        } else if (config.final_text) |ft| {
+        } else if (config.finalText) |ft| {
             terminal.eraseLine(self.io);
             writer.writeAll(ft) catch {};
             if (config.newline) writer.writeAll("\n") catch {};
@@ -369,56 +370,55 @@ pub const ProgressBar = struct {
     }
 
     fn locklessRedraw(self: *ProgressBar) void {
-        var writer = terminal.stdoutWriter(self.io);
+        const writer = terminal.stdoutWriter(self.io);
 
-        var bar_buf: [2048]u8 = undefined;
-        var bar_acc = template_mod.Accum.init(&bar_buf);
-        self.renderBar(&bar_acc);
+        var barBuf: [2048]u8 = undefined;
+        var barAcc = templateMod.Accum.init(&barBuf);
+        self.renderBar(&barAcc);
 
         var buf: [4096]u8 = undefined;
         var scratch: [64]u8 = undefined;
-        const values = template_mod.Values{
+        const values = templateMod.Values{
             .prefix = self.config.prefix,
             .suffix = self.config.suffix,
             .text = self.config.text,
-            .bar = bar_acc.get(),
+            .bar = barAcc.get(),
             .percent = self.percentage(),
             .count = self.progress,
             .total = self.config.total,
-            .elapsed_ns = self.elapsed_ns,
-            .eta_ns = self.etaNs(),
+            .elapsedNs = self.elapsedNs,
+            .etaNs = self.etaNs(),
             .speed = self.speedPerSec(),
             .color = self.config.color,
         };
-        const rendered = template_mod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
+        const rendered = templateMod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
         // Clear line and write content
         writer.writeAll("\r\x1b[K") catch {};
-        if (self.config.color) |c| writer.writeAll(c) catch {};
-        if (!self.config.text_style.isEmpty()) {
-            var style_buf: [32]u8 = undefined;
-            writer.writeAll(self.config.text_style.toAnsi(&style_buf)) catch {};
+        if (self.config.color) |seq| writer.writeAll(seq.slice()) catch {};
+        if (!self.config.textStyle.isEmpty()) {
+            writer.writeAll(self.config.textStyle.toAnsi().slice()) catch {};
         }
         writer.writeAll(rendered) catch {};
         if (self.config.color != null) writer.writeAll("\x1b[0m") catch {};
         writer.flush() catch {};
     }
 
-    fn renderBar(self: *ProgressBar, acc: *template_mod.Accum) void {
-        const style = self.config.style;
-        acc.write(style.left_bracket) catch return;
+    fn renderBar(self: *ProgressBar, acc: *templateMod.Accum) void {
+        const barStyle = self.config.style;
+        acc.write(barStyle.leftBracket) catch return;
         const width = self.config.width;
         const total = self.config.total;
         const eff = self.effective();
-        const filled_count: u32 = if (total > 0)
+        const filledCount: u32 = if (total > 0)
             @intCast(@min(@as(u64, width) * eff / total, width))
         else
             0;
         var j: u32 = 0;
         while (j < width) : (j += 1) {
-            if (j < filled_count) {
-                acc.write(style.filled) catch return;
-            } else if (j == filled_count and eff < total) {
-                if (style.partial_fill) |parts| {
+            if (j < filledCount) {
+                acc.write(barStyle.filled) catch return;
+            } else if (j == filledCount and eff < total) {
+                if (barStyle.partialFill) |parts| {
                     if (total > 0 and width > 0) {
                         const remainder = (@as(u64, width) * eff) % total;
                         const frac = @as(f64, @floatFromInt(remainder)) / @as(f64, @floatFromInt(total));
@@ -426,13 +426,13 @@ pub const ProgressBar = struct {
                         acc.write(parts[@min(idx, parts.len - 1)]) catch return;
                     }
                 } else {
-                    acc.write(style.head) catch return;
+                    acc.write(barStyle.head) catch return;
                 }
             } else {
-                acc.write(style.empty) catch return;
+                acc.write(barStyle.empty) catch return;
             }
         }
-        acc.write(style.right_bracket) catch return;
+        acc.write(barStyle.rightBracket) catch return;
     }
 };
 

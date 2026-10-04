@@ -26,7 +26,7 @@ pub fn main() !void {
 
     var i: u64 = 0;
     while (i <= 100) : (i += 1) {
-        bar.setColor(colors[@intCast((i / 17) % colors.len)].toFg());
+        bar.setColor(colors[@intCast((i / 17) % colors.len)].fg());
         bar.setProgress(i);
         loaders.sleepMs(io, 25);
     }

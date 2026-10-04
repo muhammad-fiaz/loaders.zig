@@ -12,12 +12,12 @@ pub fn main() !void {
     });
     defer mb.deinit();
 
-    const idx_a = try mb.addBar(.{
+    const idxA = try mb.addBar(.{
         .total = 100,
         .style = .{ .filled = "#", .empty = "-" },
         .template = "Task A: {bar} {percent}%",
     });
-    const idx_b = try mb.addBar(.{
+    const idxB = try mb.addBar(.{
         .total = 100,
         .style = .{ .filled = "=", .empty = " " },
         .template = "Task B: {bar} {percent}%",
@@ -25,17 +25,17 @@ pub fn main() !void {
 
     try mb.run();
 
-    const bar_a = mb.getBar(idx_a);
-    const bar_b = mb.getBar(idx_b);
+    const barA = mb.getBar(idxA);
+    const barB = mb.getBar(idxB);
 
     var i: u64 = 0;
     while (i < 100) : (i += 1) {
         loaders.sleepMs(io, 20);
-        bar_a.setProgress(i);
-        if (i >= 50) bar_b.setProgress(i - 50);
+        barA.setProgress(i);
+        if (i >= 50) barB.setProgress(i - 50);
     }
-    bar_a.finish(.{ .clear = true });
-    bar_b.finish(.{ .clear = true });
+    barA.finish(.{ .clear = true });
+    barB.finish(.{ .clear = true });
     mb.finishAll(.{ .newline = true });
     loaders.showCursor(io);
 }

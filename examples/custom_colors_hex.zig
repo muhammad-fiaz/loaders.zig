@@ -14,7 +14,7 @@ pub fn main() !void {
         .style = .{ .filled = "█", .empty = "░" },
         .template = "{prefix} {bar} {percent}%",
         .prefix = "HEX green",
-        .color = green.toFg(),
+        .color = green.fg(),
     });
     defer bar.deinit();
 

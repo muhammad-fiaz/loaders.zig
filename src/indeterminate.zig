@@ -1,45 +1,46 @@
 const std = @import("std");
-const template_mod = @import("template.zig");
-const style_mod = @import("style.zig");
+const tint = @import("tint");
+const templateMod = @import("template.zig");
+const styleMod = @import("style.zig");
 const terminal = @import("terminal.zig");
-const progress_bar = @import("progress_bar.zig");
+const progressBar = @import("progress_bar.zig");
 
-pub const FontStyle = style_mod.FontStyle;
-pub const Formatters = template_mod.FormatterSet;
-pub const ThreadMode = progress_bar.ThreadMode;
-pub const Status = progress_bar.Status;
-pub const FinishConfig = progress_bar.FinishConfig;
-pub const Callback = progress_bar.Callback;
-pub const InitError = template_mod.InitError;
+pub const FontStyle = styleMod.FontStyle;
+pub const Formatters = templateMod.FormatterSet;
+pub const ThreadMode = progressBar.ThreadMode;
+pub const Status = progressBar.Status;
+pub const FinishConfig = progressBar.FinishConfig;
+pub const Callback = progressBar.Callback;
+pub const InitError = templateMod.InitError;
 
 pub const IndeterminateStyle = struct {
     filled: []const u8 = ".",
     head: []const u8 = ">",
-    left_bracket: []const u8 = "[",
-    right_bracket: []const u8 = "]",
+    leftBracket: []const u8 = "[",
+    rightBracket: []const u8 = "]",
 };
 
 pub const IndeterminateConfig = struct {
-    segment_width: u32 = 10,
+    segmentWidth: u32 = 10,
     width: u32 = 40,
     style: IndeterminateStyle = .{},
     template: []const u8 = "{bar}",
     prefix: ?[]const u8 = null,
     suffix: ?[]const u8 = null,
     text: ?[]const u8 = null,
-    color: ?[]const u8 = null,
-    text_style: FontStyle = .{},
+    color: ?tint.ansi.Sequence = null,
+    textStyle: FontStyle = .{},
     formatters: Formatters = .{},
-    interval_ms: u32 = 80,
-    thread_mode: ThreadMode = .none,
-    on_tick: ?Callback = null,
-    on_finish: ?Callback = null,
+    intervalMs: u32 = 80,
+    threadMode: ThreadMode = .none,
+    onTick: ?Callback = null,
+    onFinish: ?Callback = null,
     ctx: ?*anyopaque = null,
 };
 
 pub const IndeterminateState = struct {
     position: u32,
-    elapsed_ns: u64,
+    elapsedNs: u64,
     status: Status,
 };
 
@@ -51,29 +52,29 @@ pub const Indeterminate = struct {
     config: IndeterminateConfig,
     position: u32,
     direction: Direction,
-    status_state: Status,
-    start_time: std.Io.Timestamp,
-    elapsed_ns: u64,
+    statusState: Status,
+    startTime: std.Io.Timestamp,
+    elapsedNs: u64,
     mutex: std.Io.Mutex,
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
-    draw_on_update: bool,
+    stopThread: std.atomic.Value(bool),
+    drawOnUpdate: bool,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: IndeterminateConfig) InitError!Indeterminate {
-        try template_mod.validate(config.template, config.formatters);
+        try templateMod.validate(config.template, config.formatters);
         return .{
             .allocator = allocator,
             .io = io,
             .config = config,
             .position = 0,
             .direction = .forward,
-            .status_state = .pending,
-            .start_time = .zero,
-            .elapsed_ns = 0,
+            .statusState = .pending,
+            .startTime = .zero,
+            .elapsedNs = 0,
             .mutex = .init,
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
-            .draw_on_update = true,
+            .stopThread = std.atomic.Value(bool).init(false),
+            .drawOnUpdate = true,
         };
     }
 
@@ -84,12 +85,12 @@ pub const Indeterminate = struct {
     pub fn start(self: *Indeterminate) !void {
         self.lock();
         defer self.unlock();
-        if (self.status_state != .pending) return;
-        self.status_state = .running;
-        self.start_time = std.Io.Timestamp.now(self.io, .awake);
+        if (self.statusState != .pending) return;
+        self.statusState = .running;
+        self.startTime = std.Io.Timestamp.now(self.io, .awake);
         self.maybeRedraw();
-        if (self.config.thread_mode == .auto) {
-            self.stop_thread.store(false, .release);
+        if (self.config.threadMode == .auto) {
+            self.stopThread.store(false, .release);
             self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
         }
     }
@@ -97,7 +98,7 @@ pub const Indeterminate = struct {
     pub fn tickFrame(self: *Indeterminate) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state != .running) return;
+        if (self.statusState != .running) return;
         if (self.direction == .forward) {
             self.position += 1;
             if (self.position >= self.config.width - 1) {
@@ -113,31 +114,31 @@ pub const Indeterminate = struct {
         }
         self.updateElapsed();
         self.maybeRedraw();
-        if (self.config.on_tick) |cb| cb(self.config.ctx);
+        if (self.config.onTick) |cb| cb(self.config.ctx);
     }
 
     pub fn forceRedraw(self: *Indeterminate) void {
         self.lock();
         defer self.unlock();
-        if (self.draw_on_update) self.locklessRedraw();
+        if (self.drawOnUpdate) self.locklessRedraw();
     }
 
     pub fn pause(self: *Indeterminate) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .running) {
+        if (self.statusState == .running) {
             self.updateElapsed();
-            self.status_state = .paused;
+            self.statusState = .paused;
         }
     }
 
-    pub fn continue_(self: *Indeterminate) void {
+    pub fn unpause(self: *Indeterminate) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .paused) {
-            self.status_state = .running;
-            self.start_time = std.Io.Timestamp.now(self.io, .awake)
-                .subDuration(.{ .nanoseconds = @intCast(self.elapsed_ns) });
+        if (self.statusState == .paused) {
+            self.statusState = .running;
+            self.startTime = std.Io.Timestamp.now(self.io, .awake)
+                .subDuration(.{ .nanoseconds = @intCast(self.elapsedNs) });
             self.maybeRedraw();
         }
     }
@@ -146,14 +147,14 @@ pub const Indeterminate = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .finished;
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .finished;
         self.updateElapsed();
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
-        if (self.draw_on_update) {
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
+        if (self.drawOnUpdate) {
             if (config.clear) {
                 terminal.eraseLine(self.io);
-            } else if (config.final_text) |ft| {
+            } else if (config.finalText) |ft| {
                 terminal.eraseLine(self.io);
                 var writer = terminal.stdoutWriter(self.io);
                 writer.writeAll(ft) catch {};
@@ -171,10 +172,10 @@ pub const Indeterminate = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .failed;
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
-        if (self.draw_on_update) {
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .failed;
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
+        if (self.drawOnUpdate) {
             terminal.eraseLine(self.io);
             var writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\x1b[31m") catch {};
@@ -193,7 +194,7 @@ pub const Indeterminate = struct {
         self.maybeRedraw();
     }
 
-    pub fn setColor(self: *Indeterminate, color: ?[]const u8) void {
+    pub fn setColor(self: *Indeterminate, color: ?tint.ansi.Sequence) void {
         self.lock();
         defer self.unlock();
         self.config.color = color;
@@ -201,7 +202,7 @@ pub const Indeterminate = struct {
     }
 
     pub fn setTemplate(self: *Indeterminate, template: []const u8) !void {
-        try template_mod.validate(template, self.config.formatters);
+        try templateMod.validate(template, self.config.formatters);
         self.lock();
         defer self.unlock();
         self.config.template = template;
@@ -213,19 +214,19 @@ pub const Indeterminate = struct {
         defer self.unlock();
         return .{
             .position = self.position,
-            .elapsed_ns = self.elapsed_ns,
-            .status = self.status_state,
+            .elapsedNs = self.elapsedNs,
+            .status = self.statusState,
         };
     }
 
     pub fn getStatus(self: *Indeterminate) Status {
         self.lock();
         defer self.unlock();
-        return self.status_state;
+        return self.statusState;
     }
 
     pub fn setDrawOnUpdate(self: *Indeterminate, draw: bool) void {
-        self.draw_on_update = draw;
+        self.drawOnUpdate = draw;
     }
 
     pub fn redrawLine(self: *Indeterminate) void {
@@ -239,10 +240,10 @@ pub const Indeterminate = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .finished;
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .finished;
         self.updateElapsed();
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
     }
 
     fn lock(self: *Indeterminate) void {
@@ -254,20 +255,20 @@ pub const Indeterminate = struct {
     }
 
     fn maybeRedraw(self: *Indeterminate) void {
-        if (self.draw_on_update and self.status_state == .running) {
+        if (self.drawOnUpdate and self.statusState == .running) {
             self.locklessRedraw();
         }
     }
 
     fn renderLoop(self: *Indeterminate) void {
-        while (!self.stop_thread.load(.acquire)) {
-            terminal.sleepMs(self.io, self.config.interval_ms);
+        while (!self.stopThread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.intervalMs);
             self.tickFrame();
         }
     }
 
     fn stopRenderThread(self: *Indeterminate) void {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             t.join();
@@ -276,8 +277,8 @@ pub const Indeterminate = struct {
 
     fn updateElapsed(self: *Indeterminate) void {
         const now = std.Io.Timestamp.now(self.io, .awake);
-        const diff = now.nanoseconds - self.start_time.nanoseconds;
-        self.elapsed_ns = @intCast(@max(diff, 0));
+        const diff = now.nanoseconds - self.startTime.nanoseconds;
+        self.elapsedNs = @intCast(@max(diff, 0));
     }
 
     fn locklessRedraw(self: *Indeterminate) void {
@@ -285,37 +286,36 @@ pub const Indeterminate = struct {
 
         const width = self.config.width;
 
-        var bar_buf: [2048]u8 = undefined;
-        var bar_acc = template_mod.Accum.init(&bar_buf);
+        var barBuf: [2048]u8 = undefined;
+        var barAcc = templateMod.Accum.init(&barBuf);
         const style = self.config.style;
-        bar_acc.write(style.left_bracket) catch return;
+        barAcc.write(style.leftBracket) catch return;
         var j: u32 = 0;
         while (j < width) : (j += 1) {
             if (j == self.position) {
-                bar_acc.write(style.head) catch return;
+                barAcc.write(style.head) catch return;
             } else {
-                bar_acc.write(style.filled) catch return;
+                barAcc.write(style.filled) catch return;
             }
         }
-        bar_acc.write(style.right_bracket) catch return;
+        barAcc.write(style.rightBracket) catch return;
 
         var buf: [4096]u8 = undefined;
         var scratch: [64]u8 = undefined;
-        const values = template_mod.Values{
+        const values = templateMod.Values{
             .prefix = self.config.prefix,
             .suffix = self.config.suffix,
             .text = self.config.text,
-            .bar = bar_acc.get(),
-            .elapsed_ns = self.elapsed_ns,
+            .bar = barAcc.get(),
+            .elapsedNs = self.elapsedNs,
             .color = self.config.color,
         };
-        const rendered = template_mod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
+        const rendered = templateMod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
         // Clear line and write content
         writer.writeAll("\r\x1b[K") catch {};
-        if (self.config.color) |c| writer.writeAll(c) catch {};
-        if (!self.config.text_style.isEmpty()) {
-            var style_buf: [32]u8 = undefined;
-            writer.writeAll(self.config.text_style.toAnsi(&style_buf)) catch {};
+        if (self.config.color) |seq| writer.writeAll(seq.slice()) catch {};
+        if (!self.config.textStyle.isEmpty()) {
+            writer.writeAll(self.config.textStyle.toAnsi().slice()) catch {};
         }
         writer.writeAll(rendered) catch {};
         if (self.config.color != null) writer.writeAll("\x1b[0m") catch {};

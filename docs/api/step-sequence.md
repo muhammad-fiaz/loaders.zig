@@ -15,7 +15,7 @@ const seq = try loaders.StepSequence.init(allocator, io, config);
 
 ```zig
 pub const StepSequenceConfig = struct {
-    interval_ms: u32 = 60,
+    intervalMs: u32 = 60,
 };
 ```
 
@@ -43,7 +43,7 @@ pub const StepConfig = struct {
 | `deinit()` | Stop the render thread (if any). |
 | `addStep(StepConfig) !usize` | Add a step; returns its index. |
 | `startStep(index) !void` | Start a step. |
-| `completeStep(index, FinishConfig)` | Mark a step completed (with `final_text`/`newline`). |
+| `completeStep(index, FinishConfig)` | Mark a step completed (with `finalText`/`newline`). |
 | `failStep(index, ?message)` | Mark a step failed, optionally with a message. |
 | `skipStep(index)` | Mark a step skipped. |
 | `runAll(context, runner)` | Run every step; `runner: *const fn (?*anyopaque, []const u8) void` receives the step name. |

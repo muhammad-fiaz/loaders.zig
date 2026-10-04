@@ -24,7 +24,7 @@ _ = try seq.addStep(.{ .name = "Install", .kind = .{ .spinner = .{
 
 try seq.startStep(0);
 // ... do work ...
-seq.completeStep(0, .{ .final_text = "Installed", .newline = true });
+seq.completeStep(0, .{ .finalText = "Installed", .newline = true });
 ```
 
 ## step_runall

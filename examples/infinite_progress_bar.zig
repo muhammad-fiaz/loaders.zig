@@ -7,15 +7,15 @@ pub fn main() !void {
     loaders.hideCursor(io);
     const allocator = std.heap.page_allocator;
 
-    // An "infinite" bar: thread_mode .auto redraws elapsed time with no
+    // An "infinite" bar: threadMode .auto redraws elapsed time with no
     // defined end. The example stops it after 5 seconds.
     var bar = try loaders.ProgressBar.init(allocator, io, .{
         .total = std.math.maxInt(u64),
         .style = .{ .filled = "█", .empty = "░", .head = "▶" },
         .template = "{prefix} {bar} {percent}%",
         .prefix = "Infinite",
-        .thread_mode = .auto,
-        .interval_ms = 16,
+        .threadMode = .auto,
+        .intervalMs = 16,
     });
     defer bar.deinit();
 

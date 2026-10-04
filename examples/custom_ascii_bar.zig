@@ -14,8 +14,8 @@ pub fn main() !void {
             .filled = "=",
             .empty = " ",
             .head = ">",
-            .left_bracket = "",
-            .right_bracket = "",
+            .leftBracket = "",
+            .rightBracket = "",
         },
         .template = "{bar} {percent}%",
     });

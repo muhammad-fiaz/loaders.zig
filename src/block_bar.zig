@@ -1,83 +1,84 @@
 const std = @import("std");
-const progress_bar = @import("progress_bar.zig");
-const template_mod = @import("template.zig");
-const style_mod = @import("style.zig");
+const tint = @import("tint");
+const progressBar = @import("progress_bar.zig");
+const templateMod = @import("template.zig");
+const styleMod = @import("style.zig");
 
-pub const FontStyle = style_mod.FontStyle;
-pub const Formatters = template_mod.FormatterSet;
-pub const ThreadMode = progress_bar.ThreadMode;
-pub const Status = progress_bar.Status;
-pub const Direction = progress_bar.Direction;
-pub const FinishConfig = progress_bar.FinishConfig;
-pub const Callback = progress_bar.Callback;
-pub const InitError = template_mod.InitError;
+pub const FontStyle = styleMod.FontStyle;
+pub const Formatters = templateMod.FormatterSet;
+pub const ThreadMode = progressBar.ThreadMode;
+pub const Status = progressBar.Status;
+pub const Direction = progressBar.Direction;
+pub const FinishConfig = progressBar.FinishConfig;
+pub const Callback = progressBar.Callback;
+pub const InitError = templateMod.InitError;
 
-const block_partials = [_][]const u8{ "▏", "▎", "▍", "▌", "▋", "▊", "▉" };
+const blockPartials = [_][]const u8{ "▏", "▎", "▍", "▌", "▋", "▊", "▉" };
 
 pub const BlockBarStyle = struct {
     filled: []const u8 = "█",
     empty: []const u8 = " ",
-    left_bracket: []const u8 = "",
-    right_bracket: []const u8 = "",
+    leftBracket: []const u8 = "",
+    rightBracket: []const u8 = "",
 };
 
 pub const BlockBarConfig = struct {
     total: u64,
     current: u64 = 0,
-    min_progress: u64 = 0,
+    minProgress: u64 = 0,
     width: u32 = 40,
     style: BlockBarStyle = .{},
     template: []const u8 = "{bar} {percent}%",
     prefix: ?[]const u8 = null,
     suffix: ?[]const u8 = null,
     text: ?[]const u8 = null,
-    color: ?[]const u8 = null,
-    text_style: FontStyle = .{},
+    color: ?tint.ansi.Sequence = null,
+    textStyle: FontStyle = .{},
     formatters: Formatters = .{},
-    thread_mode: ThreadMode = .none,
-    interval_ms: u32 = 16,
+    threadMode: ThreadMode = .none,
+    intervalMs: u32 = 16,
     direction: Direction = .incremental,
-    on_tick: ?Callback = null,
-    on_finish: ?Callback = null,
-    on_pause: ?Callback = null,
-    on_resume: ?Callback = null,
+    onTick: ?Callback = null,
+    onFinish: ?Callback = null,
+    onPause: ?Callback = null,
+    onUnpause: ?Callback = null,
     ctx: ?*anyopaque = null,
 };
 
-pub const BlockState = progress_bar.ProgressState;
+pub const BlockState = progressBar.ProgressState;
 
 pub const BlockProgressBar = struct {
-    bar: progress_bar.ProgressBar,
+    bar: progressBar.ProgressBar,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: BlockBarConfig) InitError!BlockProgressBar {
         return .{
-            .bar = try progress_bar.ProgressBar.init(allocator, io, .{
+            .bar = try progressBar.ProgressBar.init(allocator, io, .{
                 .total = config.total,
                 .current = config.current,
-                .min_progress = config.min_progress,
+                .minProgress = config.minProgress,
                 .width = config.width,
                 .style = .{
                     .filled = config.style.filled,
                     .empty = config.style.empty,
                     .head = "",
-                    .left_bracket = config.style.left_bracket,
-                    .right_bracket = config.style.right_bracket,
-                    .partial_fill = &block_partials,
+                    .leftBracket = config.style.leftBracket,
+                    .rightBracket = config.style.rightBracket,
+                    .partialFill = &blockPartials,
                 },
                 .template = config.template,
                 .prefix = config.prefix,
                 .suffix = config.suffix,
                 .text = config.text,
                 .color = config.color,
-                .text_style = config.text_style,
+                .textStyle = config.textStyle,
                 .formatters = config.formatters,
-                .thread_mode = config.thread_mode,
-                .interval_ms = config.interval_ms,
+                .threadMode = config.threadMode,
+                .intervalMs = config.intervalMs,
                 .direction = config.direction,
-                .on_tick = config.on_tick,
-                .on_finish = config.on_finish,
-                .on_pause = config.on_pause,
-                .on_resume = config.on_resume,
+                .onTick = config.onTick,
+                .onFinish = config.onFinish,
+                .onPause = config.onPause,
+                .onUnpause = config.onUnpause,
                 .ctx = config.ctx,
             }),
         };
@@ -103,8 +104,8 @@ pub const BlockProgressBar = struct {
         self.bar.pause();
     }
 
-    pub fn continue_(self: *BlockProgressBar) void {
-        self.bar.continue_();
+    pub fn unpause(self: *BlockProgressBar) void {
+        self.bar.unpause();
     }
 
     pub fn forceRedraw(self: *BlockProgressBar) void {
@@ -131,7 +132,7 @@ pub const BlockProgressBar = struct {
         self.bar.setSuffix(suffix);
     }
 
-    pub fn setColor(self: *BlockProgressBar, color: ?[]const u8) void {
+    pub fn setColor(self: *BlockProgressBar, color: ?tint.ansi.Sequence) void {
         self.bar.setColor(color);
     }
 

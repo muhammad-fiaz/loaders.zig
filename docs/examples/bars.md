@@ -34,7 +34,7 @@ zig build run-custom_bracket_bar
 ```
 
 ```zig
-.style = .{ .left_bracket = "<", .right_bracket = ">", .head = "*" },
+.style = .{ .leftBracket = "<", .rightBracket = ">", .head = "*" },
 ```
 
 ## block_bar
@@ -63,7 +63,7 @@ zig build run-indeterminate_timeout
 
 ## manual_tick
 
-Manual rendering — `thread_mode = .none` with explicit `tick()` calls:
+Manual rendering — `threadMode = .none` with explicit `tick()` calls:
 
 ```bash
 zig build run-manual_tick
@@ -71,7 +71,7 @@ zig build run-manual_tick
 
 ## auto_thread
 
-Background-thread rendering — `thread_mode = .auto`:
+Background-thread rendering — `threadMode = .auto`:
 
 ```bash
 zig build run-auto_thread
@@ -79,7 +79,7 @@ zig build run-auto_thread
 
 ## external_thread
 
-Updates from an external thread — `thread_mode = .external`:
+Updates from an external thread — `threadMode = .external`:
 
 ```bash
 zig build run-external_thread

@@ -56,12 +56,12 @@ zig build run-infinite_spinner
 ```zig
 var sp = try loaders.Spinner.init(allocator, io, .{
     .frames = &.{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-    .thread_mode = .auto,
+    .threadMode = .auto,
 });
 defer sp.deinit();
 try sp.start();
 // ... long-running work ...
-sp.stop(.{ .final_text = "Complete", .newline = true });
+sp.stop(.{ .finalText = "Complete", .newline = true });
 ```
 
 ## spinner_braille

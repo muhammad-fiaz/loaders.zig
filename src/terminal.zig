@@ -14,8 +14,8 @@ pub fn ensureInitialized(io: std.Io) void {
     if (builtin.os.tag == .windows) {
         const file = std.Io.File.stdout();
         file.enableAnsiEscapeCodes(io) catch {};
-        var set_cp = windows.CONSOLE.USER_IO.SET_CP(.Output, 65001);
-        _ = set_cp.operate(io, file) catch {};
+        var setCp = windows.CONSOLE.USER_IO.SET_CP(.Output, 65001);
+        _ = setCp.operate(io, file) catch {};
     }
 }
 
@@ -37,14 +37,14 @@ pub fn getSize(io: std.Io) TerminalSize {
 
 fn getSizeWindows(io: std.Io) TerminalSize {
     const file = std.Io.File.stdout();
-    var get_console_info = windows.CONSOLE.USER_IO.GET_SCREEN_BUFFER_INFO;
-    switch (get_console_info.operate(io, file) catch {
+    var getConsoleInfo = windows.CONSOLE.USER_IO.GET_SCREEN_BUFFER_INFO;
+    switch (getConsoleInfo.operate(io, file) catch {
         return .{ .rows = 24, .cols = 80 };
     }) {
         .SUCCESS => {
             return .{
-                .rows = @intCast(get_console_info.Data.dwWindowSize.Y),
-                .cols = @intCast(get_console_info.Data.dwWindowSize.X),
+                .rows = @intCast(getConsoleInfo.Data.dwWindowSize.Y),
+                .cols = @intCast(getConsoleInfo.Data.dwWindowSize.X),
             };
         },
         else => return .{ .rows = 24, .cols = 80 },
@@ -82,8 +82,8 @@ pub fn moveUp(io: std.Io, lines: u16) void {
             .X = csbi.Data.dwCursorPosition.X,
             .Y = csbi.Data.dwCursorPosition.Y - @as(i16, @intCast(lines)),
         };
-        var set_pos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
-        _ = set_pos.operate(io, file) catch return;
+        var setPos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
+        _ = setPos.operate(io, file) catch return;
     } else {
         for (0..lines) |_| {
             writeAnsi(io, "\x1bM");
@@ -104,8 +104,8 @@ pub fn moveDown(io: std.Io, lines: u16) void {
             .X = csbi.Data.dwCursorPosition.X,
             .Y = csbi.Data.dwCursorPosition.Y + @as(i16, @intCast(lines)),
         };
-        var set_pos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
-        _ = set_pos.operate(io, file) catch return;
+        var setPos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
+        _ = setPos.operate(io, file) catch return;
     } else {
         var buf: [16]u8 = undefined;
         const n: u16 = @intCast(lines);
@@ -127,8 +127,8 @@ pub fn moveRight(io: std.Io, cols: u16) void {
             .X = csbi.Data.dwCursorPosition.X + @as(i16, @intCast(cols)),
             .Y = csbi.Data.dwCursorPosition.Y,
         };
-        var set_pos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
-        _ = set_pos.operate(io, file) catch return;
+        var setPos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
+        _ = setPos.operate(io, file) catch return;
     } else {
         var buf: [16]u8 = undefined;
         const n: u16 = @intCast(cols);
@@ -150,8 +150,8 @@ pub fn moveLeft(io: std.Io, cols: u16) void {
             .X = csbi.Data.dwCursorPosition.X - @as(i16, @intCast(cols)),
             .Y = csbi.Data.dwCursorPosition.Y,
         };
-        var set_pos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
-        _ = set_pos.operate(io, file) catch return;
+        var setPos = windows.CONSOLE.USER_IO.SET_CURSOR_POSITION(pos);
+        _ = setPos.operate(io, file) catch return;
     } else {
         var buf: [16]u8 = undefined;
         const n: u16 = @intCast(cols);
@@ -164,18 +164,18 @@ pub fn eraseLine(io: std.Io) void {
     writeAnsi(io, "\r\x1b[K");
 }
 
-var g_stdout_writer: ?std.Io.File.Writer = null;
-var g_stdout_initialized = std.atomic.Value(bool).init(false);
+var gStdoutWriter: ?std.Io.File.Writer = null;
+var gStdoutInitialized = std.atomic.Value(bool).init(false);
 
 /// Returns a writer attached to standard output using streaming mode
 /// (required for terminals which are unseekable).
 pub fn stdoutWriter(io: std.Io) *std.Io.Writer {
     ensureInitialized(io);
-    if (!g_stdout_initialized.load(.acquire)) {
-        g_stdout_writer = std.Io.File.stdout().writerStreaming(io, &.{});
-        g_stdout_initialized.store(true, .release);
+    if (!gStdoutInitialized.load(.acquire)) {
+        gStdoutWriter = std.Io.File.stdout().writerStreaming(io, &.{});
+        gStdoutInitialized.store(true, .release);
     }
-    const fw: *std.Io.File.Writer = &g_stdout_writer.?;
+    const fw: *std.Io.File.Writer = &gStdoutWriter.?;
     fw.io = io;
     return &fw.interface;
 }

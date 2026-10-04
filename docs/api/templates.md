@@ -21,14 +21,14 @@ Every widget renders through the template engine. Templates are validated at `in
 | `{prefix}` | Optional prefix text |
 | `{suffix}` | Optional suffix text |
 | `{text}` | Optional display text |
-| `{color}` | Raw ANSI color escape sequence |
+| `{color}` | tint.zig `Sequence` color escape sequence |
 | `{reset}` | ANSI reset sequence (`\x1b[0m`) |
 
 ## FormatterSet
 
 ```zig
 pub const ElapsedFormatter = *const fn (ns: u64, buf: []u8) []const u8;
-pub const SpeedFormatter = *const fn (per_sec: f64, buf: []u8) []const u8;
+pub const SpeedFormatter = *const fn (perSec: f64, buf: []u8) []const u8;
 
 pub const FormatterSet = struct {
     elapsed: ?ElapsedFormatter = null,
@@ -48,8 +48,8 @@ fn formatEta(ns: u64, buf: []u8) []const u8 {
     return loaders.formatNs(buf, ns);
 }
 
-fn formatSpeed(per_sec: f64, buf: []u8) []const u8 {
-    return loaders.formatRate(buf, per_sec); // "123.4/s"
+fn formatSpeed(perSec: f64, buf: []u8) []const u8 {
+    return loaders.formatRate(buf, perSec); // "123.4/s"
 }
 ```
 
@@ -82,10 +82,10 @@ pub const TemplateValues = struct {
     percent: ?f64 = null,
     count: ?u64 = null,
     total: ?u64 = null,
-    elapsed_ns: ?u64 = null,
-    eta_ns: ?u64 = null,
+    elapsedNs: ?u64 = null,
+    etaNs: ?u64 = null,
     speed: ?f64 = null,
-    color: ?[]const u8 = null,
+    color: ?Sequence = null,
 };
 ```
 

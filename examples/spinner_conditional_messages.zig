@@ -33,6 +33,6 @@ pub fn main() !void {
         loaders.sleepMs(io, 35);
         sp.tickFrame();
     }
-    sp.stop(.{ .final_text = "Conditional done!", .newline = true });
+    sp.stop(.{ .finalText = "Conditional done!", .newline = true });
     loaders.showCursor(io);
 }

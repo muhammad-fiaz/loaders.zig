@@ -1,16 +1,17 @@
 const std = @import("std");
-const template_mod = @import("template.zig");
-const style_mod = @import("style.zig");
+const tint = @import("tint");
+const templateMod = @import("template.zig");
+const styleMod = @import("style.zig");
 const terminal = @import("terminal.zig");
-const progress_bar = @import("progress_bar.zig");
+const progressBar = @import("progress_bar.zig");
 
-pub const FontStyle = style_mod.FontStyle;
-pub const Formatters = template_mod.FormatterSet;
-pub const ThreadMode = progress_bar.ThreadMode;
-pub const Status = progress_bar.Status;
-pub const FinishConfig = progress_bar.FinishConfig;
-pub const Callback = progress_bar.Callback;
-pub const InitError = template_mod.InitError;
+pub const FontStyle = styleMod.FontStyle;
+pub const Formatters = templateMod.FormatterSet;
+pub const ThreadMode = progressBar.ThreadMode;
+pub const Status = progressBar.Status;
+pub const FinishConfig = progressBar.FinishConfig;
+pub const Callback = progressBar.Callback;
+pub const InitError = templateMod.InitError;
 
 pub const SpinnerConfig = struct {
     frames: []const []const u8,
@@ -18,21 +19,21 @@ pub const SpinnerConfig = struct {
     prefix: ?[]const u8 = null,
     suffix: ?[]const u8 = null,
     text: ?[]const u8 = null,
-    color: ?[]const u8 = null,
-    text_style: FontStyle = .{},
+    color: ?tint.ansi.Sequence = null,
+    textStyle: FontStyle = .{},
     formatters: Formatters = .{},
-    interval_ms: u32 = 80,
-    thread_mode: ThreadMode = .none,
-    show_spinner: bool = true,
-    on_tick: ?Callback = null,
-    on_finish: ?Callback = null,
+    intervalMs: u32 = 80,
+    threadMode: ThreadMode = .none,
+    showSpinner: bool = true,
+    onTick: ?Callback = null,
+    onFinish: ?Callback = null,
     ctx: ?*anyopaque = null,
 };
 
 pub const SpinnerState = struct {
-    frame_index: u64,
+    frameIndex: u64,
     frame: []const u8,
-    elapsed_ns: u64,
+    elapsedNs: u64,
     status: Status,
 };
 
@@ -41,28 +42,28 @@ pub const Spinner = struct {
     io: std.Io,
     config: SpinnerConfig,
     index: u64,
-    status_state: Status,
-    start_time: std.Io.Timestamp,
-    elapsed_ns: u64,
+    statusState: Status,
+    startTime: std.Io.Timestamp,
+    elapsedNs: u64,
     mutex: std.Io.Mutex,
     thread: ?std.Thread,
-    stop_thread: std.atomic.Value(bool),
-    draw_on_update: bool,
+    stopThread: std.atomic.Value(bool),
+    drawOnUpdate: bool,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io, config: SpinnerConfig) InitError!Spinner {
-        try template_mod.validate(config.template, config.formatters);
+        try templateMod.validate(config.template, config.formatters);
         return .{
             .allocator = allocator,
             .io = io,
             .config = config,
             .index = 0,
-            .status_state = .pending,
-            .start_time = .zero,
-            .elapsed_ns = 0,
+            .statusState = .pending,
+            .startTime = .zero,
+            .elapsedNs = 0,
             .mutex = .init,
             .thread = null,
-            .stop_thread = std.atomic.Value(bool).init(false),
-            .draw_on_update = true,
+            .stopThread = std.atomic.Value(bool).init(false),
+            .drawOnUpdate = true,
         };
     }
 
@@ -73,12 +74,12 @@ pub const Spinner = struct {
     pub fn start(self: *Spinner) !void {
         self.lock();
         defer self.unlock();
-        if (self.status_state != .pending) return;
-        self.status_state = .running;
-        self.start_time = std.Io.Timestamp.now(self.io, .awake);
+        if (self.statusState != .pending) return;
+        self.statusState = .running;
+        self.startTime = std.Io.Timestamp.now(self.io, .awake);
         self.maybeRedraw();
-        if (self.config.thread_mode == .auto) {
-            self.stop_thread.store(false, .release);
+        if (self.config.threadMode == .auto) {
+            self.stopThread.store(false, .release);
             self.thread = std.Thread.spawn(.{}, renderLoop, .{self}) catch null;
         }
     }
@@ -86,17 +87,17 @@ pub const Spinner = struct {
     pub fn tickFrame(self: *Spinner) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state != .running) return;
+        if (self.statusState != .running) return;
         self.index += 1;
         self.updateElapsed();
         self.maybeRedraw();
-        if (self.config.on_tick) |cb| cb(self.config.ctx);
+        if (self.config.onTick) |cb| cb(self.config.ctx);
     }
 
     pub fn setProgress(self: *Spinner, value: u64) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state != .running) return;
+        if (self.statusState != .running) return;
         self.index = value;
         self.updateElapsed();
         self.maybeRedraw();
@@ -111,25 +112,25 @@ pub const Spinner = struct {
     pub fn forceRedraw(self: *Spinner) void {
         self.lock();
         defer self.unlock();
-        if (self.draw_on_update) self.locklessRedraw();
+        if (self.drawOnUpdate) self.locklessRedraw();
     }
 
     pub fn pause(self: *Spinner) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .running) {
+        if (self.statusState == .running) {
             self.updateElapsed();
-            self.status_state = .paused;
+            self.statusState = .paused;
         }
     }
 
-    pub fn continue_(self: *Spinner) void {
+    pub fn unpause(self: *Spinner) void {
         self.lock();
         defer self.unlock();
-        if (self.status_state == .paused) {
-            self.status_state = .running;
-            self.start_time = std.Io.Timestamp.now(self.io, .awake)
-                .subDuration(.{ .nanoseconds = @intCast(self.elapsed_ns) });
+        if (self.statusState == .paused) {
+            self.statusState = .running;
+            self.startTime = std.Io.Timestamp.now(self.io, .awake)
+                .subDuration(.{ .nanoseconds = @intCast(self.elapsedNs) });
             self.maybeRedraw();
         }
     }
@@ -138,21 +139,21 @@ pub const Spinner = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .finished;
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .finished;
         self.updateElapsed();
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
-        if (self.draw_on_update) {
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
+        if (self.drawOnUpdate) {
             if (config.clear) {
                 terminal.eraseLine(self.io);
-            } else if (config.final_text) |ft| {
+            } else if (config.finalText) |ft| {
                 terminal.eraseLine(self.io);
-                var writer = terminal.stdoutWriter(self.io);
+                const writer = terminal.stdoutWriter(self.io);
                 writer.writeAll(ft) catch {};
                 if (config.newline) writer.writeAll("\n") catch {};
             } else {
                 if (config.newline) {
-                    var writer = terminal.stdoutWriter(self.io);
+                    const writer = terminal.stdoutWriter(self.io);
                     writer.writeAll("\n") catch {};
                 }
             }
@@ -163,12 +164,12 @@ pub const Spinner = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .failed;
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
-        if (self.draw_on_update) {
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .failed;
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
+        if (self.drawOnUpdate) {
             terminal.eraseLine(self.io);
-            var writer = terminal.stdoutWriter(self.io);
+            const writer = terminal.stdoutWriter(self.io);
             writer.writeAll("\x1b[31m") catch {};
             writer.writeAll("FAILED: ") catch {};
             writer.writeAll(message) catch {};
@@ -184,7 +185,7 @@ pub const Spinner = struct {
         self.config.text = text;
     }
 
-    pub fn setColor(self: *Spinner, color: ?[]const u8) void {
+    pub fn setColor(self: *Spinner, color: ?tint.ansi.Sequence) void {
         self.lock();
         defer self.unlock();
         self.config.color = color;
@@ -197,7 +198,7 @@ pub const Spinner = struct {
     }
 
     pub fn setTemplate(self: *Spinner, template: []const u8) !void {
-        try template_mod.validate(template, self.config.formatters);
+        try templateMod.validate(template, self.config.formatters);
         self.lock();
         defer self.unlock();
         self.config.template = template;
@@ -208,21 +209,21 @@ pub const Spinner = struct {
         defer self.unlock();
         const frame = self.config.frames[self.index % self.config.frames.len];
         return .{
-            .frame_index = self.index,
+            .frameIndex = self.index,
             .frame = frame,
-            .elapsed_ns = self.elapsed_ns,
-            .status = self.status_state,
+            .elapsedNs = self.elapsedNs,
+            .status = self.statusState,
         };
     }
 
     pub fn getStatus(self: *Spinner) Status {
         self.lock();
         defer self.unlock();
-        return self.status_state;
+        return self.statusState;
     }
 
     pub fn setDrawOnUpdate(self: *Spinner, draw: bool) void {
-        self.draw_on_update = draw;
+        self.drawOnUpdate = draw;
     }
 
     pub fn redrawLine(self: *Spinner) void {
@@ -234,10 +235,10 @@ pub const Spinner = struct {
         self.stopRenderThread();
         self.lock();
         defer self.unlock();
-        if (self.status_state == .finished or self.status_state == .failed) return;
-        self.status_state = .finished;
+        if (self.statusState == .finished or self.statusState == .failed) return;
+        self.statusState = .finished;
         self.updateElapsed();
-        if (self.config.on_finish) |cb| cb(self.config.ctx);
+        if (self.config.onFinish) |cb| cb(self.config.ctx);
     }
 
     fn lock(self: *Spinner) void {
@@ -249,20 +250,20 @@ pub const Spinner = struct {
     }
 
     fn maybeRedraw(self: *Spinner) void {
-        if (self.draw_on_update and self.status_state == .running) {
+        if (self.drawOnUpdate and self.statusState == .running) {
             self.locklessRedraw();
         }
     }
 
     fn renderLoop(self: *Spinner) void {
-        while (!self.stop_thread.load(.acquire)) {
-            terminal.sleepMs(self.io, self.config.interval_ms);
+        while (!self.stopThread.load(.acquire)) {
+            terminal.sleepMs(self.io, self.config.intervalMs);
             self.tickFrame();
         }
     }
 
     fn stopRenderThread(self: *Spinner) void {
-        self.stop_thread.store(true, .release);
+        self.stopThread.store(true, .release);
         if (self.thread) |t| {
             self.thread = null;
             t.join();
@@ -271,32 +272,31 @@ pub const Spinner = struct {
 
     fn updateElapsed(self: *Spinner) void {
         const now = std.Io.Timestamp.now(self.io, .awake);
-        const diff = now.nanoseconds - self.start_time.nanoseconds;
-        self.elapsed_ns = @intCast(@max(diff, 0));
+        const diff = now.nanoseconds - self.startTime.nanoseconds;
+        self.elapsedNs = @intCast(@max(diff, 0));
     }
 
     fn locklessRedraw(self: *Spinner) void {
-        var writer = terminal.stdoutWriter(self.io);
+        const writer = terminal.stdoutWriter(self.io);
 
         const frame = self.config.frames[self.index % self.config.frames.len];
 
         var buf: [4096]u8 = undefined;
         var scratch: [64]u8 = undefined;
-        const values = template_mod.Values{
+        const values = templateMod.Values{
             .prefix = self.config.prefix,
             .suffix = self.config.suffix,
             .text = self.config.text,
-            .frame = if (self.config.show_spinner) frame else "",
-            .elapsed_ns = self.elapsed_ns,
+            .frame = if (self.config.showSpinner) frame else "",
+            .elapsedNs = self.elapsedNs,
             .color = self.config.color,
         };
-        const rendered = template_mod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
+        const rendered = templateMod.render(&buf, &scratch, self.config.template, values, self.config.formatters) catch return;
         // Clear line and write content
         writer.writeAll("\r\x1b[K") catch {};
-        if (self.config.color) |c| writer.writeAll(c) catch {};
-        if (!self.config.text_style.isEmpty()) {
-            var style_buf: [32]u8 = undefined;
-            writer.writeAll(self.config.text_style.toAnsi(&style_buf)) catch {};
+        if (self.config.color) |seq| writer.writeAll(seq.slice()) catch {};
+        if (!self.config.textStyle.isEmpty()) {
+            writer.writeAll(self.config.textStyle.toAnsi().slice()) catch {};
         }
         writer.writeAll(rendered) catch {};
         if (self.config.color != null) writer.writeAll("\x1b[0m") catch {};
