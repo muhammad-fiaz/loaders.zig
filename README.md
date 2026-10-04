@@ -29,7 +29,7 @@
 `loaders.zig` is a production-oriented Zig library for animated spinners, progress bars, and multi-progress terminal UIs. It is designed for low overhead, clean output, and cross-platform terminal behavior on Linux, Windows, and macOS.
 
 > [!TIP]
-> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, and 140+ named colors. You can also pass raw ANSI escape sequences directly.
+> loaders.zig uses [tint.zig](https://github.com/muhammad-fiaz/tint.zig) internally for color support — ANSI 4-bit, 256-color, RGB/TrueColor, HEX, HSL, HSV, CMYK, and 140+ named colors as owned `Sequence` values.
 
 ---
 
@@ -362,7 +362,7 @@ seq.completeStep(0, .{});
 | `{prefix}` | Optional prefix text |
 | `{suffix}` | Optional suffix text |
 | `{text}` | Optional display text |
-| `{color}` | Raw ANSI color escape sequence |
+| `{color}` | tint.zig `Sequence` color escape sequence |
 | `{reset}` | ANSI reset sequence (`\x1b[0m`) |
 
 > [!WARNING]

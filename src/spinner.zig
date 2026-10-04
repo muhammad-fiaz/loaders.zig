@@ -170,10 +170,10 @@ pub const Spinner = struct {
         if (self.drawOnUpdate) {
             terminal.eraseLine(self.io);
             const writer = terminal.stdoutWriter(self.io);
-            writer.writeAll("\x1b[31m") catch {};
+            writer.writeAll(tint.color.ansi4.red.fg().slice()) catch {};
             writer.writeAll("FAILED: ") catch {};
             writer.writeAll(message) catch {};
-            writer.writeAll("\x1b[0m") catch {};
+            writer.writeAll(tint.ansi.reset.all) catch {};
             writer.writeAll("\n") catch {};
             writer.flush() catch {};
         }
@@ -310,7 +310,7 @@ pub const Spinner = struct {
             writer.writeAll(self.config.textStyle.toAnsi().slice()) catch {};
         }
         writer.writeAll(rendered) catch {};
-        if (self.config.color != null) writer.writeAll("\x1b[0m") catch {};
+        if (self.config.color != null) writer.writeAll(tint.ansi.reset.all) catch {};
         writer.flush() catch {};
     }
 };

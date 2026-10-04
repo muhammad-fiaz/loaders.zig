@@ -66,7 +66,7 @@ features:
     details: Ordered multi-step pipelines, each backed by a spinner or progress bar, with success/failure/skip states.
   - icon: <span class="vp-code">🎨</span>
     title: Color
-    details: Uses tint.zig for color support — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors. Raw ANSI strings also work.
+    details: Uses tint.zig for color support — RGB, Hex, ANSI 256, HSL, HSV, CMYK, CSS named colors as owned Sequences.
 ---
 
 ## Quick Install

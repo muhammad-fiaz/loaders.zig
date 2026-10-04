@@ -73,8 +73,8 @@ zig build run-<example-name>
 
 | Example | What it shows |
 |---------|---------------|
-| `custom_colors_rgb` | Raw ANSI RGB strings. |
-| `custom_colors_hex` | HEX → RGB escape sequences. |
+| `custom_colors_rgb` | RGB colors via `loaders.makeRgb(r, g, b).fg()`. |
+| `custom_colors_hex` | HEX colors via `loaders.makeHex(0xRRGGBB).fg()`. |
 | `custom_colors_dynamic_gradient` | Gradient computed per update. |
 
 ## Advanced

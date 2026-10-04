@@ -129,7 +129,7 @@ pub fn render(
             const seq = values.color orelse return error.MissingFormatter;
             try acc.write(seq.slice());
         } else if (std.mem.eql(u8, name, "reset")) {
-            try acc.write("\x1b[0m");
+            try acc.write(tint.ansi.reset.all);
         } else {
             try acc.write(template[i .. i + 1 + end + 1]);
         }

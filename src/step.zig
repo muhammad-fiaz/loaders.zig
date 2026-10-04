@@ -1,4 +1,5 @@
 const std = @import("std");
+const tint = @import("tint");
 const progressBar = @import("progress_bar.zig");
 const spinnerMod = @import("spinner.zig");
 const terminal = @import("terminal.zig");
@@ -134,8 +135,12 @@ pub const StepSequence = struct {
             toJoin = self.beginStopRenderThread();
         }
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[32m\u{2713}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.green.fg().slice()) catch {};
+        writer.writeAll("✓") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
         if (config.finalText) |ft| {
             writer.writeAll("  ") catch {};
@@ -158,8 +163,12 @@ pub const StepSequence = struct {
             toJoin = self.beginStopRenderThread();
         }
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[31m\u{2717}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.red.fg().slice()) catch {};
+        writer.writeAll("✗") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
         if (message) |m| {
             writer.writeAll("  ") catch {};
@@ -176,8 +185,12 @@ pub const StepSequence = struct {
         if (step.status != .pending) return;
         step.status = .skipped;
         terminal.eraseLine(self.io);
-        var writer = terminal.stdoutWriter(self.io);
-        writer.writeAll("  \x1b[33m\u{25CB}\x1b[0m ") catch {};
+        const writer = terminal.stdoutWriter(self.io);
+        writer.writeAll("  ") catch {};
+        writer.writeAll(tint.color.ansi4.yellow.fg().slice()) catch {};
+        writer.writeAll("○") catch {};
+        writer.writeAll(tint.ansi.reset.all) catch {};
+        writer.writeAll(" ") catch {};
         writer.writeAll(step.name) catch {};
         writer.writeAll("\n") catch {};
         writer.flush() catch {};
@@ -215,17 +228,27 @@ pub const StepSequence = struct {
     }
 
     pub fn printSummary(self: *StepSequence) void {
-        var writer = terminal.stdoutWriter(self.io);
+        const writer = terminal.stdoutWriter(self.io);
         writer.writeAll("\n") catch {};
         for (self.steps.items) |step| {
-            const icon: []const u8 = switch (step.status) {
-                .completed => "\x1b[32m\u{2713}\x1b[0m",
-                .failed => "\x1b[31m\u{2717}\x1b[0m",
-                .skipped => "\x1b[33m\u{25CB}\x1b[0m",
-                .running => "\x1b[36m\u{25CF}\x1b[0m",
-                .pending => "\x1b[90m\u{25CB}\x1b[0m",
+            const seq = switch (step.status) {
+                .completed => tint.color.ansi4.green.fg(),
+                .failed => tint.color.ansi4.red.fg(),
+                .skipped => tint.color.ansi4.yellow.fg(),
+                .running => tint.color.ansi4.cyan.fg(),
+                .pending => tint.color.ansi4.brightBlack.fg(),
             };
-            writer.print("  {s} {s}\n", .{ icon, step.name }) catch {};
+            const glyph: []const u8 = switch (step.status) {
+                .completed => "✓",
+                .failed => "✗",
+                .skipped, .pending => "○",
+                .running => "●",
+            };
+            writer.writeAll("  ") catch {};
+            writer.writeAll(seq.slice()) catch {};
+            writer.writeAll(glyph) catch {};
+            writer.writeAll(tint.ansi.reset.all) catch {};
+            writer.print(" {s}\n", .{step.name}) catch {};
         }
     }
 
