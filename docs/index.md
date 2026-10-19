@@ -16,7 +16,7 @@ head:
       content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
   - - meta
     - property: og:image
-      content: /loaders.zig/logo.png
+      content: https://muhammad-fiaz.github.io/loaders.zig/logo.png
   - - meta
     - name: twitter:title
       content:  Terminal Progress Bars & Spinners for Zig
@@ -25,7 +25,7 @@ head:
       content: High-performance progress bars, spinners, multi-progress, batch runner, and step sequences for Zig. Uses tint.zig for color support. Fully customizable, cross-platform.
   - - meta
     - name: twitter:image
-      content: /loaders.zig/logo.png
+      content: https://muhammad-fiaz.github.io/loaders.zig/logo.png
   - - meta
     - name: twitter:card
       content: summary_large_image

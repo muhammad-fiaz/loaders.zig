@@ -32,7 +32,7 @@ export default defineConfig({
   cleanUrls: true,
 
   sitemap: {
-    hostname: SITE_URL,
+    hostname: `${SITE_URL}/`,
   },
 
   vite: {
@@ -56,7 +56,6 @@ export default defineConfig({
     ["meta", { name: "language", content: "English" }],
     ["meta", { name: "revisit-after", content: "7 days" }],
     ["meta", { name: "generator", content: "VitePress" }],
-    ["link", { rel: "canonical", href: SITE_URL }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:url", content: SITE_URL }],
     ["meta", { property: "og:title", content: SITE_NAME }],
@@ -164,7 +163,7 @@ gtag('config', '${GA_ID}');`,
   ],
 
   themeConfig: {
-    logo: "/loaders.zig/logo.png",
+    logo: "/logo.png",
     siteTitle: SITE_NAME,
 
     nav: [
