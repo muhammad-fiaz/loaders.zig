@@ -97,7 +97,7 @@ export default defineConfig({
       {
         rel: "apple-touch-icon",
         sizes: "180x180",
-        href: "/loaders.zig/logo.png",
+        href: "/loaders.zig/logo-180.png",
       },
     ],
     [
@@ -106,7 +106,7 @@ export default defineConfig({
         rel: "icon",
         type: "image/png",
         sizes: "192x192",
-        href: "/loaders.zig/logo.png",
+        href: "/loaders.zig/logo-192.png",
       },
     ],
     [
@@ -115,7 +115,7 @@ export default defineConfig({
         rel: "icon",
         type: "image/png",
         sizes: "512x512",
-        href: "/loaders.zig/logo.png",
+        href: "/loaders.zig/logo-512.png",
       },
     ],
     ["link", { rel: "manifest", href: "/loaders.zig/site.webmanifest" }],
